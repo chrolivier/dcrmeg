@@ -1454,7 +1454,16 @@ XrmServiceToolkit.Soap = function () {
             "i": "http://www.w3.org/2001/XMLSchema-instance",
             "b": "http://schemas.datacontract.org/2004/07/System.Collections.Generic",
             "c": "http://schemas.microsoft.com/xrm/2011/Metadata",
-            "ser": "http://schemas.microsoft.com/xrm/2011/Contracts/Services"
+            "ser": "http://schemas.microsoft.com/xrm/2011/Contracts/Services",
+
+            //"d": "http://schemas.microsoft.com/xrm/2011/Contracts/Services",
+            //"e": "http://schemas.microsoft.com/2003/10/Serialization/",
+            //"f": "http://schemas.microsoft.com/2003/10/Serialization/Arrays",
+            //"g": "http://schemas.microsoft.com/crm/2011/Contracts",
+            //"h": "http://schemas.microsoft.com/xrm/2011/Metadata",
+            //"j": "http://schemas.microsoft.com/xrm/2011/Metadata/Query",
+            //"k": "http://schemas.microsoft.com/xrm/2013/Metadata",
+            "l": "http://schemas.microsoft.com/xrm/2012/Contracts"
         };
         return ns[prefix] || null;
     };
@@ -1971,7 +1980,7 @@ XrmServiceToolkit.Soap = function () {
             req.onreadystatechange = function () {
                 if (req.readyState === 4 /* complete */) {
                     req.onreadystatechange = null; //Addresses potential memory leak issue with IE
-                    if (req.status === 200) { // "OK"          
+                    if (req.status === 200) { // "OK"
                         var doc = req.responseXML;
                         try { setSelectionNamespaces(doc); } catch (e) { }
                         internalCallback(doc, null);
@@ -2003,7 +2012,7 @@ XrmServiceToolkit.Soap = function () {
     };
     // ReSharper restore NotAllPathsReturnValue
 
-    var sCreate = function (be, callback) {
+    var sCreate = function (be, callback, errorCallback, passthroughObj, passthroughObj1) {
         ///<summary>
         /// Sends synchronous/asynchronous request to create a new record.
         ///</summary>
@@ -2030,7 +2039,15 @@ XrmServiceToolkit.Soap = function () {
             "<a:RequestName>Create</a:RequestName>",
             "</request>"].join("");
 
-        return doRequest(mBody, "Execute", async, function (resultXml) {
+        return doRequest(mBody, "Execute", async, function (resultXml, errorMessage) {
+            if ((resultXml == null) && (errorMessage != null) && (async)) {
+                if (errorCallback) {
+                    errorCallback(errorMessage);
+                } else {
+                    throw new Error(errorMessage);
+                }
+                return null;
+            }
             var responseText = selectSingleNodeText(resultXml, "//b:value");
 
             var result = crmXmlDecode(responseText);
@@ -2038,13 +2055,13 @@ XrmServiceToolkit.Soap = function () {
             if (!async)
                 return result;
             else
-                callback(result);
+                callback(result, passthroughObj, passthroughObj1);
             // ReSharper disable NotAllPathsReturnValue
         });
         // ReSharper restore NotAllPathsReturnValue
     };
 
-    var sUpdate = function (be, callback) {
+    var sUpdate = function (be, callback, errorCallback, passthroughObj, passthroughObj1) {
         ///<summary>
         /// Sends synchronous/asynchronous request to update an existing record.
         ///</summary>
@@ -2071,20 +2088,28 @@ XrmServiceToolkit.Soap = function () {
                 "<a:RequestName>Update</a:RequestName>",
             "</request>"].join("");
 
-        return doRequest(mBody, "Execute", async, function (resultXml) {
+        return doRequest(mBody, "Execute", async, function (resultXml, errorMessage) {
+            if ((resultXml == null) && (errorMessage != null) && (async)) {
+                if (errorCallback) {
+                    errorCallback(errorMessage);
+                } else {
+                    throw new Error(errorMessage);
+                }
+                return null;
+            }
             var responseText = selectSingleNodeText(resultXml, "//a:Results");
             var result = crmXmlDecode(responseText);
 
             if (!async)
                 return result;
             else
-                callback(result);
+                callback(result, passthroughObj, passthroughObj1);
             // ReSharper disable NotAllPathsReturnValue
         });
         // ReSharper restore NotAllPathsReturnValue
     };
 
-    var sDelete = function (entityName, id, callback) {
+    var sDelete = function (entityName, id, callback, errorCallback, passthroughObj, passthroughObj1) {
         ///<summary>
         /// Sends synchronous/asynchronous request to delete a record.
         ///</summary>
@@ -2109,20 +2134,141 @@ XrmServiceToolkit.Soap = function () {
 
         var async = !!callback;
 
-        return doRequest(request, "Execute", async, function (resultXml) {
+        return doRequest(request, "Execute", async, function (resultXml, errorMessage) {
+            if ((resultXml == null) && (errorMessage != null) && (async)) {
+                if (errorCallback) {
+                    errorCallback(errorMessage);
+                } else {
+                    throw new Error(errorMessage);
+                }
+                return null;
+            }
+
             var responseText = selectSingleNodeText(resultXml, "//a:Results");
             var result = crmXmlDecode(responseText);
 
             if (!async)
                 return result;
             else
-                callback(result);
+                callback(result, passthroughObj, passthroughObj1);
             // ReSharper disable NotAllPathsReturnValue
         });
         // ReSharper restore NotAllPathsReturnValue
     };
 
-    var execute = function (request, callback) {
+    // Payload is passed to Execute method
+    var sCreateBatchCreatePayload = function (requests, ContinueOnError, ReturnResponses) {
+        var _settings = ["<l:ContinueOnError>" + ContinueOnError.toString() + "</l:ContinueOnError>",
+         "<l:ReturnResponses>" + ReturnResponses.toString() + "</l:ReturnResponses>"].join("");
+
+        var payload = [];
+        for (var i = 0; i < requests.length; i++) {
+            var request = requests[i].serialize();
+            payload.push(
+               ["<l:OrganizationRequest>",
+                "<a:Parameters>",
+                "<a:KeyValuePairOfstringanyType>",
+                    "<b:key>Target</b:key>",
+                    request,
+                    "</a:KeyValuePairOfstringanyType>",
+                    "</a:Parameters>",
+                    "<a:RequestId i:nil='true' />",
+                    "<a:RequestName>Create</a:RequestName>",
+                "</l:OrganizationRequest>"].join(""));
+        }
+        return ["<request i:type='a:ExecuteMultipleRequest' xmlns:a=\"http://schemas.microsoft.com/xrm/2011/Contracts\"  xmlns:l=\"http://schemas.microsoft.com/xrm/2012/Contracts\">",
+                "<a:Parameters xmlns:b=\"http://schemas.datacontract.org/2004/07/System.Collections.Generic\">",
+
+                  "<a:KeyValuePairOfstringanyType>",
+                    "<b:key>Requests</b:key>",
+                   ["<b:value i:type=\"l:OrganizationRequestCollection\">", payload.join(""), "</b:value>"].join(""),
+                  "</a:KeyValuePairOfstringanyType>",
+
+                  "<a:KeyValuePairOfstringanyType>",
+                    "<b:key>Settings</b:key>",
+                   (_settings == null) ? "<b:value i:nil=\"true\" />" :
+                   ["<b:value i:type=\"l:ExecuteMultipleSettings\">", _settings, "</b:value>"].join(""),
+                  "</a:KeyValuePairOfstringanyType>",
+
+                "</a:Parameters>",
+                "<a:RequestId i:nil=\"true\" />",
+                "<a:RequestName>ExecuteMultiple</a:RequestName>",
+              "</request>"].join("");
+    };
+
+    var sCreateBatchUpdatePayload = function (requests, ContinueOnError, ReturnResponses) {
+        var _settings = ["<l:ContinueOnError>" + ContinueOnError.toString() + "</l:ContinueOnError>",
+         "<l:ReturnResponses>" + ReturnResponses.toString() + "</l:ReturnResponses>"].join("");
+
+        var payload = [];
+        for (var i = 0; i < requests.length; i++) {
+            var request = requests[i].serialize();
+            payload.push(
+               ["<l:OrganizationRequest>",
+                "<a:Parameters>",
+                "<a:KeyValuePairOfstringanyType>",
+                    "<b:key>Target</b:key>",
+                    request,
+                    "</a:KeyValuePairOfstringanyType>",
+                    "</a:Parameters>",
+                    "<a:RequestId i:nil='true' />",
+                    "<a:RequestName>Update</a:RequestName>",
+                "</l:OrganizationRequest>"].join(""));
+        }
+        return ["<request i:type='a:ExecuteMultipleRequest' xmlns:a=\"http://schemas.microsoft.com/xrm/2011/Contracts\"  xmlns:l=\"http://schemas.microsoft.com/xrm/2012/Contracts\">",
+                "<a:Parameters xmlns:b=\"http://schemas.datacontract.org/2004/07/System.Collections.Generic\">",
+
+                  "<a:KeyValuePairOfstringanyType>",
+                    "<b:key>Requests</b:key>",
+                   ["<b:value i:type=\"l:OrganizationRequestCollection\">", payload.join(""), "</b:value>"].join(""),
+                  "</a:KeyValuePairOfstringanyType>",
+
+                  "<a:KeyValuePairOfstringanyType>",
+                    "<b:key>Settings</b:key>",
+                   (_settings == null) ? "<b:value i:nil=\"true\" />" :
+                   ["<b:value i:type=\"l:ExecuteMultipleSettings\">", _settings, "</b:value>"].join(""),
+                  "</a:KeyValuePairOfstringanyType>",
+
+                "</a:Parameters>",
+                "<a:RequestId i:nil=\"true\" />",
+                "<a:RequestName>ExecuteMultiple</a:RequestName>",
+              "</request>"].join("");
+    };
+
+    var sCreateBatchDeletePayload = function (EntitySchemanName, guids, ContinueOnError, ReturnResponses) {
+        var _settings = ["<l:ContinueOnError>" + ContinueOnError.toString() + "</l:ContinueOnError>",
+         "<l:ReturnResponses>" + ReturnResponses.toString() + "</l:ReturnResponses>"].join("");
+
+        var payload = [];
+        for (var i = 0; i < guids.length; i++) {
+            payload.push(
+            [
+                 "<l:OrganizationRequest><a:Parameters><a:KeyValuePairOfstringanyType><b:key>Target</b:key><b:value i:type='a:EntityReference'><a:Id>",
+                      guids[i].replace('{', '').replace('}', ''), "</a:Id><a:LogicalName>",
+                      EntitySchemanName, "</a:LogicalName><a:Name i:nil='true' /></b:value></a:KeyValuePairOfstringanyType></a:Parameters><a:RequestId i:nil='true' /><a:RequestName>Delete</a:RequestName></l:OrganizationRequest>"
+            ].join(""));
+        }
+        return ["<request i:type='a:ExecuteMultipleRequest' xmlns:a=\"http://schemas.microsoft.com/xrm/2011/Contracts\"  xmlns:l=\"http://schemas.microsoft.com/xrm/2012/Contracts\">",
+                "<a:Parameters xmlns:b=\"http://schemas.datacontract.org/2004/07/System.Collections.Generic\">",
+
+                  "<a:KeyValuePairOfstringanyType>",
+                    "<b:key>Requests</b:key>",
+                   ["<b:value i:type=\"l:OrganizationRequestCollection\">", payload.join(""), "</b:value>"].join(""),
+                  "</a:KeyValuePairOfstringanyType>",
+
+                  "<a:KeyValuePairOfstringanyType>",
+                    "<b:key>Settings</b:key>",
+                   (_settings == null) ? "<b:value i:nil=\"true\" />" :
+                   ["<b:value i:type=\"l:ExecuteMultipleSettings\">", _settings, "</b:value>"].join(""),
+                  "</a:KeyValuePairOfstringanyType>",
+
+                "</a:Parameters>",
+                "<a:RequestId i:nil=\"true\" />",
+                "<a:RequestName>ExecuteMultiple</a:RequestName>",
+              "</request>"].join("");
+    };
+
+    var execute = function (request, callback, errorCallback, passthroughObj, passthroughObj1) {
         ///<summary>
         /// Sends synchronous/asynchronous request to execute a soap request.
         ///</summary>
@@ -2135,11 +2281,56 @@ XrmServiceToolkit.Soap = function () {
         /// </param>
         var async = !!callback;
 
-        return doRequest(request, "Execute", async, function (resultXml) {
+        return doRequest(request, "Execute", async, function (resultXml, errorMessage) {
+            if ((resultXml == null) && (errorMessage != null) && (async)) {
+                if (errorCallback) {
+                    errorCallback(errorMessage);
+                } else {
+                    throw new Error(errorMessage);
+                }
+                return null;
+            }
+
+            //if (decodeXmlResult) {
+            //    var responseText = '';
+            //    if (decodeXmlResult.WantValue) {
+            //        var valueNode = selectSingleNode(resultXml, "//a:KeyValuePairOfstringanyType[b:key='Responses']/b:value");
+            //        var rv = [];
+            //        for (var i = 0; i < xml.childNodes.length; i++) {
+            //            var emri = new Sdk.ExecuteMultipleResponseItem();
+
+            //            emri.setRequestIndex(parseInt(selectSingleNodeText(xml.childNodes[i], "l:RequestIndex"), 10));
+
+            //            var faultNode = selectSingleNode(xml.childNodes[i], "l:Fault");
+            //            if (!isNodeNull(faultNode)) {
+            //                emri.setFault(new Sdk.ExecuteMultipleFault(faultNode));
+            //            }
+            //            else {
+            //                var responseName = selectSingleNodeText(xml.childNodes[i], "l:Response/a:ResponseName") + "Response";
+            //                var responseXml = selectSingleNode(xml.childNodes[i], "l:Response/a:Results");
+            //                emri.setResponse(new Sdk[responseName](responseXml));
+            //            }
+            //            rv.push(emri);
+            //        }
+
+            //        // For Create
+            //        //responseText = selectSingleNodeText(resultXml, "//b:value");
+            //    } else if (decodeXmlResult.WantValue) {
+            //        // For Delete and Update
+            //        responseText = selectSingleNodeText(resultXml, "//a:Results");
+            //    }
+            //    var val = crmXmlDecode(responseText);
+            //    if (!async)
+            //        return val;
+            //    else
+            //        callback(val, passthroughObj, passthroughObj1);
+            //    return;
+            //}
+
             if (!async)
                 return resultXml;
             else
-                callback(resultXml);
+                callback(resultXml, passthroughObj, passthroughObj1);
             // ReSharper disable NotAllPathsReturnValue
         });
         // ReSharper restore NotAllPathsReturnValue
@@ -2198,7 +2389,7 @@ XrmServiceToolkit.Soap = function () {
         });
     };
 
-    var fetch = function (fetchCore, fetchAll, callback, errorCallback) {
+    var fetch = function (fetchCore, fetchAll, callback, errorCallback, passthroughObj, passthroughObj1) {
         ///<summary>
         /// Sends synchronous/asynchronous request to do a fetch request.
         ///</summary>
@@ -2310,7 +2501,7 @@ XrmServiceToolkit.Soap = function () {
                 if (!async) {
                     return fetchResults;
                 } else {
-                    callback(fetchResults, moreRecords, pageCookie);
+                    callback(fetchResults, moreRecords, pageCookie, passthroughObj, passthroughObj1);
                 }
             }
         });
@@ -2566,7 +2757,7 @@ XrmServiceToolkit.Soap = function () {
         return fetch(fetchCore, true, async);
     };
 
-    var setState = function (entityName, id, stateCode, statusCode, callback) {
+    var setState = function (entityName, id, stateCode, statusCode, callback, errorCallback, passthroughObj, passthroughObj1) {
         ///<summary>
         /// Sends synchronous/asynchronous request to setState of a record.
         ///</summary>
@@ -2620,13 +2811,22 @@ XrmServiceToolkit.Soap = function () {
 
         var async = !!callback;
 
-        return doRequest(request, "Execute", async, function (resultXml) {
+        return doRequest(request, "Execute", async, function (resultXml, errorMessage) {
+            if ((resultXml == null) && (errorMessage != null) && (async)) {
+                if (errorCallback) {
+                    errorCallback(errorMessage);
+                } else {
+                    throw new Error(errorMessage);
+                }
+                return null;
+            }
+
             var responseText = selectSingleNodeText(resultXml, "//ser:ExecuteResult");
             var result = crmXmlDecode(responseText);
             if (!async)
                 return result;
             else
-                callback(result);
+                callback(result, passthroughObj, passthroughObj1);
             // ReSharper disable NotAllPathsReturnValue
         });
         // ReSharper restore NotAllPathsReturnValue
@@ -2892,7 +3092,7 @@ XrmServiceToolkit.Soap = function () {
         return false;
     };
 
-    var assign = function (targetEntityName, targetId, assigneeEntityName, assigneeId, callback) {
+    var assign = function (targetEntityName, targetId, assigneeEntityName, assigneeId, callback, errorCallback, passthroughObj, passthroughObj1) {
         ///<summary>
         /// Sends synchronous/asynchronous request to assign an existing record to a user / a team.
         ///</summary>
@@ -2940,13 +3140,22 @@ XrmServiceToolkit.Soap = function () {
                       "</request>"].join("");
         var async = !!callback;
 
-        return doRequest(request, "Execute", async, function (resultXml) {
+        return doRequest(request, "Execute", async, function (resultXml, errorMessage) {
+            if ((resultXml == null) && (errorMessage != null) && (async)) {
+                if (errorCallback) {
+                    errorCallback(errorMessage);
+                } else {
+                    throw new Error(errorMessage);
+                }
+                return null;
+            }
+
             var responseText = selectSingleNodeText(resultXml, "//ser:ExecuteResult");
             var result = crmXmlDecode(responseText);
             if (!async)
                 return result;
             else
-                callback(result);
+                callback(result, passthroughObj, passthroughObj1);
             // ReSharper disable NotAllPathsReturnValue
         });
         // ReSharper restore NotAllPathsReturnValue
@@ -3507,7 +3716,7 @@ XrmServiceToolkit.Soap = function () {
         // ReSharper restore NotAllPathsReturnValue
     };
 
-    var retrieveAttributeMetadata = function (entityLogicalName, attributeLogicalName, retrieveIfPublished, callback) {
+    var retrieveAttributeMetadata = function (entityLogicalName, attributeLogicalName, retrieveIfPublished, callback, errorCallback) {
         ///<summary>
         /// Sends an synchronous/asynchronous RetrieveAttributeMetadata Request to retrieve a particular entity's attribute metadata in the system
         ///</summary>
@@ -3552,7 +3761,17 @@ XrmServiceToolkit.Soap = function () {
 
         var async = !!callback;
 
-        return doRequest(request, "Execute", async, function (resultXml) {
+        return doRequest(request, "Execute", async, function (resultXml, errorMessage) {
+
+            if ((resultXml == null) && (errorMessage != null) && (async)) {
+                if (errorCallback) {
+                    errorCallback(errorMessage);
+                } else {
+                    throw new Error(errorMessage);
+                }
+                return null;
+            }
+
             var response = selectNodes(resultXml, "//b:value");
             var results = [];
             for (var i = 0, ilength = response.length; i < ilength; i++) {
@@ -3579,6 +3798,9 @@ XrmServiceToolkit.Soap = function () {
         Create: sCreate,
         Update: sUpdate,
         Delete: sDelete,
+        CreateBatchCreatePayload: sCreateBatchCreatePayload,
+        CreateBatchDeletePayload: sCreateBatchDeletePayload,
+        CreateBatchUpdatePayload: sCreateBatchUpdatePayload,
         QueryByAttribute: queryByAttribute,
         QueryAll: queryAll,
         SetState: setState,

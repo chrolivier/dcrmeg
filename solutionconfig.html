@@ -4,6 +4,7 @@
 
     <script src="dcrmeg_jquery2" type="text/javascript"></script>
     <script src="dcrmeg_xrmservicetoolkit"></script>
+    <script src="dcrmeg_webapisdk"></script>
     <script src="../../ClientGlobalContext.js.aspx" type="text/javascript" ></script>
 
 <style>
@@ -648,6 +649,7 @@ td input {
     var $LastSelected = undefined;
     var workingOnNew = true;
     var inputValueChanged = false;
+    var _UseWebApi = false;
 
     function LogIt(s) {
         if (typeof console != "undefined" && typeof console.debug != "undefined") {
@@ -668,6 +670,14 @@ td input {
 
     function ResetTranslationInputs() {
         $(".translationfieldstable").find("input").val("");
+    }
+
+    function WebApiVersionCheckSuccessCallback(VersionResponse) {
+        _UseWebApi = true;
+        LoadAllTranslations();
+    }
+    function WebApiVersionCheckFailCallback(error) {
+        LoadAllTranslations();
     }
 
     $(function () {
@@ -719,8 +729,6 @@ td input {
                 // Save
             } else if (id == "savetranslation") {
                 var selected = $(".selectRegionalFormat").find(":selected");
-                //LogIt("Text " + selected.text() + " value " + selected.val());
-
                 if (workingOnNew) {
                     if ($LastSelected) {
                         $LastSelected.removeClass("j-selected");
@@ -744,12 +752,15 @@ td input {
 
                 if ($LastSelected) {
                     var id = $LastSelected.attr("id");
-                    //LogIt("Text " + $LastSelected.text() + " id " + id);
-
                     // Ask user to confirm
                     if (confirm('Proceed to delete "' + $LastSelected.text() + '" translation record?') == true) {
                         try {
-                            XrmServiceToolkit.Soap.Delete("dcrmeg_dcrmegtranslation", id);
+                            if (_UseWebApi) {
+                                var uri = SdkWebAPI.GetUri(SdkWebAPI.GetEntitySetName('dcrmeg_dcrmegtranslation'), id);
+                                SdkWebAPI.del(uri);
+                            } else {
+                                XrmServiceToolkit.Soap.Delete("dcrmeg_dcrmegtranslation", id);
+                            }
                         } catch (e) {
                             alert("Exception occured during deletion\n" + e.message);
                             return;
@@ -781,23 +792,31 @@ td input {
             $("#savetranslation").removeClass('disabled');
         });
 
-        LoadAllTranslations();
-
+        SdkWebAPI.versionNumber(WebApiVersionCheckSuccessCallback, WebApiVersionCheckFailCallback);
     });
 
     function LoadAllTranslations() {
         // Search by LCID "1033"
         // Get all translations
-        var FetchedTranslations = XrmServiceToolkit.Soap.Fetch(GetTranslationsFor());
-        //LogIt("FetchedTranslations " + FetchedTranslations.length);
-        if (FetchedTranslations.length > 0) {
+        var FetchedTranslations = null;
+
+        if (_UseWebApi) {
+            var tmp = SdkWebAPI.getFetchXml(SdkWebAPI.GetEntitySetName('dcrmeg_dcrmegtranslation'), GetTranslationsFor());
+            FetchedTranslations = tmp.Value;
+        } else {
+            FetchedTranslations = XrmServiceToolkit.Soap.Fetch(GetTranslationsFor());
+        }
+
+        if ((FetchedTranslations) && (FetchedTranslations.length > 0)) {
             for (var index = 0; index < FetchedTranslations.length; index++) {
-                var title = FetchedTranslations[index].attributes["dcrmeg_name"].value;
-                var lcid = FetchedTranslations[index].attributes["dcrmeg_lcid"].value;
+
+                var title = (_UseWebApi) ? FetchedTranslations[index].dcrmeg_name : FetchedTranslations[index].attributes["dcrmeg_name"].value;
+                var lcid = (_UseWebApi) ? FetchedTranslations[index].dcrmeg_lcid : FetchedTranslations[index].attributes["dcrmeg_lcid"].value;
 
                 var ul = $(".translations");
                 $('<li></li>')
-                    .attr('id', FetchedTranslations[index].attributes["dcrmeg_dcrmegtranslationid"].value)
+                    .attr('id', ((_UseWebApi) ? FetchedTranslations[index].dcrmeg_dcrmegtranslationid :
+                    FetchedTranslations[index].attributes["dcrmeg_dcrmegtranslationid"].value))
                     .addClass('translations_option')
                     .text(title + " (" + lcid + ")")
                     .appendTo(ul);
@@ -816,44 +835,81 @@ td input {
     }
 
     function UpdateTranslation(guid, label, value) {
-        var translation = new XrmServiceToolkit.Soap.BusinessEntity("dcrmeg_dcrmegtranslation", guid);
+        var translation = null;
+        if (_UseWebApi) {
+            translation = {};
+        } else {
+            translation = new XrmServiceToolkit.Soap.BusinessEntity("dcrmeg_dcrmegtranslation", guid);
+        }
 
-        translation.attributes["dcrmeg_name"] = label;
-        translation.attributes["dcrmeg_lcid"] = value;
+        if (_UseWebApi) {
+            translation["dcrmeg_name"] = label;
+            translation["dcrmeg_lcid"] = value;
+        } else {
+            translation.attributes["dcrmeg_name"] = label;
+            translation.attributes["dcrmeg_lcid"] = value;
+        }
 
         var inputs = $(".translationfieldstable").find("input");
         if ((inputs) && (inputs.length)) {
             for (var i = 0; i < inputs.length; i++) {
                 var id = $(inputs[i]).attr("id");
                 if (id) {
-                    //LogIt("Update input " + i + " GUID " + id);
-                    translation.attributes[id] = $("#" + id).val();
+                    if (_UseWebApi) {
+                        translation[id] = $("#" + id).val();
+                    } else {
+                        translation.attributes[id] = $("#" + id).val();
+                    }
                 }
             }
         }
 
         $LastSelected.text(label + " (" + value + ")");
-        XrmServiceToolkit.Soap.Update(translation);
+
+        if (_UseWebApi) {
+            var uri = SdkWebAPI.GetUri(SdkWebAPI.GetEntitySetName('dcrmeg_dcrmegtranslation'), guid);
+            SdkWebAPI.update(uri, translation);
+        } else {
+            XrmServiceToolkit.Soap.Update(translation);
+        }
     }
 
     function AddTranslation(label, value) {
-        var translation = new XrmServiceToolkit.Soap.BusinessEntity("dcrmeg_dcrmegtranslation");
+        var translation = null;
+        if (_UseWebApi) {
+            translation = {};
+        } else {
+            translation = new XrmServiceToolkit.Soap.BusinessEntity("dcrmeg_dcrmegtranslation");
+        }
 
-        translation.attributes["dcrmeg_name"] = label;
-        translation.attributes["dcrmeg_lcid"] = value;
+        if (_UseWebApi) {
+            translation["dcrmeg_name"] = label;
+            translation["dcrmeg_lcid"] = value;
+        } else {
+            translation.attributes["dcrmeg_name"] = label;
+            translation.attributes["dcrmeg_lcid"] = value;
+        }
 
         var inputs = $(".translationfieldstable").find("input");
         if ((inputs) && (inputs.length)) {
             for (var i = 0; i < inputs.length; i++) {
                 var id = $(inputs[i]).attr("id");
                 if (id) {
-                    //LogIt("Add input " + i + " GUID " + id);
-                    translation.attributes[id] = $("#" + id).val();
+                    if (_UseWebApi) {
+                        translation[id] = $("#" + id).val();
+                    } else {
+                        translation.attributes[id] = $("#" + id).val();
+                    }
                 }
             }
         }
 
-        var newRecGuid = XrmServiceToolkit.Soap.Create(translation);
+        var newRecGuid = null;
+        if (_UseWebApi) {
+            newRecGuid = SdkWebAPI.create(SdkWebAPI.GetEntitySetName('dcrmeg_dcrmegtranslation'), translation, true);
+        } else {
+            newRecGuid = XrmServiceToolkit.Soap.Create(translation);
+        }
 
         var ul = $(".translations");
 
@@ -862,7 +918,6 @@ td input {
             .addClass('translations_option j-selected')
             .text(label + " (" + value + ")")
             .appendTo(ul);
-
         $(".translations_option").off("mousemove").on("mousemove", function (e) {
             if ((e.target) && (e.target.tagName == "LI")) {
                 if ($tmpLi) {
@@ -872,7 +927,6 @@ td input {
                 $tmpLi.addClass("j-focused");
             }
         });
-
         return newRecGuid;
     }
 
@@ -928,26 +982,30 @@ td input {
             return;
         }
 
-            fetch += '<order attribute="dcrmeg_name" descending="false" />' +
-            '<filter type="and">' +
-              '<condition attribute="dcrmeg_dcrmegtranslationid" operator="eq" value="' + guid + '" />' +
-            '</filter>' +
+        fetch += '<order attribute="dcrmeg_name" descending="false" />' +
+        '<filter type="and">' +
+            '<condition attribute="dcrmeg_dcrmegtranslationid" operator="eq" value="' + guid + '" />' +
+        '</filter>' +
 
-            '</entity>' +
-        '</fetch>';
+        '</entity>' +
+    '</fetch>';
 
-        var translation = XrmServiceToolkit.Soap.Fetch(fetch);
-        if (translation.length > 0) {
+        var translation = null;
+        if (_UseWebApi) {
+            var tmp = SdkWebAPI.getFetchXml(SdkWebAPI.GetEntitySetName('dcrmeg_dcrmegtranslation'), fetch);
+            translation = tmp.Value;
+        } else {
+            translation = XrmServiceToolkit.Soap.Fetch(fetch);
+        }
+        if ((translation) && (translation.length > 0)) {
             for (var i = 0; i < inputs.length; i++) {
+                var item = (_UseWebApi) ? translation[0] : translation[0].attributes;
                 var id = $(inputs[i]).attr("id");
                 if (id) {
-                    //LogIt("Load input " + i + " GUID " + id);
-                    $("#" + id).val((translation[0].attributes[id] ? translation[0].attributes[id].value : ''));
+                    $("#" + id).val((item[id] ? ((_UseWebApi) ? item[id] : item[id].value) : ''));
                 }
             }
-            //var title = translation[0].attributes["dcrmeg_name"].value + " (" + translation[0].attributes["dcrmeg_lcid"].value + ")";
-            $(".selectRegionalFormat").val(translation[0].attributes["dcrmeg_lcid"].value);
-
+            $(".selectRegionalFormat").val(((item["dcrmeg_lcid"]) ? ((_UseWebApi) ? item["dcrmeg_lcid"] : item["dcrmeg_lcid"].value) : ''));
         }
     }
 

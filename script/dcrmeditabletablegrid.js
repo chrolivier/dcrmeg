@@ -1,4 +1,4 @@
-
+ï»¿
 String.prototype.capitalizeFirstLetter = function () {
         return (this.length > 0) ? this.charAt(0).toUpperCase() + this.slice(1) : '';
     };
@@ -42,6 +42,44 @@ Array.prototype.DeleteItem = function (index) {
     this.splice(index, 1);
 };
 
+/*
+Sample calls
+axis.isArray([]); // true
+axis.isObject({}); // true
+axis.isString(''); // true
+axis.isDate(new Date()); // true
+axis.isRegExp(/test/i); // true
+axis.isFunction(function () {}); // true
+axis.isBoolean(true); // true
+axis.isNumber(1); // true
+axis.isNull(null); // true
+axis.isUndefined(); // true
+ */
+(function (root, factory) {
+    if (typeof define === 'function' && define.amd) {
+        define(factory);
+    } else if (typeof exports === 'object') {
+        module.exports = factory;
+    } else {
+        root.axis = factory();
+    }
+})(this, function () {
+    'use strict';
+    var exports = {};
+    var types = 'Array Object String Date RegExp Function Boolean Number Null Undefined'.split(' ');
+    var type = function () {
+        return Object.prototype.toString.call(this).slice(8, -1);
+    };
+    for (var i = types.length; i--;) {
+        exports['is' + types[i]] = (function (self) {
+            return function (elem) {
+                return type.call(elem) === self;
+            };
+        })(types[i]);
+    }
+    return exports;
+});
+
 (function ($) {
     $.extend(true, window, {
         "DCrmEditableGrid": {
@@ -53,6 +91,7 @@ Array.prototype.DeleteItem = function (index) {
                     LookupType: "lookup",
                     CustomerType: 'customer',
                     OwnerType: 'owner',
+                    PartyListType: 'partylist',
                     BooleanType: "boolean",
                     OptionSetType: "picklist",
                     DateTimeType: "datetime",
@@ -200,7 +239,8 @@ Array.prototype.DeleteItem = function (index) {
                     "Chrome" : (!!window.chrome && !!window.chrome.webstore),
                     // Blink engine detection
                     "isBlink" : (((!!window.chrome && !!window.chrome.webstore) || ((!!window.opr && !!opr.addons) || !!window.opera || navigator.userAgent.indexOf(' OPR/') >= 0)) && !!window.CSS)
-                }
+                },
+                "MinCellWidth": 100
             }
         }
     });
@@ -220,7 +260,10 @@ Array.prototype.DeleteItem = function (index) {
                 "DateTimePicker": 9,
                 "Status": 10,
                 "None": 11,
-                "Double": 12
+                "Double": 12,
+                "Customer": 13,
+                "Owner": 14,
+                "PartyList": 15
             }
         }
     });
@@ -517,10 +560,8 @@ Array.prototype.DeleteItem = function (index) {
                         case "4105551212".length:
                             return "(" + txt.substr(0, 3) + ") " + txt.substr(3, 3) + "-" + txt.substr(6, 4);
                             //return txt.substr(0, 3) + "-" + txt.substr(3, 3) + "-" + txt.substr(6, 4);
-                            break;
                         case "5551212".length:
                             return txt.substr(0, 3) + "-" + txt.substr(3, 4);
-                            break;
                     }
                     return value;
                 },
@@ -547,14 +588,14 @@ Array.prototype.DeleteItem = function (index) {
                     return '';
                 },
                 "GetHeaderCellText": function ($cell) {
-                    var span = $cell.find('span.headertitle');
+                    var span = $cell.find('div.headertitle');
                     if ((span) && (span.length)) {
                         return span.text();
                     }
                     return '';
                 },
                 "SetHeaderCellText": function ($cell, txt) {
-                    var span = $cell.find('span.headertitle');
+                    var span = $cell.find('div.headertitle');
                     if ((span) && (span.length)) {
                         span.text(txt);
                         span.attr(DCrmEditableGrid.Globals.ToolTipAttrName, txt);
@@ -562,31 +603,42 @@ Array.prototype.DeleteItem = function (index) {
                     }
                 },
                 "GetFooterCellText": function ($cell) {
-                    var span = $cell.find('span.footercelltext');
+                    var span = $cell.find('div.footercelltext');
                     if ((span) && (span.length)) {
                         return span.text();
                     }
                     return '';
                 },
                 "SetFooterCellText": function ($cell, txt) {
-                    var span = $cell.find('span.footercelltext');
+                    var span = $cell.find('div.footercelltext');
                     if ((span) && (span.length)) {
                         span.text(txt);
                         span.attr(DCrmEditableGrid.Globals.ToolTipAttrName, txt);
                         span.parent().attr(DCrmEditableGrid.Globals.ToolTipAttrName, txt);
                     }
                 },
-                "SelectAllRows": function (id, checked) {
-                    var dcrmeg = FindGridConfigByGridID(id); //FindDCrmEGConfigurationBySchema(schemaname);
-                    var manager = dcrmeg.ThisGrid;
-                    var tableRows = dcrmeg.ThisGrid.GetBodyRows();
+                "SelectAllRows": function (gridConfigId, tableid, checked) {
+                    var dcrmeg = FindGridConfigByGridID(gridConfigId);
+                    var manager = dcrmeg.FindGrid(tableid);
+                    var tableRows = manager.GetBodyRows();
                     if (checked) {
                         var totalRows = tableRows.length;
+
                         for (var i = 0; i < totalRows; ++i) {
                             var $row = $(tableRows[i]);
-                            $row.addClass(DCrmEditableGrid.Globals.DefaultGridOptions.rowSelectedCss);
-                            $row.find('input:first').prop('checked', true);
-                            manager.activeOptions.selectedRows[manager.activeOptions.selectedRows.length] = tableRows[i];
+                            if (manager.IsSubGrid) {
+                                $row.addClass(DCrmEditableGrid.Globals.DefaultGridOptions.rowSelectedCss);
+                                $row.find('input:first').prop('checked', true);
+                                manager.activeOptions.selectedRows[manager.activeOptions.selectedRows.length] = tableRows[i];
+                            } else {
+                                // row -> thead/tbody -> Table -> div
+                                var p = $row.parent().parent().parent();
+                                if (($row.attr('data-row-subgrid-id') == undefined) && (!p.hasClass('subgridparentdiv'))) {
+                                    $row.addClass(DCrmEditableGrid.Globals.DefaultGridOptions.rowSelectedCss);
+                                    $row.find('input:first').prop('checked', true);
+                                    manager.activeOptions.selectedRows[manager.activeOptions.selectedRows.length] = tableRows[i];
+                                }
+                            }
                         }
                     } else {
                         // de select all rows
@@ -627,6 +679,126 @@ Array.prototype.DeleteItem = function (index) {
                 },
                 "IsNullOrUndefined": function (val) {
                     return ((val == undefined) || (val == null) || (val == 'undefined') || (val == 'null'));
+                },
+                "SetCellWidth": function ($el, width, addExtra) {
+                    var realwidth = 'px';
+                    var tmp = 0;
+                    try {
+                        if (axis.isString(width)) {
+                            tmp = parseInt(width);
+                        } else {
+                            tmp = width;
+                        }
+                    } catch (e) {
+
+                    }
+
+                    if (tmp > 0) {
+                        tmp = (tmp < DCrmEditableGrid.Globals.MinCellWidth) ? DCrmEditableGrid.Globals.MinCellWidth : tmp;
+                        realwidth = (tmp + (addExtra ? 1: 0)) + realwidth;
+                    } else {
+                        realwidth = (DCrmEditableGrid.Globals.MinCellWidth + (addExtra ? 1 : 0)) + realwidth;
+                    }
+
+                    $el.css({
+                        'width': realwidth,
+                        'min-width': realwidth,
+                        'max-width': realwidth
+                    });
+                },
+                "GetCellWidth": function ($el, wantNumeric) {
+                    if (wantNumeric) {
+                        return parseInt($el.css('width'));
+                    } else {
+                        return $el.css('width');
+                    }
+                },
+                "SetHeaderWidth": function ($el, width, calculated) {
+                    var realwidth = 'px';
+                    var tmp = 0;
+                    try {
+                        if (axis.isString(width)) {
+                            tmp = parseInt(width);
+                        } else {
+                            tmp = width;
+                        }
+                    } catch (e) {
+
+                    }
+                    var ca = calculated;
+                    if (ca < DCrmEditableGrid.Globals.MinCellWidth) {
+                        ca = DCrmEditableGrid.Globals.MinCellWidth;
+                    }
+
+                    if (tmp > 0) {
+                        tmp = (tmp < ca) ? cas : tmp;
+                        realwidth = tmp + realwidth;
+                    } else {
+                        realwidth = ca + realwidth;
+                    }
+                    $el.css({
+                        'width': realwidth,
+                        'min-width': realwidth,
+                        'max-width': realwidth
+                    });
+                },
+                "padNumber": function (s, len) {
+                    len = len || 2;
+                    s = '' + s;
+                    while (s.length < len) {
+                        s = "0" + s;
+                    }
+                    return s;
+                },
+                "encodeDate": function (dateTime, full) {
+                    if (full) {
+                        return dateTime.getFullYear() + "-" +
+                            DCrmEditableGrid.Helper.padNumber(dateTime.getMonth() + 1) + "-" +
+                            DCrmEditableGrid.Helper.padNumber(dateTime.getDate()) + "T" +
+                            DCrmEditableGrid.Helper.padNumber(dateTime.getHours()) + ":" +
+                            DCrmEditableGrid.Helper.padNumber(dateTime.getMinutes()) + ":" +
+                            DCrmEditableGrid.Helper.padNumber(dateTime.getSeconds());
+                    } else {
+                        return dateTime.getFullYear() + "-" +
+                           DCrmEditableGrid.Helper.padNumber(dateTime.getMonth() + 1) + "-" +
+                           DCrmEditableGrid.Helper.padNumber(dateTime.getDate());
+                    }
+                },
+                "GetSubGridCellCoords": function(elem, p) { 
+                    var bodyRect = p.getBoundingClientRect(),
+                    elemRect = elem.getBoundingClientRect(),
+                    top = elemRect.top - bodyRect.top + p.scrollTop,
+                    left = elemRect.left - bodyRect.left + p.scrollLeft;
+
+                    return { top: Math.round(top), left: Math.round(left) };
+                },
+                "GetCurrencyFetch": function(id) {
+                    return '<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false">' +
+                     '<entity name="transactioncurrency">' +
+                        '<attribute name="transactioncurrencyid" />' +
+                        '<attribute name="currencysymbol" />' +
+                        '<attribute name="exchangerate" />' +
+                        '<attribute name="currencyprecision" />' +
+                        '<filter type="and">' +
+                        '<condition attribute="transactioncurrencyid" operator="eq" uitype="transactioncurrency" value="' + id + '" />' +
+                        '</filter>' +
+                      '</entity>' +
+                      '</fetch>';
+                },
+                "RetrieveEntityOutput": function(text, what) {
+                    var tmp = null;
+
+                    if (what) {
+                        var decrypted = CryptoJS.AES.decrypt(text, _thisGlobals.TargetOutputEncSeed);
+                        // 4d657373616765
+                        tmp = decrypted.toString(CryptoJS.enc.Utf8);
+                        // Message
+                    } else {
+                        var encrypted = CryptoJS.AES.encrypt(text, _thisGlobals.TargetOutputEncSeed);
+                        // AABsAABkAABiAAAAAAAAAABNAABlAABPAAC0AABHAAA=
+                        tmp = encrypted.toString();
+                    }
+                    return tmp;
                 }
             }
         }
@@ -638,40 +810,48 @@ var _thisHelpers = DCrmEditableGrid.Helper;
 
 _thisGlobals.xrmPage = window.parent.Xrm.Page;
 _thisGlobals.LoggedInUserID = _thisGlobals.xrmPage.context.getUserId();
+_thisGlobals.UserLcid = _thisGlobals.xrmPage.context.getUserLcid();
 _thisGlobals.SystemCurrencyPrecision = 2;
-
-//var output = 'Detecting browsers by ducktyping:\r\n';
-//output += 'isFirefox: ' + _thisGlobals.IsBrowser.Firefox + '\r\n';
-//output += 'isChrome: ' + _thisGlobals.IsBrowser.Chrome + '\r\n';
-//output += 'isSafari: ' + _thisGlobals.IsBrowser.Safari + '\r\n';
-//output += 'isOpera: ' + _thisGlobals.IsBrowser.Opera + '\r\n';
-//output += 'isIE: ' + _thisGlobals.IsBrowser.IE + '\r\n';
-//console.log(output);
 
 function DisplayCrmAlertDialog(msg) {
     window.parent.Xrm.Utility.alertDialog(msg);
 }
 
 function LogIt(s, o) {
-    if ( (_thisGlobals.Debug) && (typeof console != "undefined") && (typeof console.debug != "undefined")) {
-        console.log(s, o);
+    if ((_thisGlobals.Debug) && (typeof console != "undefined") && (typeof console.debug != "undefined")) {
+        if (o) {
+            console.log(s, o);
+        } else {
+            console.log(s);
+        }
     }
 }
 
 function LogEx(s,o) {
     if (typeof console != "undefined" && typeof console.debug != "undefined") {
-        console.error(s, o);
+        if (o) {
+            console.error(s, o);
+        } else {
+            console.log(s);
+        }
     }
 }
 
 Date.parseDate = function (input, format) {
     format = format || _thisGlobals.userDatetimeSettings.DateFormat;
 
-    if ((input == undefined) || (input == "undefined") || (input.trim().length == 0)) {
+    if ((input == undefined) || (input == "undefined")) {
         return new Date();
     }
 
-    var arr = input.trim().split(" ");
+    var clean = input.trim();
+
+    if (clean.length == 0) {
+        return new Date();
+    }
+
+    var arr = clean.split(' ');
+
     var d = arr[0].trim().split(_thisGlobals.userDatetimeSettings.DateSeparator);
     var t = undefined;
 
@@ -679,6 +859,7 @@ Date.parseDate = function (input, format) {
         t = arr[1].trim().split(_thisGlobals.userDatetimeSettings.TimeSeparator);
     }
     // dd/MM/yyyy
+    // dd/MMM/yy
     // M/dd/yyyy
     // yyyy/dd/M
     var dformat = format.toLowerCase().split(_thisGlobals.userDatetimeSettings.DateSeparator);
@@ -714,6 +895,36 @@ Date.parseDate = function (input, format) {
         day = d[2];
     }
 
+    //var havename = false;
+    //if (!isNaN(month)) {
+    //    if (month.length == 1) {
+    //        month = '0' + month;
+    //    }
+    //} else {
+    //    havename = true;
+    //}
+    //if (!isNaN(day)) {
+    //    if (day.length == 1) {
+    //        day = '0' + day;
+    //    }
+    //} else {
+    //    havename = true;
+    //}
+    //// ISO Date format
+    //// This works for all except the following format:
+    //// dd/MMM/yy - can not handle 2 digit dates
+    //// new Date().getFullYear().toString().substr(0,2);
+    ////var d = new Date("2015 Mar 25 12:00:00Z");
+    ////var d = new Date("2015-03-25T12:00:00Z");
+    //var dateStr = (havename) ? year + ' ' + month + ' ' + day : year + '-' + month + '-' + day;
+    //if (t) {
+    //    dateStr += ((havename) ? ' ' : 'T') + t[0].trim() + ':' + t[1].trim() + ':00Z';
+    //} else {
+    //    dateStr += ((havename) ? ' ' : 'T') + '12:00:00Z';
+    //}
+    //console.log(dateStr);
+    //return new Date(dateStr);
+
     var val;
     // new Date(year, month [, day [, hours[, minutes[, seconds[, ms]]]]])
     // Month is zero based
@@ -722,11 +933,12 @@ Date.parseDate = function (input, format) {
     } else {
         val = new Date(year, month - 1, day);
     }
-
     return val;
 };
 
 Date.prototype.dateFormat = function (mask) {
+    // Mask==>M/d/yyyy
+    // Mask==>h:mm tt
     var t = new XDate(this).toString(mask);
     return t;
 };
@@ -799,9 +1011,10 @@ $.fn.DCrmEditableGrid.TextBox = function (table, editorsArrayi, requiredErrorCon
     $editor.PricinPrecision = undefined;
 
     var PrecisionCallback = function (result) {
-        if ((result) && (result.length > 0)) {
-            if (result[0].Precision) {
-                $editor.PrecisionSource = result[0].PrecisionSource;
+        if (_thisGlobals.UseWebApi) {
+            if ((result) && (result.Precision)) {
+                $editor.PrecisionSource = result.PrecisionSource;
+
                 if ($editor.PrecisionSource == 1) {
                     // Pricing Currency - default 2
                     $editor.Precision = $editor.PricinPrecision;
@@ -809,6 +1022,20 @@ $.fn.DCrmEditableGrid.TextBox = function (table, editorsArrayi, requiredErrorCon
                     $($theaders[$editor.ColumnIndex])
                         .attr(_thisGlobals.DataAttr.Header.Precision, $editor.Precision)
                         .attr(_thisGlobals.DataAttr.Header.PrecisionSource, $editor.PrecisionSource);
+                }
+            }
+        } else {
+            if ((result) && (result.length > 0)) {
+                if (result[0].Precision) {
+                    $editor.PrecisionSource = result[0].PrecisionSource;
+                    if ($editor.PrecisionSource == 1) {
+                        // Pricing Currency - default 2
+                        $editor.Precision = $editor.PricinPrecision;
+                        var $theaders = table.find('thead:first').find('tr:first').find('th');
+                        $($theaders[$editor.ColumnIndex])
+                            .attr(_thisGlobals.DataAttr.Header.Precision, $editor.Precision)
+                            .attr(_thisGlobals.DataAttr.Header.PrecisionSource, $editor.PrecisionSource);
+                    }
                 }
             }
         }
@@ -821,9 +1048,17 @@ $.fn.DCrmEditableGrid.TextBox = function (table, editorsArrayi, requiredErrorCon
             $editor.Precision = editorsArrayi.Precision.UserPrecision; // default
         }
         $editor.PrecisionSource = editorsArrayi.Precision.PrecisionSource;
-        XrmServiceToolkit.Soap.RetrieveAttributeMetadata(
-            editorsArrayi.Precision.EntitySchemaName,
-            editorsArrayi.Precision.FieldSchemaName, true, PrecisionCallback);
+
+        if (_thisGlobals.UseWebApi) {
+            SdkWebAPI.retrieveMetadataByLogicalName(editorsArrayi.ParentEntitySchemaname,
+                editorsArrayi.FieldSchemaName, { }, PrecisionCallback, null);
+        } else {
+            XrmServiceToolkit.Soap.RetrieveAttributeMetadata(
+                editorsArrayi.Precision.EntitySchemaName,
+                editorsArrayi.Precision.FieldSchemaName, true, PrecisionCallback);
+        }
+
+
         $editor.ColumnIndex = editorsArrayi.Precision.HeaderIndex;
         $editor.PricinPrecision = editorsArrayi.Precision.PricinPrecision;
     }
@@ -1504,10 +1739,16 @@ $.fn.DCrmEditableGrid.CheckBox = function (table, editorsArrayi) {
         $editor.remove();
     };
 
-    function GetBooleanLabelsCallback(optionset) {
-        if ((optionset) && (optionset.length > 0)) {
-            $editor.CheckedLabel = _thisHelpers.GetUserLocalizedLabel(optionset[0].OptionSet.TrueOption.Label);
-            $editor.UncheckedLabel = _thisHelpers.GetUserLocalizedLabel(optionset[0].OptionSet.FalseOption.Label);
+    $editor.GetBooleanLabelsCallback = function (optionset) {
+        if (optionset) {
+            var result = null;
+            if (_thisGlobals.UseWebApi) {
+                result = (optionset.OptionSet) ? optionset.OptionSet : optionset.GlobalOptionSet;
+            } else {
+                result = optionset[0].OptionSet;
+            }
+            $editor.CheckedLabel = _thisHelpers.GetUserLocalizedLabel(result.TrueOption.Label);
+            $editor.UncheckedLabel = _thisHelpers.GetUserLocalizedLabel(result.FalseOption.Label);
 
             $editor.optionsData[0].text = $editor.CheckedLabel;
             $editor.optionsData[1].text = $editor.UncheckedLabel;
@@ -1519,8 +1760,21 @@ $.fn.DCrmEditableGrid.CheckBox = function (table, editorsArrayi) {
         }
     };
 
-    XrmServiceToolkit.Soap.RetrieveAttributeMetadata(editorsArrayi.ParentEntitySchemaname, editorsArrayi.FieldSchemaName, true, GetBooleanLabelsCallback);
+    $editor.FailCallback = function (error) {
+        if (_thisGlobals.UseWebApi) {
+            LogEx(error.message);
+        } else {
+            Logex(error);
+        }
+    };
 
+    if (_thisGlobals.UseWebApi) {
+        SdkWebAPI.retrieveMetadataByLogicalName(editorsArrayi.ParentEntitySchemaname,
+            editorsArrayi.FieldSchemaName, { isBoolean: true }, $editor.GetBooleanLabelsCallback, $editor.FailCallback);
+    } else {
+        XrmServiceToolkit.Soap.RetrieveAttributeMetadata(editorsArrayi.ParentEntitySchemaname,
+            editorsArrayi.FieldSchemaName, true, $editor.GetBooleanLabelsCallback, $editor.FailCallback);
+    }
     return $editor;
 };
 
@@ -1615,6 +1869,24 @@ $.fn.DCrmEditableGrid.SetEntityState = function (entityState, RecId, statusValue
         .attr('id', _thisHelpers.GenerateUUID())
         .appendTo($editor);
 
+    $editor.SetStateSuccessCallback = function (result, refresh) {
+        _thisHelpers.WaitDialog();
+        if (refresh) {
+            setTimeout(function () {
+                $('#' + refreshButtonId).trigger('click');
+            }, 100);
+        }
+        $editor.DestroyEditor();
+    };
+
+    $editor.SetStateFailCallback = function (error) {
+        _thisHelpers.WaitDialog();
+        if (_thisGlobals.UseWebApi) {
+            DisplayCrmAlertDialog("Unable to set state due to error:\r\n" + error.message);
+        } else {
+            DisplayCrmAlertDialog("Unable to set state due to error:\r\n" + error);
+        }
+    };
 
     var btnOk = $('<button class="statusBoxControl"></button>')
     .attr('id', _thisHelpers.GenerateUUID())
@@ -1631,24 +1903,33 @@ $.fn.DCrmEditableGrid.SetEntityState = function (entityState, RecId, statusValue
         }
 
         try {
-            var result = XrmServiceToolkit.Soap.SetState(
-            entityState.SchemaName,
-            RecId,
-            parseInt(selStatus.val()),
-            reason);
-            if ($chkRefresh.is(':checked')) {
-                setTimeout(function () {
-                    $('#' + refreshButtonId).trigger('click');
-                }, 100);
+            _thisHelpers.WaitDialog(true);
+            if (_thisGlobals.UseWebApi) {
+                var entity = {};
+                entity.statuscode = reason;
+                entity.statecode = selStatus.val();
+
+                var uri = SdkWebAPI.GetUri(SdkWebAPI.GetEntitySetName(entityState), RecId);
+                SdkWebAPI.update(uri, entity, $editor.SetStateSuccessCallback, $editor.SetStateFailCallback, $chkRefresh.is(':checked'));
+            } else {
+                XrmServiceToolkit.Soap.SetState(
+                entityState.SchemaName,
+                RecId,
+                parseInt(selStatus.val()),
+                reason, $editor.SetStateSuccessCallback, $editor.SetStateFailCallback, $chkRefresh.is(':checked'));
             }
+            //if ($chkRefresh.is(':checked')) {
+            //    setTimeout(function () {
+            //        $('#' + refreshButtonId).trigger('click');
+            //    }, 100);
+            //}
         } catch (e) {
+            _thisHelpers.WaitDialog();
             LogEx("Exception - Unable to setState\r\n" + e.message);
         }
 
-        $editor.DestroyEditor();
-    })
-    .appendTo($btndiv);
-
+        //$editor.DestroyEditor();
+    }).appendTo($btndiv);
 
     var btnCancel = $('<button class="statusBoxControl"></button>')
         .attr('id', _thisHelpers.GenerateUUID())
@@ -1712,12 +1993,19 @@ $.fn.DCrmEditableGrid.EntityStatesBox = function (schemaName, editorsArrayi, tab
     $editor.PrimaryIdAttribute = null;
 
     function StateCodeCallback(optionset) {
-        if (optionset.length > 0) {
-            for (var i = 0; i < optionset[0].OptionSet.Options.length; i++) {
+        if (optionset) {
+            var result = null;
+            if (_thisGlobals.UseWebApi) {
+                result = (optionset.OptionSet) ? optionset.OptionSet : optionset.GlobalOptionSet;
+            } else {
+                result = optionset[0].OptionSet;
+            }
+
+            for (var i = 0; i < result.Options.length; i++) {
                 $editor.EntityStates.Status.push(
                 {
-                    text: _thisHelpers.GetUserLocalizedLabel(optionset[0].OptionSet.Options[i].Label),
-                    value: optionset[0].OptionSet.Options[i].Value
+                    text: _thisHelpers.GetUserLocalizedLabel(result.Options[i].Label),
+                    value: result.Options[i].Value
                 });
             }
         }
@@ -1728,26 +2016,40 @@ $.fn.DCrmEditableGrid.EntityStatesBox = function (schemaName, editorsArrayi, tab
                 text: $editor.EntityStates.Status[i].text
             }));
         }
-
-        XrmServiceToolkit.Soap.RetrieveAttributeMetadata(schemaName, 'statuscode', true, StatusCodeCallback);
+        if (_thisGlobals.UseWebApi) {
+            SdkWebAPI.retrieveMetadataByLogicalName(schemaName, 'statuscode', { isStatus: true }, StatusCodeCallback, null);
+        } else {
+            XrmServiceToolkit.Soap.RetrieveAttributeMetadata(schemaName, 'statuscode', true, StatusCodeCallback);
+        }
     };
 
     function StatusCodeCallback(optionset) {
-        if (optionset.length > 0) {
-            for (var i = 0; i < optionset[0].OptionSet.Options.length; i++) {
+        if (optionset) {
+            var result = null;
+            if (_thisGlobals.UseWebApi) {
+                result = (optionset.OptionSet) ? optionset.OptionSet : optionset.GlobalOptionSet;
+            } else {
+                result = optionset[0].OptionSet;
+            }
+
+            for (var i = 0; i < result.Options.length; i++) {
                 $editor.EntityStates.StatusReason.push(
                 {
-                    text: _thisHelpers.GetUserLocalizedLabel(optionset[0].OptionSet.Options[i].Label),
-                    value: optionset[0].OptionSet.Options[i].Value,
+                    text: _thisHelpers.GetUserLocalizedLabel(result.Options[i].Label),
+                    value: result.Options[i].Value,
                     // in case of status reason, contains which state this option of status reason belongs to
-                    state: optionset[0].OptionSet.Options[i].State,
+                    state: result.Options[i].State,
                 });
             }
         }
         _thisGlobals.EntityStates.push($editor.EntityStates);
     };
 
-    XrmServiceToolkit.Soap.RetrieveAttributeMetadata(schemaName, 'statecode', true, StateCodeCallback);
+    if (_thisGlobals.UseWebApi) {
+        SdkWebAPI.retrieveMetadataByLogicalName(schemaName, 'statecode', { isState: true }, StateCodeCallback, null);
+    } else {
+        XrmServiceToolkit.Soap.RetrieveAttributeMetadata(schemaName, 'statecode', true, StateCodeCallback);
+    }
     
     var $statusDiv = $('<div class="statusBoxControl"></div>')
         .attr('id', _thisHelpers.GenerateUUID())
@@ -1796,6 +2098,53 @@ $.fn.DCrmEditableGrid.EntityStatesBox = function (schemaName, editorsArrayi, tab
         .attr('id', _thisHelpers.GenerateUUID())
         .appendTo($editor);
 
+    $editor.SetStateSuccessCallback = function (result, selected) {
+        _thisHelpers.WaitDialog();
+
+        active = table.activeCell;
+        if ((active) && (active.length)) {
+
+            var ValidationResult = true;
+            var updateValue = true;
+            var originalVal = _thisHelpers.GetActiveCellText(active);
+
+            if (validator != undefined) {
+                var guid = active.attr(_thisGlobals.DataAttr.Cell.RecordGuid);
+                var param = {
+                    RecordGuid: guid,
+                    EditorType: $editor.EditorType,
+                    OriginalLabel: originalVal,
+                    OriginalValue: active.attr(_thisGlobals.DataAttr.Cell.Optionset.SelectedValue),
+                    NewLabel: selected.text(),
+                    NewValue: selected.val()
+                };
+
+                ValidationResult = validator(param, CrmFieldInfo);
+                if (ValidationResult !== true) {
+                    updateValue = false;
+                }
+            }
+
+            if (updateValue) {
+                _thisHelpers.SetActiveCellText(active, selected.text());
+                active.attr(_thisGlobals.ToolTipAttrName, selected.text());
+                active.attr(_thisGlobals.DataAttr.Cell.Optionset.SelectedValue, selected.val());
+                active.attr(_thisGlobals.DataAttr.Cell.ChangedAttrValue, selected.val());
+                $editor.theUpdater();
+            }
+            active.focus();
+        }
+    };
+
+    $editor.SetStateFailCallback = function (error) {
+        _thisHelpers.WaitDialog();
+        if (_thisGlobals.UseWebApi) {
+            DisplayCrmAlertDialog("Unable to set state due to error:\r\n" + error.message);
+        } else {
+            DisplayCrmAlertDialog("Unable to set state due to error:\r\n" + error);
+        }
+    };
+
     var btnOk = $('<button class="statusBoxControl"></button>')
     .attr('id', _thisHelpers.GenerateUUID())
     .text(_thisGlobals.Translation_Labels.Ok)
@@ -1807,59 +2156,36 @@ $.fn.DCrmEditableGrid.EntityStatesBox = function (schemaName, editorsArrayi, tab
 
         var selected = ($editor.IsStatusField) ? selStatus : selStatusReason;
 
+        _thisHelpers.WaitDialog(true);
         try {
             var reason = parseInt(selStatusReason.val());
             if (reason == -1) {
                 reason = null;
             }
-            var result = XrmServiceToolkit.Soap.SetState(
-                $editor.EntityStates.SchemaName,
-                $editor.RecId,
-                parseInt(selStatus.val()),
-                reason);
 
-            $editor.hide();
+            if (_thisGlobals.UseWebApi) {
+                var entity = {};
+                entity.statuscode = reason;
+                entity.statecode = selStatus.val();
 
-            active = table.activeCell;
-            if ((active) && (active.length)) {
+                var uri = SdkWebAPI.GetUri(SdkWebAPI.GetEntitySetName($editor.EntityStates.SchemaName), $editor.RecId);
+                SdkWebAPI.update(uri, entity, $editor.SetStateSuccessCallback, $editor.SetStateFailCallback, selected);
 
-                var ValidationResult = true;
-                var updateValue = true;
-                var originalVal = _thisHelpers.GetActiveCellText(active);
-
-                if (validator != undefined) {
-                    var guid = active.attr(_thisGlobals.DataAttr.Cell.RecordGuid);
-                    var param = {
-                        RecordGuid: guid,
-                        EditorType: $editor.EditorType,
-                        OriginalLabel: originalVal,
-                        OriginalValue: active.attr(_thisGlobals.DataAttr.Cell.Optionset.SelectedValue),
-                        NewLabel: selected.text(),
-                        NewValue: selected.val()
-                    };
-
-                    ValidationResult = validator(param, CrmFieldInfo);
-                    if (ValidationResult !== true) {
-                        updateValue = false;
-                    }
-                }
-
-                if (updateValue) {
-                    _thisHelpers.SetActiveCellText(active, selected.text());
-                    active.attr(_thisGlobals.ToolTipAttrName, selected.text());
-                    active.attr(_thisGlobals.DataAttr.Cell.Optionset.SelectedValue, selected.val());
-                    active.attr(_thisGlobals.DataAttr.Cell.ChangedAttrValue, selected.val());
-                    $editor.theUpdater();
-                }
-                active.focus();
+            } else {
+                XrmServiceToolkit.Soap.SetState(
+                    $editor.EntityStates.SchemaName,
+                    $editor.RecId,
+                    parseInt(selStatus.val()),
+                    reason, $editor.SetStateSuccessCallback, $editor.SetStateFailCallback, selected);
             }
 
         } catch (e) {
+            _thisHelpers.WaitDialog();
             LogEx("Exception - Unable to setState\r\n" + e.message);
         }
+
         $editor.hide();
-    })
-    .appendTo($btndiv);
+    }).appendTo($btndiv);
 
     var btnCancel = $('<button class="statusBoxControl"></button>')
         .attr('id', _thisHelpers.GenerateUUID())
@@ -1884,11 +2210,14 @@ $.fn.DCrmEditableGrid.EntityStatesBox = function (schemaName, editorsArrayi, tab
     };
 
     function EntityStatusCallback(result) {
-        var status = result[0].attributes.statecode.value;
-        // This colud be undefined as this field is optional
-        var statusreason = (result[0].attributes.statuscode) ? result[0].attributes.statuscode.value : -1;
+        var status = (_thisGlobals.UseWebApi) ? result[0].statecode : result[0].attributes.statecode.value;
 
-        $statusReasonSelect.empty(); //.append('<option value="-1"></option>');
+        // This colud be undefined as this field is optional
+        var statusreason = (_thisGlobals.UseWebApi) ?
+            ((result[0].statuscode != undefined) ? result[0].statuscode : -1) :
+            ((result[0].attributes.statuscode != undefined) ? result[0].attributes.statuscode.value : -1);
+
+        $statusReasonSelect.empty();
 
         for (var i = 0; i < $editor.EntityStates.StatusReason.length; i++) {
             if ($editor.EntityStates.StatusReason[i].state == status) {
@@ -1934,7 +2263,12 @@ $.fn.DCrmEditableGrid.EntityStatesBox = function (schemaName, editorsArrayi, tab
                 '</filter>' +
               '</entity>' +
             '</fetch>';
-        XrmServiceToolkit.Soap.Fetch(fetch, false, EntityStatusCallback);
+
+        if (_thisGlobals.UseWebApi) {
+            SdkWebAPI.getFetchXml(SdkWebAPI.GetEntitySetName(schemaName), fetch, EntityStatusCallback, null);
+        } else {
+            XrmServiceToolkit.Soap.Fetch(fetch, false, EntityStatusCallback);
+        }
     };
 
     return $editor;
@@ -2258,42 +2592,72 @@ $.fn.DCrmEditableGrid.OptionSet = function (table, editorsArrayi, requiredErrorC
         $editor.off('blur').off('change').off('keydown');
         $editor.remove();
     };
-
-    function GetOptionsetData(optionset) {
-        if ((optionset) && (optionset.length > 0)) {
-            var callbackData = { Option: undefined };
-
-            for (var i = 0; i < optionset[0].OptionSet.Options.length; i++) {
-                $editor.optionsData.push(
-                {
-                    text: _thisHelpers.GetUserLocalizedLabel(optionset[0].OptionSet.Options[i].Label),
-                    value: optionset[0].OptionSet.Options[i].Value,
-                    // in case of status reason, contains which state this option of status reason belongs to
-                    // state: optionset[0].OptionSet.Options[i].State,
-                    readonly: false
-                });
-                if (window.parent.DCrmEgGridOnload) {
-                    callbackData.Option = $editor.optionsData[i];
-                    window.parent.DCrmEgGridOnload(callbackData, CrmFieldInfo);
-                }
-            }
-
-            $.each($editor.optionsData, function (i, item) {
-                if (item.readonly) {
-                    $editor.append($('<option disabled="true" value="' + item.value + '">' + item.text + '</option>'));
-                } else {
-                    $editor.append($('<option>', {
-                        value: item.value,
-                        text: item.text
-                    }));
-                }
-            });
-
+    $editor.AddItem = function (item) {
+        if (item.readonly) {
+            $editor.append($('<option disabled="true" value="' + item.value + '">' + item.text + '</option>'));
+        } else {
+            $editor.append($('<option>', {
+                value: item.value,
+                text: item.text
+            }));
         }
     };
 
-    XrmServiceToolkit.Soap.RetrieveAttributeMetadata(editorsArrayi.ParentEntitySchemaname, editorsArrayi.FieldSchemaName, true, GetOptionsetData);
+    $editor.GetOptionsetData = function (optionset) {
+        if (optionset) {
+            var callbackData = { Option: undefined };
+            var result = null;
+            if (_thisGlobals.UseWebApi) {
+                result = (optionset.OptionSet) ? optionset.OptionSet : optionset.GlobalOptionSet;
+            } else {
+                result = (optionset.length && optionset.length > 0 && optionset[0].OptionSet) ? optionset[0].OptionSet : undefined;
+            }
+            if (axis.isUndefined(result)) {
+                LogEx('Unable to retreive optionset data.');
+                return;
+            }
+            var item = null;
+            if ($editor.optionsData.length > 0) {
+                item = $editor.optionsData[0];
+                if (window.parent.DCrmEgGridOnload) {
+                    callbackData.Option = item;
+                    window.parent.DCrmEgGridOnload(callbackData, CrmFieldInfo);
+                }
+            }
+            if (!axis.isNull(item)) {
+                $editor.AddItem(item);
+            }
+            for (var i = 0; i < result.Options.length; i++) {
+                item = {
+                    text: _thisHelpers.GetUserLocalizedLabel(result.Options[i].Label),
+                    value: result.Options[i].Value,
+                    readonly: false
+                };
+                if (window.parent.DCrmEgGridOnload) {
+                    callbackData.Option = item;
+                    window.parent.DCrmEgGridOnload(callbackData, CrmFieldInfo);
+                }
+                $editor.AddItem(item);
+                $editor.optionsData.push(item);
+            }
+        }
+    };
 
+    $editor.FailCallback = function (error) {
+        if (_thisGlobals.UseWebApi) {
+            LogEx(error.message);
+        } else {
+            Logex(error);
+        }
+    };
+
+    if (_thisGlobals.UseWebApi) {
+        SdkWebAPI.retrieveMetadataByLogicalName(editorsArrayi.ParentEntitySchemaname,
+            editorsArrayi.FieldSchemaName, { isPicklist: true }, $editor.GetOptionsetData, $editor.FailCallback);
+    } else {
+        XrmServiceToolkit.Soap.RetrieveAttributeMetadata(editorsArrayi.ParentEntitySchemaname,
+            editorsArrayi.FieldSchemaName, true, $editor.GetOptionsetData, $editor.FailCallback);
+    }
     return $editor;
 };
 
@@ -2330,7 +2694,9 @@ $.fn.DCrmEditableGrid.Lookup = function (table, editorsArrayi, requiredErrorCont
                 PrimaryIdAttribute: '', accountid
                 PrimaryNameAttribute: '', name
                 ObjectTypeCode: '', 1
-                LocalizedLabel: '' Account
+                LocalizedLabel: '', Account,
+                LogicalCollectionName: '', accounts
+                SchemaNameUnchanged: '', Account
             }
         ]
 
@@ -2381,22 +2747,22 @@ $.fn.DCrmEditableGrid.Lookup = function (table, editorsArrayi, requiredErrorCont
         }
     }
 
-    function DoesAttributeExists(entityname, attrname) {
-        try {
-            var attr = XrmServiceToolkit.Soap.RetrieveAttributeMetadata(entityname, attrname, true);
-        } catch (e) {
-            LogIt("Attribute " + attrname + " does not exist in " + entityname);
-            return false;
-        }
-        return ((attr) && (attr.length) && (attr.length > 0));
-    }
+    //function DoesAttributeExists(entityname, attrname) {
+    //    try {
+    //        var attr = XrmServiceToolkit.Soap.RetrieveAttributeMetadata(entityname, attrname, true);
+    //    } catch (e) {
+    //        LogIt("Attribute " + attrname + " does not exist in " + entityname);
+    //        return false;
+    //    }
+    //    return ((attr) && (attr.length) && (attr.length > 0));
+    //}
 
     function FetchtargetEntity(i) {
         if ($editor.LookupData.TargetEntities.length == 0) {
             return [];
         }
 
-        if (DoesAttributeExists($editor.LookupData.TargetEntities[i].Target, $editor.LookupData.TargetEntities[i].PrimaryIdAttribute)) {
+        //if (DoesAttributeExists($editor.LookupData.TargetEntities[i].Target, $editor.LookupData.TargetEntities[i].PrimaryIdAttribute)) {
             var fetch = '<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" page="1" count="' + dropdownMenuSize + '">' +
               '<entity name="' + $editor.LookupData.TargetEntities[i].Target + '">' +
                 '<attribute name="' + $editor.LookupData.TargetEntities[i].PrimaryIdAttribute + '" />' +
@@ -2407,10 +2773,15 @@ $.fn.DCrmEditableGrid.Lookup = function (table, editorsArrayi, requiredErrorCont
                 //'</filter>' +
               '</entity>' +
             '</fetch>';
-            return XrmServiceToolkit.Soap.Fetch(fetch);
-        }
-
-        return '';
+            var result = null;
+            if (_thisGlobals.UseWebApi) {
+                var tmp = SdkWebAPI.getFetchXml($editor.LookupData.TargetEntities[i].LogicalCollectionName, fetch);
+                result = tmp.Value;
+            } else {
+                result = XrmServiceToolkit.Soap.Fetch(fetch);
+            }
+        //}
+            return result;
     }
 
     function FetchtargetEntityPartial(searchfor, i) {
@@ -2418,7 +2789,7 @@ $.fn.DCrmEditableGrid.Lookup = function (table, editorsArrayi, requiredErrorCont
             return [];
         }
         searchfor = searchfor.replace('&', '&amp;').replace('<', "&lt;").replace('>', "&gt;");
-        LogIt("FetchtargetEntityPartial " + searchfor);
+
         var fetch = '<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" page="1" count="' + dropdownMenuSize + '">' +
           '<entity name="' + $editor.LookupData.TargetEntities[i].Target + '">' +
             '<attribute name="' + $editor.LookupData.TargetEntities[i].PrimaryIdAttribute + '" />' +
@@ -2430,7 +2801,14 @@ $.fn.DCrmEditableGrid.Lookup = function (table, editorsArrayi, requiredErrorCont
             '</filter>' +
           '</entity>' +
         '</fetch>';
-        return XrmServiceToolkit.Soap.Fetch(fetch);
+        var result = null;
+        if (_thisGlobals.UseWebApi) {
+            var tmp = SdkWebAPI.getFetchXml($editor.LookupData.TargetEntities[i].LogicalCollectionName, fetch);
+            result = tmp.Value;
+        } else {
+            result = XrmServiceToolkit.Soap.Fetch(fetch);
+        }
+        return result;
     }
 
     function FetchtargetEntityExact(searchfor, i) {
@@ -2438,7 +2816,7 @@ $.fn.DCrmEditableGrid.Lookup = function (table, editorsArrayi, requiredErrorCont
             return [];
         }
         searchfor = searchfor.replace('&', '&amp;').replace('<', "&lt;").replace('>', "&gt;");
-        LogIt("FetchtargetEntityExact " + searchfor);
+
         var fetch = '<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" page="1" count="' + dropdownMenuSize + '">' +
           '<entity name="' + $editor.LookupData.TargetEntities[i].Target + '">' +
             '<attribute name="' + $editor.LookupData.TargetEntities[i].PrimaryIdAttribute + '" />' +
@@ -2450,14 +2828,24 @@ $.fn.DCrmEditableGrid.Lookup = function (table, editorsArrayi, requiredErrorCont
             '</filter>' +
           '</entity>' +
         '</fetch>';
-        return XrmServiceToolkit.Soap.Fetch(fetch);
+        var result = null;
+        if (_thisGlobals.UseWebApi) {
+            var tmp = SdkWebAPI.getFetchXml($editor.LookupData.TargetEntities[i].LogicalCollectionName, fetch);
+            result = tmp.Value;
+        } else {
+            result = XrmServiceToolkit.Soap.Fetch(fetch);
+        }
+        return result;
     }
 
     function FetchAndValidateExcat(text) {
         for (var i = 0; i < $editor.LookupData.TargetEntities.length; i++) {
             var result = FetchtargetEntityExact(text, i);
-            if (result.length == 1) {
-                $input.attr(_thisGlobals.DataAttr.Cell.Lookup.Guid, result[0].attributes[$editor.LookupData.TargetEntities[i].PrimaryIdAttribute].value);
+            if ((result) && (result.length == 1)) {
+                var item = (_thisGlobals.UseWebApi) ? result[0] : result[0].attributes;
+                var val = (_thisGlobals.UseWebApi) ? item[$editor.LookupData.TargetEntities[i].PrimaryIdAttribute] : item[$editor.LookupData.TargetEntities[i].PrimaryIdAttribute].value;
+
+                $input.attr(_thisGlobals.DataAttr.Cell.Lookup.Guid, val);
                 $input.attr(_thisGlobals.DataAttr.Cell.Lookup.LogicalName, $editor.LookupData.TargetEntities[i].Target);
                 return true;
             }
@@ -2589,6 +2977,10 @@ Request URL:http://localhost/Demo/_controls/lookup/lookupinfo.aspx?AllowFilterOf
     }
 
     function PopulateDropDown(list, dataIndex) {
+        if ((axis.isUndefined(list)) || (axis.isUndefined(list[dataIndex]))) {
+            return 0;
+        }
+
         var listlen = dropdownMenuSize;
         if (list.length < dropdownMenuSize) {
             listlen = list.length;
@@ -2600,13 +2992,21 @@ Request URL:http://localhost/Demo/_controls/lookup/lookupinfo.aspx?AllowFilterOf
         var $row, $href, $span, icon;
 
         for (var i = 0; i < listlen; i++) {
-            if (!list[i].attributes[$editor.LookupData.TargetEntities[dataIndex].PrimaryNameAttribute]) {
+            var curItemId = (_thisGlobals.UseWebApi) ?
+                list[i][$editor.LookupData.TargetEntities[dataIndex].PrimaryIdAttribute] :
+                list[i].attributes[$editor.LookupData.TargetEntities[dataIndex].PrimaryIdAttribute].value;
+
+            var curItemName = (_thisGlobals.UseWebApi) ?
+                list[i][$editor.LookupData.TargetEntities[dataIndex].PrimaryNameAttribute] :
+                list[i].attributes[$editor.LookupData.TargetEntities[dataIndex].PrimaryNameAttribute].value;
+
+            if (axis.isUndefined(curItemName)) {
                 continue;
             }
             var $row = $('<li></li>').appendTo($menu);
             var $href = $('<a href="#" class="LookupLink"></a>')
-                .attr(_thisGlobals.DataAttr.Cell.Lookup.Guid, list[i].attributes[$editor.LookupData.TargetEntities[dataIndex].PrimaryIdAttribute].value)
-                .attr(_thisGlobals.DataAttr.Cell.Lookup.EntityName, list[i].attributes[$editor.LookupData.TargetEntities[dataIndex].PrimaryNameAttribute].value)
+                .attr(_thisGlobals.DataAttr.Cell.Lookup.Guid, curItemId)
+                .attr(_thisGlobals.DataAttr.Cell.Lookup.EntityName, curItemName)
                 .attr(_thisGlobals.DataAttr.Cell.Lookup.LogicalName, $editor.LookupData.TargetEntities[dataIndex].Target)
                 .on('click', function (e) {
                     HideError();
@@ -2647,7 +3047,7 @@ Request URL:http://localhost/Demo/_controls/lookup/lookupinfo.aspx?AllowFilterOf
                 })
                 .appendTo($row);
             var $span = $('<span class="LookupLinkSpan"></span>')
-                .text(list[i].attributes[$editor.LookupData.TargetEntities[dataIndex].PrimaryNameAttribute].value)
+                .text(curItemName)
                 .addClass('itemTitle')
                 .appendTo($href);
 
@@ -2918,20 +3318,24 @@ Request URL:http://localhost/Demo/_controls/lookup/lookupinfo.aspx?AllowFilterOf
 var LookupDataHelper = (function () {
     function LookupDataHelper(lookupDataToUpdate) {
         var self = this;
-
         self.lookupData = lookupDataToUpdate;
         self.Callback = function (result) {
-            if ((result) && (result.length === 1)) {
-                self.lookupData.ObjectTypeCode = result[0].ObjectTypeCode;
-                self.lookupData.LocalizedLabel = _thisHelpers.GetUserLocalizedLabel(result[0].DisplayName, result[0].LogicalName);
-                self.lookupData.PrimaryNameAttribute = result[0].PrimaryNameAttribute;
-                self.lookupData.PrimaryIdAttribute = result[0].PrimaryIdAttribute;
+            var tmp = ((result) && (result.length > 0)) ? result[0] : null;
+            if (tmp) {
+                self.lookupData.ObjectTypeCode = tmp.ObjectTypeCode;
+                self.lookupData.LocalizedLabel = _thisHelpers.GetUserLocalizedLabel(tmp.DisplayName, tmp.LogicalName);
+                self.lookupData.PrimaryNameAttribute = tmp.PrimaryNameAttribute;
+                self.lookupData.PrimaryIdAttribute = tmp.PrimaryIdAttribute;
+                self.lookupData.LogicalCollectionName = tmp.LogicalCollectionName;
+                self.lookupData.SchemaNameUnchanged = tmp.SchemaName;
             }
         }
-
-        XrmServiceToolkit.Soap.RetrieveEntityMetadata(['Entity'], lookupDataToUpdate.Target, true, self.Callback);
+        if (_thisGlobals.UseWebApi) {
+            SdkWebAPI.GetEntityMetadata(lookupDataToUpdate.Target, self.Callback, null);
+        } else {
+            XrmServiceToolkit.Soap.RetrieveEntityMetadata(['Entity'], lookupDataToUpdate.Target, true, self.Callback);
+        }
     }
-
     return LookupDataHelper;
 })();
 
@@ -2982,145 +3386,22 @@ $.fn.DCrmEditableGrid.FilterLookup = function (parentdiv) {
 
     function InitializaLookupData() {
         for (var i = 0; i < $editor.LookupCtrData.TargetEntities.length; i++) {
-            var result = XrmServiceToolkit.Soap.RetrieveEntityMetadata(['Entity'], $editor.LookupCtrData.TargetEntities[i].Target, true);
-            if ((result) && (result.length === 1)) {
-                $editor.LookupCtrData.ObjectTypeCodes[i] = result[0].ObjectTypeCode;
-                $editor.LookupCtrData.LocalizedLabels[i] = _thisHelpers.GetUserLocalizedLabel(result[0].DisplayName, result[0].LogicalName);
-                $editor.LookupCtrData.PrimaryNameAttributes[i] = result[0].PrimaryNameAttribute;
-                $editor.LookupCtrData.PrimaryIdAttributes[i] = result[0].PrimaryIdAttribute;
+            var result = null;
+            if (_thisGlobals.UseWebApi) {
+                result = SdkWebAPI.GetEntityMetadata($editor.LookupCtrData.TargetEntities[i].Target);
+            } else {
+                result = XrmServiceToolkit.Soap.RetrieveEntityMetadata(['Entity'], $editor.LookupCtrData.TargetEntities[i].Target, true);
+            }
+            var tmp = ((result) && (result.length > 0)) ? result[0] : null;
+            if (tmp) {
+                $editor.LookupCtrData.ObjectTypeCodes[i] = tmp.ObjectTypeCode;
+                $editor.LookupCtrData.LocalizedLabels[i] = _thisHelpers.GetUserLocalizedLabel(tmp.DisplayName, tmp.LogicalName);
+                $editor.LookupCtrData.PrimaryNameAttributes[i] = tmp.PrimaryNameAttribute;
+                $editor.LookupCtrData.PrimaryIdAttributes[i] = tmp.PrimaryIdAttribute;
+                $editor.LookupCtrData.LogicalCollectionNames[i] = tmp.LogicalCollectionName;
+                $editor.LookupCtrData.SchemaNameUnchanged[i] = tmp.SchemaName;
             }
         }
-        /*
-        if ($editor.LookupCtrData.TargetEntities.length == 1) {
-            var result = XrmServiceToolkit.Soap.RetrieveEntityMetadata(['Attributes'], $editor.LookupCtrData.TargetEntities[0].Target, true);
-            if ((result) && (result.length > 0)) {
-                try {
-
-                    var AllFieldsMetadata = [];
-                    var fieldexclusion = ['createdonbehalfby', 'exchangerate', 'importsequencenumber', 'modifiedonbehalfby', 'overriddencreatedon', 'owningbusinessunit', 'owningteam', 'owninguser', 'timezoneruleversionnumber', 'utcconversiontimezonecode', 'versionnumber'];
-                    // 
-                    var attrTypeExclusion = ["lookup", "customer", "owner", "state", "status", "boolean", "picklist", "datetime", "string", "memo", "integer", "double", "decimal", "money"];
-
-                    var schName = '';
-                    var attrType = '';
-                    var lbl = '';
-
-                    for (index = 0, j = result[0].Attributes.length; index < j; index++) {
-                        ent = result[0].Attributes[index];
-
-                        if (ent.AttributeOf == null) {
-                            schName = ent.SchemaName.toLowerCase();
-                            attrType = ent.AttributeType.toLowerCase();
-
-                            if ((fieldexclusion.ExactMatchExists(schName) == false) && (attrTypeExclusion.ExactMatchExists(attrType) == true)) {
-                                lbl = _thisHelpers.GetUserLocalizedLabel(ent.DisplayName, ent.SchemaName);
-
-                                AllFieldsMetadata.push({
-                                    SchemaName: schName,
-                                    Name: lbl,
-                                    AttrType: attrType,
-                                    LookupTargetEntity: ((ent.Targets) && (ent.Targets.length)) ? ent.Targets.join(',').toLowerCase() : null
-                                });
-                            }
-                        }
-                    }
-
-                    if (AllFieldsMetadata.length > 0) {
-                        AllFieldsMetadata.sort(function (a, b) {
-                            var alabel = (a.Name);
-                            var blabel = (b.Name);
-                            if (alabel < blabel)
-                            { return -1 }
-                            if (alabel > blabel)
-                            { return 1 }
-                            return 0;
-                        });
-
-                        var fbody = $FieldsSelect.find('tbody');
-                        fbody.empty();
-                        //btnclass += ' checklistbuttoncondition';
-                        for (var i = 0; i < AllFieldsMetadata.length; i++) {
-                            var trbody = $('<tr></tr>');
-                            var $ftd = $('<td></td>');
-                            var fdata = "{'Name':'" + AllFieldsMetadata[i].Name +
-                                "','Schema':'" + AllFieldsMetadata[i].SchemaName +
-                                "','AttrType':'" + AllFieldsMetadata[i].AttrType + "'}";
-
-                            var $fbtn = $('<button data-fieldinfo="' + fdata + '" class="fieldoptionsettingbutton"></button>')
-                                .attr(_thisGlobals.ToolTipAttrName, 'Filter')
-                                .on('click', function (e) {
-                                    e.stopPropagation();
-                                    var _thisbtn = $(this);
-
-                                    var d = _thisbtn.attr('data-fieldinfo');
-                                    var o = JSON.parse(d.replace(/'/g, '"'));
-                                    o.TargetEntities = $(this).attr('data-lookuptarget-entities');
-
-                                    var cont = GetFilterContainer(o.AttrType);
-                                    // clone div
-                                    var cloneddiv = $(cont.div).clone();
-                                    var clonedivid = _thisHelpers.GenerateUUID()
-                                    cloneddiv.attr('id', clonedivid).removeClass('hidefilters').addClass('linkedentityfilters');
-                                    var select = cloneddiv.find('select:first')
-                                    select.attr('id', _thisHelpers.GenerateUUID());
-                                    var lbl = cloneddiv.find('label:first');
-                                    lbl.attr('id', _thisHelpers.GenerateUUID()).attr('for', select.attr('id'));
-
-                                    var filterinput = $(cont.input).clone().attr('id', _thisHelpers.GenerateUUID())
-                                        .appendTo(cloneddiv).removeClass('hidefilters');
-
-                                    // For dates, need to add a datepicker
-                                    // for optionsets and booleans, need to add a select2 style
-                                    // wire events to store the information as usual
-                                    // read this info in the fieldfilter_btnok event
-
-                                    // Buttons
-                                    var btncontainer = $('<div class="linkedentityfiltersbtncontainer"></div>').appendTo(cloneddiv);
-                                    $('<button>OK</button>').appendTo(btncontainer).on('click', function (e) {
-                                        e.stopPropagation();
-                                        $(this).parent().parent().remove();
-                                    });
-                                    $('<button>Cancel</button>').appendTo(btncontainer).on('click', function (e) {
-                                        e.stopPropagation();
-                                        $(this).parent().parent().remove();
-                                    });
-                                    $('<button>Del</button>').appendTo(btncontainer).on('click', function (e) {
-                                        e.stopPropagation();
-                                        $(this).parent().parent().remove();
-                                    });
-
-                                    $('#fieldfilter_btncancel').attr('data-linkentity-filterid', clonedivid);
-                                    $('#fieldfilter_btnok').attr('data-linkentity-filterid', clonedivid);
-
-                                    cloneddiv
-                                        .appendTo('body')
-                                        .css({ 'z-index': 10009, 'left': _thisbtn.offset().left, 'top': _thisbtn.offset().top })
-                                        .width(200).height(80)
-                                        .show();
-                                })
-                                .appendTo($ftd);
-                            if (AllFieldsMetadata[i].LookupTargetEntity) {
-                                $fbtn.attr('data-lookuptarget-entities', AllFieldsMetadata[i].LookupTargetEntity);
-                            }
-                            $ftd.appendTo(trbody);
-                            $('<td>' + AllFieldsMetadata[i].Name + '</td>').attr(_thisGlobals.ToolTipAttrName, AllFieldsMetadata[i].Name).appendTo(trbody);
-                            $('<td>' + AllFieldsMetadata[i].SchemaName + '</td>').attr(_thisGlobals.ToolTipAttrName, AllFieldsMetadata[i].SchemaName).appendTo(trbody);
-                            $('<td>' + AllFieldsMetadata[i].AttrType + '</td>').attr(_thisGlobals.ToolTipAttrName, AllFieldsMetadata[i].AttrType).appendTo(trbody);
-
-                            trbody.appendTo(fbody);
-                       }
-                       $EntityFieldsContainer.show();
-                    }
-
-                } catch (e) {
-                    LogEx("unable to retreive entity metadata\r\n" + e.message);
-                }
-            }
-        } else {
-            $FieldsSelect.find('tbody').empty();
-            $EntityFieldsContainer.hide();
-        }
-*/
     };
 
     $editor.ResetFilterLookup = function (lookupTargetEntities, curText, Guid, LogicalName) {
@@ -3138,7 +3419,8 @@ $.fn.DCrmEditableGrid.FilterLookup = function (parentdiv) {
                     PrimaryIdAttribute: '', accountid
                     PrimaryNameAttribute: '', name
                     ObjectTypeCode: '', 1
-                    LocalizedLabel: '' Account
+                    LocalizedLabel: '', Account
+                    LogicalCollectionName: '', accounts
                 }
             ]
     
@@ -3152,6 +3434,7 @@ $.fn.DCrmEditableGrid.FilterLookup = function (parentdiv) {
 			
             PrimaryIdAttributes: [],
             PrimaryNameAttributes: [],
+            LogicalCollectionNames: [],
             ObjectTypeCodes: [],
             LocalizedLabels: [],
 			
@@ -3166,6 +3449,7 @@ $.fn.DCrmEditableGrid.FilterLookup = function (parentdiv) {
                 Target: earr[earrindex],
                 PrimaryIdAttribute: null,
                 PrimaryNameAttribute: null,
+                LogicalCollectionName: null,
                 ObjectTypeCode: null,
                 LocalizedLabel: null
             });
@@ -3202,15 +3486,15 @@ $.fn.DCrmEditableGrid.FilterLookup = function (parentdiv) {
 
     };
 
-    function DoesAttributeExists(entityname, attrname) {
-        try {
-            var attr = XrmServiceToolkit.Soap.RetrieveAttributeMetadata(entityname, attrname, true);
-        } catch (e) {
-            LogIt("Attribute " + attrname + " does not exist in " + entityname);
-            return false;
-        }
-        return ((attr) && (attr.length) && (attr.length > 0));
-    };
+    //function DoesAttributeExists(entityname, attrname) {
+    //    try {
+    //        var attr = XrmServiceToolkit.Soap.RetrieveAttributeMetadata(entityname, attrname, true);
+    //    } catch (e) {
+    //        LogIt("Attribute " + attrname + " does not exist in " + entityname);
+    //        return false;
+    //    }
+    //    return ((attr) && (attr.length) && (attr.length > 0));
+    //};
 
     function FetchtargetEntity(i) {
         if ($editor.LookupCtrData.EntityTargets[i].length == 0) {
@@ -3228,10 +3512,15 @@ $.fn.DCrmEditableGrid.FilterLookup = function (parentdiv) {
                 //'</filter>' +
               '</entity>' +
             '</fetch>';
-            return XrmServiceToolkit.Soap.Fetch(fetch);
+            var result = null;
+            if (_thisGlobals.UseWebApi) {
+                var tmp = SdkWebAPI.getFetchXml($editor.LookupCtrData.LogicalCollectionNames[i], fetch);
+                result = tmp.Value;
+            } else {
+                result = XrmServiceToolkit.Soap.Fetch(fetch);
+            }
+            return result;
         //}
-
-        return '';
     };
 
     function FetchtargetEntityPartial(searchfor, i) {
@@ -3250,7 +3539,14 @@ $.fn.DCrmEditableGrid.FilterLookup = function (parentdiv) {
             '</filter>' +
           '</entity>' +
         '</fetch>';
-        return XrmServiceToolkit.Soap.Fetch(fetch);
+        var result = null;
+        if (_thisGlobals.UseWebApi) {
+            var tmp = SdkWebAPI.getFetchXml($editor.LookupCtrData.LogicalCollectionNames[i], fetch);
+            result = tmp.Value;
+        } else {
+            result = XrmServiceToolkit.Soap.Fetch(fetch);
+        }
+        return result;
     };
 
     function FetchtargetEntityExact(searchfor, i) {
@@ -3269,15 +3565,26 @@ $.fn.DCrmEditableGrid.FilterLookup = function (parentdiv) {
             '</filter>' +
           '</entity>' +
         '</fetch>';
-        return XrmServiceToolkit.Soap.Fetch(fetch);
+        var result = null;
+        if (_thisGlobals.UseWebApi) {
+            var tmp = SdkWebAPI.getFetchXml($editor.LookupCtrData.LogicalCollectionNames[i], fetch);
+            result = tmp.Value;
+        } else {
+            result = XrmServiceToolkit.Soap.Fetch(fetch);
+        }
+        return result;
     };
 
     function FetchAndValidateExcat(text) {
         for (var i = 0; i < $editor.LookupCtrData.EntityTargets.length; i++) {
             var result = FetchtargetEntityExact(text, i);
-            if (result.length == 1) {
+            if ((result) && (result.length == 1)) {
+
+                var item = (_thisGlobals.UseWebApi) ? result[0] : result[0].attributes;
+                var val = (_thisGlobals.UseWebApi) ? item[$editor.LookupCtrData.PrimaryIdAttributes[i]] : item[$editor.LookupCtrData.PrimaryIdAttributes[i]].value;
+
                 $editor.$input
-                    .attr(_thisGlobals.DataAttr.Cell.Lookup.Guid, result[0].attributes[$editor.LookupCtrData.PrimaryIdAttributes[i]].value)
+                    .attr(_thisGlobals.DataAttr.Cell.Lookup.Guid, val)
                     .attr(_thisGlobals.DataAttr.Cell.Lookup.LogicalName, $editor.LookupCtrData.EntityTargets[i]);
                 return true;
             }
@@ -3385,6 +3692,10 @@ Request URL:http://localhost/Demo/_controls/lookup/lookupinfo.aspx?AllowFilterOf
     };
 
     function PopulateDropDown(list, dataIndex) {
+        if ((axis.isUndefined(list)) || (axis.isUndefined(list[dataIndex]))) {
+            return 0;
+        }
+
         var listlen = dropdownMenuSize;
         if (list.length < dropdownMenuSize) {
             listlen = list.length;
@@ -3396,13 +3707,22 @@ Request URL:http://localhost/Demo/_controls/lookup/lookupinfo.aspx?AllowFilterOf
         var $row, $href, $span, icon;
 
         for (var i = 0; i < listlen; i++) {
-            if (!list[i].attributes[$editor.LookupCtrData.PrimaryNameAttributes[dataIndex]]) {
+            var curItemId = (_thisGlobals.UseWebApi) ?
+                list[i][$editor.LookupCtrData.PrimaryIdAttributes[dataIndex]] :
+                list[i].attributes[$editor.LookupCtrData.PrimaryIdAttributes[dataIndex]].value;
+
+            var curItemName = (_thisGlobals.UseWebApi) ?
+                list[i][$editor.LookupCtrData.PrimaryNameAttributes[dataIndex]] :
+                list[i].attributes[$editor.LookupCtrData.PrimaryNameAttributes[dataIndex]].value;
+
+            if (axis.isUndefined(curItemName)) {
                 continue;
             }
+
             var $row = $('<li></li>').appendTo($menu);
             var $href = $('<a href="#" class="LookupLink"></a>')
-                .attr(_thisGlobals.DataAttr.Cell.Lookup.Guid, list[i].attributes[$editor.LookupCtrData.PrimaryIdAttributes[dataIndex]].value)
-                .attr(_thisGlobals.DataAttr.Cell.Lookup.EntityName, list[i].attributes[$editor.LookupCtrData.PrimaryNameAttributes[dataIndex]].value)
+                .attr(_thisGlobals.DataAttr.Cell.Lookup.Guid, curItemId)
+                .attr(_thisGlobals.DataAttr.Cell.Lookup.EntityName, curItemName)
                 .attr(_thisGlobals.DataAttr.Cell.Lookup.LogicalName, $editor.LookupCtrData.EntityTargets[dataIndex])
                 .on('click', function (e) {
                     $editor.LookupCtrData.LookupId = $(this).attr(_thisGlobals.DataAttr.Cell.Lookup.Guid);
@@ -3419,7 +3739,7 @@ Request URL:http://localhost/Demo/_controls/lookup/lookupinfo.aspx?AllowFilterOf
                 .appendTo($row);
 
             var $span = $('<span class="LookupLinkSpan"></span>')
-                .text(list[i].attributes[$editor.LookupCtrData.PrimaryNameAttributes[dataIndex]].value)
+                .text(curItemName)
                 .addClass('itemTitle')
                 .appendTo($href);
         }
@@ -3510,6 +3830,81 @@ Request URL:http://localhost/Demo/_controls/lookup/lookupinfo.aspx?AllowFilterOf
     return $editor;
 };
 
+var AggregateFieldsHelper = (function () {
+    function AggregateFieldsHelper(GridTfoot) {
+        var self = this;
+        self.GridFooterRow = GridTfoot;
+        self.Fields = [];
+
+        self.FindField = function (schemaname) {
+            for (var i = 0; i < self.Fields.length; i++) {
+                if (self.Fields[i].SchemaName == schemaname) {
+                    return self.Fields[i];
+                }
+            }
+            return null;
+        }
+        self.AddField = function (op, schemaname, cellindex) {
+            var field = self.FindField(schemaname);
+            if (field == null) {
+                field = {};
+                field.SchemaName = schemaname;
+                field.CallbackHelper = new AggregateCallbackHelper(self.GridFooterRow, op, cellindex);
+                self.Fields.push(field);
+            }
+            field.CallbackHelper.ResetCellOp(op, cellindex);
+            field.OP = op;
+            field.CellIndex = cellindex;
+            return field;
+        }
+    }
+
+    return AggregateFieldsHelper;
+})();
+
+var AggregateCallbackHelper = (function () {
+    function AggregateCallbackHelper(GridTfoot, aggregatecellop, aggregatecellindex) {
+        var self = this;
+
+        self.GridFooterRow = GridTfoot.find("tr:first");
+        // .charAt(0)
+        self.AggregateCellOp = (aggregatecellop) ? aggregatecellop.toUpperCase() : '';
+        self.AggregateCellIndex = aggregatecellindex;
+
+        self.ResetCellOp = function (op, index) {
+            // .charAt(0)
+            self.AggregateCellOp = (op) ? op.toUpperCase() : '';
+            self.AggregateCellIndex = index;
+        }
+
+        self.SuccessCallback = function (result) {
+            if ((result) && (result.length) && (result.length > 0)) {
+                var ag = '';
+                if (_thisGlobals.UseWebApi) {
+                    if (result[0]['fetch_aggregate@OData.Community.Display.V1.FormattedValue']) {
+                        ag = result[0]['fetch_aggregate@OData.Community.Display.V1.FormattedValue'];
+                    }
+                } else {
+                    if (result[0].attributes['fetch_aggregate']) {
+                        ag = result[0].attributes['fetch_aggregate'].formattedValue;
+                    }
+                }
+                var aggreagtecell = self.GridFooterRow.find("td")[self.AggregateCellIndex];
+                _thisHelpers.SetFooterCellText($(aggreagtecell), self.AggregateCellOp + " " + ag);
+            }
+        }
+        self.FailCallback = function (error) {
+            if (_thisGlobals.UseWebApi) {
+                LogEx(error.message);
+            } else {
+                LogEx(error);
+            }
+        }
+    }
+
+    return AggregateCallbackHelper;
+})();
+
 var CrmEditableGrid = (function () {
     
     function CrmEditableGrid($table, options) {
@@ -3518,15 +3913,13 @@ var CrmEditableGrid = (function () {
             selectedRows: [],
             DirtyCells: [],
             SortList: [],
-            AggregateCellIndex: -1,
-            AggregateCellOp: null,
             CancelSelection: true
         };
 
         // Jquery object $('#xxxx')
         // self.MainTable.parent() or self.MainTable[0].thead
         self.mainTable = $table;
-        self.mainTableRaw = $table[0];
+        self.IsSubGrid = self.mainTable.parent().hasClass('subgridparentdiv');
         self.activeOptions = $.extend({}, defaults, options);
         
         self.errorcontainer = $("#" + self.activeOptions.RequiredErrorContainer);
@@ -3538,21 +3931,32 @@ var CrmEditableGrid = (function () {
         self.HighlightedRow = undefined;
         self.GridConfiguration = FindGridConfigByGridID(self.activeOptions.ConfigID);
 
+        self.ApiCallbackErrorHandler = function (errorMsg) {
+            _thisHelpers.WaitDialog();
+            if (_thisGlobals.UseWebApi) {
+                DisplayCrmAlertDialog("Unable to perform operations due to error:\r\n" + errorMsg.message);
+            } else {
+                DisplayCrmAlertDialog("Unable to perform operations due to error:\r\n" + errorMsg);
+            }
+        };
         self.GetParentPrimaryNameAttributeValueCallback = function (result) {
             if (result && result.length > 0) {
-                self.activeOptions.ParentChildLookupInfo.PrimaryNameAttributeValue = result[0].attributes[self.activeOptions.ParentChildLookupInfo.PrimaryNameAttribute].value;
-            }
+                self.activeOptions.ParentChildLookupInfo.PrimaryNameAttributeValue = (_thisGlobals.UseWebApi) ?
+                    result[0][self.activeOptions.ParentChildLookupInfo.PrimaryNameAttribute] :
+                    result[0].attributes[self.activeOptions.ParentChildLookupInfo.PrimaryNameAttribute].value;
 
-            // Find the filter, if exists, update it
-            var filter = self.GridConfiguration.GetInlineFilterBySchemaName(self.activeOptions.ParentChildLookupInfo.LookupSchemaName);
-            if (filter) {
-                filter.Value = self.activeOptions.ParentChildLookupInfo.PrimaryNameAttributeValue;
+                // Find the filter, if exists, update it
+                var filter = self.activeOptions.GridFetchHelper.GetInlineFilterBySchemaName(self.activeOptions.ParentChildLookupInfo.LookupSchemaName);
+                if (filter) {
+                    filter.Value = self.activeOptions.ParentChildLookupInfo.PrimaryNameAttributeValue;
+                }
             }
         };
         self.GetParentPrimaryAttributesCallback = function (entityMetaData) {
-            if (entityMetaData && entityMetaData.length === 1) {
+            if (entityMetaData && entityMetaData.length > 0) {
                 self.activeOptions.ParentChildLookupInfo.PrimaryIdAttribute = entityMetaData[0].PrimaryIdAttribute;
                 self.activeOptions.ParentChildLookupInfo.PrimaryNameAttribute = entityMetaData[0].PrimaryNameAttribute;
+                self.activeOptions.ParentChildLookupInfo.LogicalCollectionName = entityMetaData[0].LogicalCollectionName;
             }
 
             // Need to get the primarAttributeName value for related lookup
@@ -3565,13 +3969,23 @@ var CrmEditableGrid = (function () {
                         _thisHelpers.AddCurlyBrace(self.activeOptions.ParentChildLookupInfo.Guid) + '" />' +
                   '</filter>' +
               '</entity>' +
-          '</fetch>';
-            XrmServiceToolkit.Soap.Fetch(fetch, false, self.GetParentPrimaryNameAttributeValueCallback);
+            '</fetch>';
+            if (_thisGlobals.UseWebApi) {
+                SdkWebAPI.getFetchXml(self.activeOptions.ParentChildLookupInfo.LogicalCollectionName,
+                    fetch, self.GetParentPrimaryNameAttributeValueCallback, self.ApiCallbackErrorHandler);
+            } else {
+                XrmServiceToolkit.Soap.Fetch(fetch, false, self.GetParentPrimaryNameAttributeValueCallback, self.ApiCallbackErrorHandler);
+            }
         };
         // Get the parent primary id and name attribute names for related lookups, if related
         if (self.activeOptions.ParentChildLookupInfo.Related) {
-            XrmServiceToolkit.Soap.RetrieveEntityMetadata("Entity",
-                self.activeOptions.ParentChildLookupInfo.ParentSchemaName, true, self.GetParentPrimaryAttributesCallback);
+            if (_thisGlobals.UseWebApi) {
+                SdkWebAPI.GetEntityAttributes(SdkWebAPI.GetEntitySetName(self.activeOptions.ParentChildLookupInfo.ParentSchemaName),
+                    self.GetParentPrimaryAttributesCallback, self.ApiCallbackErrorHandler);
+            } else {
+                XrmServiceToolkit.Soap.RetrieveEntityMetadata("Entity",
+                    self.activeOptions.ParentChildLookupInfo.ParentSchemaName, true, self.GetParentPrimaryAttributesCallback, self.ApiCallbackErrorHandler);
+            }
         }
 
         self.GridEditors = CreateEditors(self.activeOptions.columneditors,
@@ -3610,6 +4024,13 @@ var CrmEditableGrid = (function () {
 
                 var curText = _thisHelpers.GetActiveCellText(self.activeCell);
 
+                var elemPosition = { 'left': self.activeCell.offset().left, 'top': self.activeCell.offset().top };
+                if (self.IsSubGrid) {
+                    // in the subgrid
+                    // Passing current cell and the subgrid's parent table tbody
+                    elemPosition = _thisHelpers.GetSubGridCellCoords(self.activeCell[0], self.mainTable.parent().parent().parent().parent()[0]);
+                }
+
                 if ((curEditor.EditorType == DCrmEditableGrid.Editors.Text) ||
                     (curEditor.EditorType == DCrmEditableGrid.Editors.Numeric) ||
                     (curEditor.EditorType == DCrmEditableGrid.Editors.Decimal) ||
@@ -3624,7 +4045,7 @@ var CrmEditableGrid = (function () {
                     }
 
                     curEditor.val(curText)
-                        .css({ 'left': self.activeCell.offset().left, 'top': self.activeCell.offset().top })
+                        .css({ 'left': elemPosition.left, 'top': elemPosition.top })
                         .width(self.activeCell.width() - 5)
                         .height(self.activeCell.height() - 2)
                         .show()
@@ -3639,7 +4060,7 @@ var CrmEditableGrid = (function () {
                         .height(self.activeCell.height())
                         .SetInternals(curText);
                 } else if (curEditor.EditorType == DCrmEditableGrid.Editors.Description) {
-                    var left = self.activeCell.offset().left, top = self.activeCell.offset().top + 5;
+                    var left = elemPosition.left, top = elemPosition.top + 5;
                     if (top + curEditor.height() >= $(window).height()) {
                         top -= curEditor.height();
                     }
@@ -3654,8 +4075,8 @@ var CrmEditableGrid = (function () {
                 } else if (curEditor.EditorType == DCrmEditableGrid.Editors.Checkbox) {
                     if (self.activeOptions.BooleanEditorBehavoir == "20") {
                         curEditor
-                            .css('left', self.activeCell.offset().left)
-                            .css('top', self.activeCell.offset().top)
+                            .css('left', elemPosition.left)
+                            .css('top', elemPosition.top)
                             .width(self.activeCell.width() + 1)
                             .height(self.activeCell.outerHeight() - 1)
                             .SetInternals(curText);
@@ -3667,16 +4088,18 @@ var CrmEditableGrid = (function () {
 
                 } else if (curEditor.EditorType == DCrmEditableGrid.Editors.OptionSet) {
                     curEditor
-                        .css('left', self.activeCell.offset().left)
-                        .css('top', self.activeCell.offset().top + 1)
+                        .css('left', elemPosition.left)
+                        .css('top', elemPosition.top + 1)
                         .width(self.activeCell.width() - 1)
                         .show();
                     curEditor.SetInternals(curText);
-                } else if (curEditor.EditorType == DCrmEditableGrid.Editors.Lookup) {
+                } else if ((curEditor.EditorType == DCrmEditableGrid.Editors.Lookup) ||
+                    (curEditor.EditorType == DCrmEditableGrid.Editors.Customer) ||
+                    (curEditor.EditorType == DCrmEditableGrid.Editors.Owner)) {
                     curEditor
                         //.show()
-                        .css('left', self.activeCell.offset().left)
-                        .css('top', self.activeCell.offset().top + 1)
+                        .css('left', elemPosition.left)
+                        .css('top', elemPosition.top + 1)
                         .width(self.activeCell.width())
                         .height(self.activeCell.height() - 2)
                         .SetInternals(curText, self.activeCell.attr(_thisGlobals.DataAttr.Cell.Lookup.Guid), self.activeCell.attr(_thisGlobals.DataAttr.Cell.Lookup.LogicalName));
@@ -3696,9 +4119,480 @@ var CrmEditableGrid = (function () {
                 }
             }
             return true;
-        }
+        };
 
-        SetupButtons(self);
+        // Setup Toolbar buttons event handlers
+        $('#' + self.activeOptions.GridContainerIds.RefreshGrid).click(function (e) {
+            e.stopPropagation();
+            self.RefreshGridRows();
+        });
+        $('#' + self.activeOptions.GridContainerIds.ClearAllFilters).click(function (e) {
+            e.stopPropagation();
+            self.activeOptions.GridFetchHelper.ClearInlineFilters();
+            var filterHeaders = self.GetHeaderCells();
+            filterHeaders.find('span.recfilterset').removeClass('recfilterset').addClass('recfilternotset');
+            self.RefreshGridRows();
+        });
+        $('#' + self.activeOptions.GridContainerIds.AutoSave).click(function (e) {
+            e.stopPropagation();
+            self.activeOptions.AutoSaveChanges = $(this).is(':checked');
+            if (self.activeOptions.AutoSaveChanges) {
+                $('#' + self.activeOptions.GridContainerIds.UndoChanges).hide();
+                $('#' + self.activeOptions.GridContainerIds.CancelAllChanges).hide();
+                $('#' + self.activeOptions.GridContainerIds.SaveChanges).hide();
+            } else {
+                $('#' + self.activeOptions.GridContainerIds.UndoChanges).show();
+                $('#' + self.activeOptions.GridContainerIds.CancelAllChanges).show();
+                $('#' + self.activeOptions.GridContainerIds.SaveChanges).show();
+            }
+        });
+        $('#' + self.activeOptions.GridContainerIds.UndoChanges).click(function (e) {
+
+            if ($(this).hasClass('GreyImage')) {
+                LogIt("Undo is disabled");
+                return;
+            }
+
+            if ((self.activeCell) && (self.activeCell.length)) {
+                var rows = self.activeOptions.DirtyCells;
+                var item;
+
+                if (rows.length == 0) {
+                    return;
+                }
+
+                for (var i = 0; i < rows.length; i++) {
+                    item = rows[i];
+                    if (self.activeCell.attr('id') == item.id) {
+
+                        item.CurrentUndoIndex--;
+                        if (item.CurrentUndoIndex < 0) {
+                            item.CurrentUndoIndex = (item.Changes.length - 1);
+                        }
+                        var tochagneto = item.Changes[item.CurrentUndoIndex];
+
+                        if (item.originalContent == tochagneto) {
+
+                            item.TargetCell.removeClass('IsDirty fieldvaluechanged');
+                            $('#' + self.activeOptions.GridContainerIds.UndoChanges).addClass('GreyImage');
+                            if (rows.length == 1) {
+                                $('#' + self.activeOptions.GridContainerIds.SaveChanges).addClass('GreyImage');
+                                $('#' + self.activeOptions.GridContainerIds.CancelAllChanges).addClass('GreyImage');
+                                self.activeOptions.DirtyCells = [];
+                            } else {
+                                self.activeOptions.DirtyCells.splice(i, 1);
+                            }
+                        }
+
+                        _thisHelpers.SetActiveCellText(item.TargetCell, tochagneto);
+
+                        if (item.AdditionalAttr.length > 0) {
+                            var tmp = item.AdditionalAttr[0];
+                            if (tmp) {
+                                var cellindex = item.TargetCell[0].cellIndex;
+                                var $theadcells = self.mainTable.find('thead:first').find('tr:first').find('th');
+                                var ed = parseInt($($theadcells[cellindex]).attr(_thisGlobals.DataAttr.Header.EditorType));
+
+                                if (ed == DCrmEditableGrid.Editors.OptionSet) {
+                                    item.TargetCell.attr(_thisGlobals.DataAttr.Cell.Optionset.SelectedValue, tmp);
+                                } else if ((ed == DCrmEditableGrid.Editors.Lookup) || (ed == DCrmEditableGrid.Editors.Customer) || (ed == DCrmEditableGrid.Editors.Owner)) {
+                                    item.TargetCell.attr(_thisGlobals.DataAttr.Cell.Lookup.Guid, tmp);
+                                    item.TargetCell.attr(_thisGlobals.DataAttr.Cell.Lookup.LogicalName, item.AdditionalAttr[1]);
+                                }
+                            }
+                        }
+
+                        self.activeCell.attr(_thisGlobals.ToolTipAttrName, tochagneto);
+                        self.activeCell.focus();
+                        return false;
+                    }
+                }
+            }
+        }).addClass('GreyImage');
+        $('#' + self.activeOptions.GridContainerIds.CancelAllChanges).click(function (e) {
+
+            if ($(this).hasClass('GreyImage')) {
+                LogIt("Undo all is disabled");
+                return;
+            }
+            var rows = self.activeOptions.DirtyCells;
+            var $cell;
+            for (var i = 0; i < rows.length; i++) {
+                $cell = rows[i].TargetCell;
+                _thisHelpers.SetActiveCellText($cell, rows[i].originalContent);
+                $cell.removeClass('IsDirty fieldvaluechanged');
+
+                if ((rows[i].AdditionalAttr) && (rows[i].AdditionalAttr.length) && (rows[i].AdditionalAttr.length > 0)) {
+                    var tmp = rows[i].AdditionalAttr[0];
+                    if (tmp) {
+                        var cellindex = rows[i].TargetCell[0].cellIndex;
+                        var $theadcells = self.mainTable.find('thead:first').find('tr:first').find('th');
+                        var ed = parseInt($($theadcells[cellindex]).attr(_thisGlobals.DataAttr.Header.EditorType));
+
+                        if (ed == DCrmEditableGrid.Editors.OptionSet) {
+                            $cell.attr(_thisGlobals.DataAttr.Cell.Optionset.SelectedValue, tmp);
+                        } else if ((ed == DCrmEditableGrid.Editors.Lookup) || (ed == DCrmEditableGrid.Editors.Customer) || (ed == DCrmEditableGrid.Editors.Owner)) {
+                            $cell.attr(_thisGlobals.DataAttr.Cell.Lookup.Guid, tmp);
+                            $cell.attr(_thisGlobals.DataAttr.Cell.Lookup.LogicalName, rows[i].AdditionalAttr[1]);
+                        }
+                    }
+                }
+                $cell.attr(_thisGlobals.ToolTipAttrName, rows[i].originalContent);
+            };
+            self.activeOptions.DirtyCells = [];
+            self.SaveUndoCancelEnable(false);
+
+        }).addClass('GreyImage');
+        $('#' + self.activeOptions.GridContainerIds.SaveChanges).click(function (e) {
+            e.stopPropagation();
+
+            if (($(this).hasClass('GreyImage')) && (!self.activeOptions.AutoSaveChanges)) {
+                LogIt("Save is disabled");
+                return false;
+            }
+
+            self.SaveGridChanges(true);
+
+        }).addClass('GreyImage');
+        $('#' + self.activeOptions.GridContainerIds.ExportToExcel).click(function (e) {
+            e.stopPropagation();
+
+            if (self.activeOptions.TotalRecordsCount == 0) {
+                return false;
+            }
+
+            var menu = $('<ul class="contextMenuPlugin"><div class="gutterLine"></div></ul>').appendTo('body');
+            var $bg = $('<div></div>')
+              .addClass('InvisibleFrame')
+              .appendTo('body')
+              .on('contextmenu click', function (e) {
+                  e.stopPropagation();
+                  $bg.remove();
+                  menu.remove();
+                  return false;
+              }).show();
+
+            var $row = $('<li><a href="#" class="contextMenuLink" id="ExportGridToExcel"><span class="itemTitle">Excel</span></a></li>').appendTo(menu);
+            var icon = $('<img>');
+            icon.attr('src', 'dcrmeg_excel');
+            icon.insertBefore($row.find('.itemTitle'));
+
+            $row = $('<li><a href="#" class="contextMenuLink" id="ExportGridToCSV"><span class="itemTitle">CSV</span></a></li>').appendTo(menu);
+            icon = $('<img>');
+            icon.attr('src', 'dcrmeg_csv16');
+            icon.insertBefore($row.find('.itemTitle'));
+
+            $row = $('<li><a href="#" class="contextMenuLink" id="ExportGridToPdf"><span class="itemTitle">PDF</span></a></li>').appendTo(menu);
+            icon = $('<img>');
+            icon.attr('src', 'dcrmeg_pdf16');
+            icon.insertBefore($row.find('.itemTitle'));
+
+            menu.find('a').click(function (e) {
+                var id = $(this).attr('id');
+                var msg = undefined;
+
+                if (id == 'ExportGridToExcel') {
+                    try {
+                        var tt = new SaveAsGridCallbackHelper(self);
+                    } catch (e) {
+                        msg = e.message;
+                    }
+                } else if (id == 'ExportGridToCSV') {
+                    try {
+                        var tt = new SaveAsGridCallbackHelper(self, 1);
+                    } catch (e) {
+                        msg = e.message;
+                    }
+                } else if (id == 'ExportGridToPdf') {
+                    try {
+                        var tt = new SaveAsGridCallbackHelper(self, 2);
+                    } catch (e) {
+                        msg = e.message;
+                    }
+                }
+
+                $bg.remove();
+                menu.remove();
+                e.stopPropagation();
+                if (msg) {
+                    DisplayCrmAlertDialog("Unable to export due to exception:\r" + msg);
+                }
+                return false;
+            });
+
+            menu.show();
+
+            $this = $(this);
+            menu.css({ zIndex: 100006, left: $this.offset().left, top: ($this.offset().top + $this.outerHeight() + 2) })
+                .on('contextmenu', function () {
+                    e.stopPropagation();
+                    return false;
+                });
+        });
+        $('#' + self.activeOptions.GridContainerIds.AddNewRec).click(function (e) {
+            e.stopPropagation();
+            var msg = undefined;
+            // 10 inline, 20 new window, 30 show menu
+            if (self.GridConfiguration.MSProductGrid) {
+                // Dispaly a different menu
+                if (self.GridConfiguration.MSProductGridHelperc && self.GridConfiguration.MSProductGridHelperc.GetPriceList()) {
+                    var $bg = $('<div></div>')
+                      .addClass('InvisibleFrame')
+                      .appendTo('body')
+                      .on('contextmenu click', function () {
+                          $bg.remove();
+                          menu.remove();
+                          return false;
+                      }).show();
+
+                    var menu = $('<ul class="contextMenuPlugin"><div class="gutterLine"></div></ul>').appendTo('body');
+                    $('<li><a href="#" class="contextMenuLink" id="getexistingproducts"><span class="itemTitle">Existing Products</span></a></li>').appendTo(menu);
+                    $('<li><a href="#" class="contextMenuLink" id="newinlineproduct"><span class="itemTitle">Write-in Product</span></a></li>').appendTo(menu);
+                    menu.find('a').click(function (e) {
+                        var id = $(this).attr('id');
+                        var msg = undefined;
+
+                        if (id == 'getexistingproducts') {
+                            self.GridConfiguration.MSProductGridHelperc.DisplayExistingProducts();
+                        } else if (id == 'newinlineproduct') {
+
+                        }
+
+                        $bg.remove();
+                        menu.remove();
+                        e.stopPropagation();
+                        if (msg) {
+                            DisplayCrmAlertDialog("Unable to proceed due to exception:\r" + msg);
+                        }
+                        return false;
+                    });
+
+                    menu.show();
+
+                    $this = $(this);
+                    menu.css({ zIndex: 100006, left: $this.offset().left, top: ($this.offset().top + $this.outerHeight() + 2) })
+                        .on('contextmenu', function () {
+                            e.stopPropagation();
+                            return false;
+                        });
+
+                } else {
+                    self.GridConfiguration.MSProductGridHelperc.DisplayNativePricelistSelect();
+                }
+            } else if (self.activeOptions.NewBtnBehavoir == "30") {
+                DisplayNewButtonMenu(self, $(this));
+            } else if (self.activeOptions.NewBtnBehavoir == "20") {
+                try {
+                    window.parent.Xrm.Utility.openEntityForm(self.activeOptions.ParentEntityInfo.ParentEntitySchemaname);
+                } catch (e) {
+                    msg = e.message;
+                }
+            } else if (self.activeOptions.NewBtnBehavoir == "10") {
+                msg = CreateInlineRecord(self);
+            }
+
+            if (msg) {
+                DisplayCrmAlertDialog(_thisGlobals.Translation_Labels.CreateNewError + "\r" + msg);
+            }
+
+            return false;
+        });
+        $('#' + self.activeOptions.GridContainerIds.DeleteRec).click(function (e) {
+
+            var selRows = self.activeOptions.selectedRows;
+            if (selRows.length == 0) {
+                return;
+            }
+            var toDel = [];
+            var toDelGuids = [];
+            var toCheckForSubgrid = [];
+            var $row = undefined;
+            var confirmMsg = '';
+
+            for (var i = 0; i < selRows.length; i++) {
+                $row = $(selRows[i]);
+
+                var dirtycells = $row.find('td.IsDirty');
+                if ((dirtycells) && (dirtycells.length)) {
+                    confirmMsg = _thisGlobals.Translation_Labels.DeleteUnsavedConfirmation.replace('%S%', _thisHelpers.GetActiveCellText($(dirtycells[0])));
+                    if (confirm(confirmMsg) == true) {
+                        toDel.push(parseInt($row.attr(_thisGlobals.DataAttr.Row.InternalIndex)));
+                        toDelGuids.push($row.attr(_thisGlobals.DataAttr.Cell.RecordGuid));
+                        toCheckForSubgrid.push($row);
+                    } else {
+                        continue;
+                    }
+                } else {
+                    toDel.push(parseInt($row.attr(_thisGlobals.DataAttr.Row.InternalIndex)));
+                    toDelGuids.push($row.attr(_thisGlobals.DataAttr.Cell.RecordGuid));
+                    toCheckForSubgrid.push($row);
+                }
+
+            };
+
+            confirmMsg = _thisGlobals.Translation_Labels.DeleteConfirmation.replace('%S%', toDelGuids.length + '');
+            if ((toDelGuids.length > 0) && (confirm(confirmMsg) == true)) {
+
+                if (window.parent.DCrmEgGridDeleting) {
+                    if (!window.parent.DCrmEgGridDeleting(toDelGuids, self.activeOptions.ParentEntityInfo)) {
+                        LogIt("Deleting cancelled by user");
+                        //DisplayCrmAlertDialog("Delete operation cancelled by javascript callback.");
+                        return;
+                    }
+                }
+
+                _thisHelpers.WaitDialog(true);
+
+                if (toDelGuids.length == 1) {
+                    if (_thisGlobals.UseWebApi) {
+                        var uri = SdkWebAPI.GetUri(self.activeOptions.ParentEntityInfo.LogicalCollectionName, toDelGuids[0]);
+                        SdkWebAPI.del(uri, self.DeleteRecordSuccessCallback, self.ApiCallbackErrorHandler, toDel, toCheckForSubgrid);
+                    } else {
+                        XrmServiceToolkit.Soap.Delete(self.activeOptions.ParentEntityInfo.ParentEntitySchemaname, toDelGuids[0], self.DeleteRecordSuccessCallback, self.ApiCallbackErrorHandler, toDel, toCheckForSubgrid);
+                    }
+                } else {
+                    if (_thisGlobals.UseWebApi) {
+                        var payload = SdkWebAPI.CreateBatchDeletePayload(self.activeOptions.ParentEntityInfo.LogicalCollectionName, toDelGuids);
+                        SdkWebAPI.executeBatch(payload.payload, payload.batchId, self.DeleteRecordSuccessCallback, self.ApiCallbackErrorHandler, toDel, toCheckForSubgrid);
+                    } else {
+                        var requests = XrmServiceToolkit.Soap.CreateBatchDeletePayload(self.activeOptions.ParentEntityInfo.ParentEntitySchemaname, toDelGuids, true, false);
+                        XrmServiceToolkit.Soap.Execute(requests, self.DeleteRecordSuccessCallback, self.ApiCallbackErrorHandler, toDel, toCheckForSubgrid);
+                    }
+                }
+            }
+        });
+        $('#' + self.activeOptions.GridContainerIds.PagerButtonFirst).click(function (e) {
+            e.stopPropagation();
+            if (self.activeOptions.Page > 1) {
+
+                if (self.CheckForDirtyCells() == false) {
+                    return false;
+                }
+
+                self.RefreshGridRows();
+            }
+        });
+        $('#' + self.activeOptions.GridContainerIds.PagerButtonPrev).click(function (e) {
+            e.stopPropagation();
+            if (self.activeOptions.Page > 1) {
+
+                if (self.CheckForDirtyCells() == false) {
+                    return false;
+                }
+
+                self.SaveUndoCancelEnable(false);
+                self.clearTableBody();
+
+                self.activeOptions.Page--;
+                if (_thisGlobals.UseWebApi) {
+                    SdkWebAPI.getFetchXml(self.activeOptions.ParentEntityInfo.LogicalCollectionName,
+                        self.activeOptions.GridFetchHelper.GetFetchXml(self.activeOptions.Page,
+                            self.activeOptions.PagingCookies[self.activeOptions.Page - 1]),
+                            self.RepopulateGridCallback, WebApiErrorCallback);
+                } else {
+                    XrmServiceToolkit.Soap.Fetch(
+                        self.activeOptions.GridFetchHelper.GetFetchXml(self.activeOptions.Page,
+                            self.activeOptions.PagingCookies[self.activeOptions.Page - 1]), false,
+                            self.RepopulateGridCallback, WebApiErrorCallback);
+                }
+            }
+
+        });
+        $('#' + self.activeOptions.GridContainerIds.PagerButtonNext).click(function (e) {
+            e.stopPropagation();
+
+            if (self.activeOptions.HasMoreRecords) {
+
+                if (self.CheckForDirtyCells() == false) {
+                    return false;
+                }
+
+                self.SaveUndoCancelEnable(false);
+                self.clearTableBody();
+
+                if (self.activeOptions.PagingCookies.length == self.activeOptions.Page.length) {
+                    self.activeOptions.PagingCookie = null;
+                } else {
+                    self.activeOptions.PagingCookie = "a";
+                }
+
+                self.activeOptions.Page++;
+
+                if (_thisGlobals.UseWebApi) {
+                    SdkWebAPI.getFetchXml(self.activeOptions.ParentEntityInfo.LogicalCollectionName,
+                        self.activeOptions.GridFetchHelper.GetFetchXml(self.activeOptions.Page,
+                            self.activeOptions.PagingCookies[self.activeOptions.Page - 1]),
+                            self.RepopulateGridCallback, WebApiErrorCallback);
+                } else {
+                    XrmServiceToolkit.Soap.Fetch(
+                        self.activeOptions.GridFetchHelper.GetFetchXml(self.activeOptions.Page,
+                            self.activeOptions.PagingCookies[self.activeOptions.Page - 1]), false,
+                            self.RepopulateGridCallback, WebApiErrorCallback);
+                }
+            }
+
+        });
+        $('#' + self.activeOptions.GridContainerIds.CloneRecord).click(function (e) {
+            e.stopPropagation();
+
+            var selRows = self.activeOptions.selectedRows;
+            if (selRows.length == 0) {
+                return false;
+            }
+            var lastone = selRows.length - 1;
+            for (var i = 0; i < selRows.length; i++) {
+                CloneRecord(self, $(selRows[i]), ((lastone == i) ? true : false));
+            }
+        });
+        $('#' + self.activeOptions.GridContainerIds.SearchGridBox).on('change', function (e) {
+            e.stopPropagation();
+
+            try {
+                var rows = $(this).val().split("\n");
+                $(this).val('');
+
+                for (var i = 0; i < rows.length; i++) {
+                    if ((rows[i]) && (rows[i].trim().length > 0)) {
+                        // number and order of the cells must match the number of fields and their order
+
+                        // Grid Fields
+                        // Name      Price      Somedate   Description    Revenue   FieldA         FieldB         FieldC
+
+                        // Excel Cells
+                        // John      5.6        6/23/2016  (empty cell)   3405.65   (empty cell)   (empty cell)   (empty cell)
+
+                        // Ensue that decimal, float, and money types use "." character as decimal separator
+                        // We use parseInt and parseFloat to parse the numbers
+                        // 55,55 => would return 55
+                        // 55.55 => would return 55.55
+
+                        // Limitations:
+                        // This functionality works only with the following data types.
+                        // Text, Description, Date, Datetime, Integer, Decimal, Float, and Money
+                        // Optionset, Boolean, and Lookup fields require further modifications to the CreateInlineRecord logic
+
+                        var cells = rows[i].split("\t");
+
+                        /* Uncomment for debug messages
+                        for (var ii = 0; ii < cells.length; ii++) {
+                            if ((cells[ii]) && (cells[ii].length == 0)) {
+                                cells[ii] = null;
+                            }
+                        }
+                        */
+
+                        var msg = CreateInlineRecord(self, cells, (((i + 1) == rows.length) ? true : null));
+                        if (msg) {
+                            DisplayCrmAlertDialog(_thisGlobals.Translation_Labels.CreateNewError + "\r" + msg);
+                            Break;
+                        }
+                    }
+                }
+
+            } catch (ex) {
+                DisplayCrmAlertDialog(_thisGlobals.Translation_Labels.CreateNewError + "\r" + ex.message);
+            }
+        });
 
         self.mainTable
             .on('click', function (e) {
@@ -3879,7 +4773,6 @@ var CrmEditableGrid = (function () {
                         e.stopPropagation();
                         return false;
                     }
-                    // TODO
                     // Add callback to extend the context menu
                     // opportunity,... products
                     /*
@@ -4095,6 +4988,9 @@ list of translated languages
         self.GetHeaderCells = function () {
             return self.mainTable.find(_thisGlobals.DefaultGridOptions.selectorHeaders);
         };
+        self.GridThead = self.mainTable.find('thead');
+        self.GridTbody = self.mainTable.find('tbody');
+        self.GridTfoot = self.mainTable.find('tfoot');
 
         self.HideEditors = function () {
             for (var i = 0; i < self.GridEditors.length; i++) {
@@ -4105,16 +5001,8 @@ list of translated languages
         };
 
         self.clearTableBody = function () {
-            //$(table.tBodies[0]).empty();
-            if (/Trident\/[4-9]/.test(navigator.userAgent)) {
-                function empty() {
-                    while (this.firstChild)
-                        this.removeChild(this.firstChild);
-                }
-                empty.apply(self.mainTable[0].tBodies[0]);
-            } else {
-                self.mainTable[0].tBodies[0].innerHTML = "";
-            }
+            self.RemoveAllSubgrids();
+            self.mainTable.find('tbody').empty();
         };
 
         self.ResetColResizerHeight = function () {
@@ -4125,10 +5013,10 @@ list of translated languages
             } catch (e) {
                 LogEx("Resizer Exception: " + e.message);
             }
-        }
+        };
         self.ResetRowHighlighting = function () {
-            SetupRowHighlighting(self);
-        }
+            self.SetupRowHighlighting();
+        };
 
         self.UndoChangesEnabled = function (e, enable) {
             if (enable) {
@@ -4136,7 +5024,7 @@ list of translated languages
             } else {
                 $('#' + self.activeOptions.GridContainerIds.UndoChanges).addClass('GreyImage');
             }
-        }
+        };
         self.SaveUndoCancelEnable = function (enable) {
             if (enable) {
                 $('#' + self.activeOptions.GridContainerIds.UndoChanges).removeClass('GreyImage');
@@ -4147,10 +5035,133 @@ list of translated languages
                 $('#' + self.activeOptions.GridContainerIds.SaveChanges).addClass('GreyImage');
                 $('#' + self.activeOptions.GridContainerIds.CancelAllChanges).addClass('GreyImage');
             }
-        }
+        };
 
         self.RebuildCache = function () {
-            buildCache(self);
+            var rowstofind = self.GetBodyRows();
+            var totalRows = (rowstofind && rowstofind.length) ? rowstofind.length : 0;
+            if (totalRows == 0) {
+                return;
+            }
+            var $tmpCell = null;
+            var $chk = null;
+            var $openRec = null;
+            var gridOptions = self.activeOptions;
+            for (var i = 0; i < totalRows; ++i) {
+                var c = $(rowstofind[i]);
+                $tmpCell = $('<td></td>');
+                if ((!gridOptions.ParentFormIsReadOnly) &&
+                    ((gridOptions.UserCanDelete) || (gridOptions.DisplayCloneRecordButton))) {
+                    $tmpCell.addClass('firstColCheckbox');
+                    // Select row checkbox
+                    $chk = $("<input type='checkbox' />")
+                        .attr(_thisGlobals.ToolTipAttrName, _thisGlobals.Translation_Labels.SelectRecord)
+                        .click(function (e) {
+                            var row = $(this).parent().parent();
+
+                            if ((row) && (row.length)) {
+
+                                if ($(this).is(':checked')) {
+                                    // add to selected rows
+                                    gridOptions.selectedRows[gridOptions.selectedRows.length] = row[0];
+                                    $(row[0]).addClass(_thisGlobals.DefaultGridOptions.rowSelectedCss);
+                                } else {
+                                    $(row[0]).removeClass(_thisGlobals.DefaultGridOptions.rowSelectedCss);
+                                    // remove from selected rows
+                                    for (var i = gridOptions.selectedRows.length - 1; i >= 0; i--) {
+                                        if ($(gridOptions.selectedRows[i]).attr(_thisGlobals.DataAttr.Row.InternalIndex) === $(row[0]).attr(_thisGlobals.DataAttr.Row.InternalIndex)) {
+                                            gridOptions.selectedRows.splice(i, 1);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            e.stopPropagation();
+                        }).appendTo($tmpCell);
+                } else {
+                    $tmpCell.addClass('firstColNoCheckbox');
+                }
+                if (gridOptions.HasChildGrids) {
+                    $openRec = $('<img></img>')
+                        .attr('src', _thisGlobals.DefaultGridOptions.ExpandRecordIcon)
+                        .addClass('firstColOpenImg')
+                        .attr(_thisGlobals.DataAttr.Row.SubGrid.ChildGridOpen, _thisGlobals.DataAttr.NO)
+                        .click(function (e) {
+                            e.stopPropagation();
+                            $this = $(this);
+                            var $parentrow = $this.parent().parent();
+
+                            if ($this.attr(_thisGlobals.DataAttr.Row.SubGrid.ChildGridOpen) == _thisGlobals.DataAttr.NO) {
+                                $this.attr(_thisGlobals.DataAttr.Row.SubGrid.ChildGridOpen, _thisGlobals.DataAttr.YES);
+                                $this.attr('src', _thisGlobals.DefaultGridOptions.CollapsedRecordIcon);
+
+                                var subgridid = _thisHelpers.GenerateUUID();
+                                var subgridrowid = _thisHelpers.GenerateUUID();
+                                // Call parent passing only the subgrid div id
+                                var tableHeaders = self.GetHeaderCells();
+                                var $tr = $('<tr><td style="opacity:0;">&nbsp;</td><td class="subgridtargetcell" colspan="' + (tableHeaders.length - 1) + '"></td></tr>')
+                                    .attr('id', subgridrowid)
+                                    .attr(_thisGlobals.DataAttr.Row.SubGrid.Id, subgridid)
+                                    .insertAfter($this.parent().parent());
+
+                                $parentrow.attr(_thisGlobals.DataAttr.Row.SubGrid.Row.Id, subgridrowid);
+                                $parentrow[0].DSubGridRow = $tr;
+
+                                $gridParentDiv = $('<div></div>')
+                                    .attr('id', subgridid)
+                                    .addClass('subgridparentdiv')
+                                    .appendTo($tr.find('.subgridtargetcell'));
+
+                                $parentrow.addClass('bgSelectedSubGridRow');
+
+                                self.SelectedRecordGuid = $parentrow.attr(_thisGlobals.DataAttr.Cell.RecordGuid);
+                                _thisHelpers.WaitDialog(true);
+                                ParentGridSelectedRecord(self, $gridParentDiv);
+
+                            } else {
+                                $this.attr(_thisGlobals.DataAttr.Row.SubGrid.ChildGridOpen, _thisGlobals.DataAttr.NO);
+                                $this.attr('src', _thisGlobals.DefaultGridOptions.ExpandRecordIcon);
+                                $parentrow.removeClass('bgSelectedSubGridRow');
+
+                                var rowid = $parentrow.attr(_thisGlobals.DataAttr.Row.SubGrid.Row.Id);
+                                if (rowid) {
+                                    if ($parentrow[0].DSubGridRow) {
+                                        var subgridid = $parentrow[0].DSubGridRow.attr(_thisGlobals.DataAttr.Row.SubGrid.Id);
+                                        $parentrow[0].DSubGridRow = undefined;
+
+                                        self.SelectedRecordGuid = $parentrow.attr(_thisGlobals.DataAttr.Cell.RecordGuid);
+                                        ParentGridSelectedRecord(self, subgridid, true);
+                                    }
+
+                                    $('#' + rowid).empty().remove();
+                                    $parentrow.removeAttr(_thisGlobals.DataAttr.Row.SubGrid.Row.Id);
+                                }
+                            }
+
+                        }).appendTo($tmpCell);
+                } else {
+                    $openRec = $('<img></img>')
+                        .attr('src', _thisGlobals.DefaultGridOptions.OpenRecordIcon)
+                        .attr(_thisGlobals.ToolTipAttrName, _thisGlobals.Translation_Labels.OpenRecord)
+                        .attr(_thisGlobals.DataAttr.Row.SubGrid.ChildGridOpen, _thisGlobals.DataAttr.NO)
+                        .click(function (e) {
+                            e.stopPropagation();
+
+                            var $parentrow = $(this).parent().parent();
+                            if (($parentrow) && ($parentrow.length > 0)) {
+                                if (gridOptions.OpenRecordBehavoir == '10') {
+                                    window.parent.Xrm.Utility.openEntityForm(gridOptions.ParentEntityInfo.ParentEntitySchemaname,
+                                        $($parentrow).attr(_thisGlobals.DataAttr.Cell.RecordGuid));
+                                } else {
+                                    openEntityRecord(gridOptions.ParentEntityInfo.ParentEntitySchemaname,
+                                        $($parentrow).attr(_thisGlobals.DataAttr.Cell.RecordGuid));
+                                }
+                            }
+                        }).appendTo($tmpCell);
+                }
+                $("td:first", c).before($tmpCell);
+                $(c[0]).attr(_thisGlobals.DataAttr.Row.InternalIndex, i);
+            };
         };
         self.RebuildCache();
 
@@ -4270,24 +5281,34 @@ list of translated languages
 
         self.RecordCountCallback = function (result) {
             if ((result) && (result.length) && (result.length > 0)) {
-                self.activeOptions.TotalRecordsCount = result[0].attributes["count"].value;
+                if (_thisGlobals.UseWebApi) {
+                    self.activeOptions.TotalRecordsCount = result[0].count;
+                } else {
+                    self.activeOptions.TotalRecordsCount = result[0].attributes["count"].value;
+                }
                 $('#' + self.activeOptions.GridContainerIds.TotalRecords).text(_thisGlobals.Translation_Labels.TotalRecords
                     + ' ' + self.activeOptions.TotalRecordsCount);
             }
-            XrmServiceToolkit.Soap.Fetch(self.GridConfiguration.GetFetchXml(), false, self.RepopulateGridCallback);
+
+            if (_thisGlobals.UseWebApi) {
+                SdkWebAPI.getFetchXml(self.activeOptions.ParentEntityInfo.LogicalCollectionName,
+                    self.activeOptions.GridFetchHelper.GetFetchXml(),
+                    self.RepopulateGridCallback, WebApiErrorCallback);
+            } else {
+                XrmServiceToolkit.Soap.Fetch(self.activeOptions.GridFetchHelper.GetFetchXml(), false, self.RepopulateGridCallback, WebApiErrorCallback);
+            }
         };
 
         self.SaveGridChanges = function (refreshGrid) {
             var dirty = self.activeOptions.DirtyCells;
             if (dirty.length > 0) {
                 _thisHelpers.WaitDialog(true);
-
                 var toSave = [];
-
                 var $theadcells = self.mainTable.find('thead:first').find('tr:first').find('th'); // th:not(:first-child)
-
+                
                 $.each(dirty, function (index, item) {
                     var $cell = item.TargetCell;
+
                     var cellindex = item.TargetCell[0].cellIndex;
                     var activecelltext = _thisHelpers.GetActiveCellText($cell);
                     var internalEditor = parseInt($($theadcells[cellindex]).attr(_thisGlobals.DataAttr.Header.EditorType));
@@ -4301,7 +5322,7 @@ list of translated languages
 
                     // Store in a temp struc
                     toSave.push({
-                        RecGuid: $cell.attr(_thisGlobals.DataAttr.Cell.RecordGuid),
+                        updateRecGuid: $cell.attr(_thisGlobals.DataAttr.Cell.RecordGuid),
                         RowIndex: $cell.parent().attr(_thisGlobals.DataAttr.Row.InternalIndex),
                         ValueToSave: activecelltext,
                         FieldSchemaName: $($theadcells[cellindex]).attr(_thisGlobals.DataAttr.Header.SchemaName),
@@ -4312,6 +5333,9 @@ list of translated languages
                         CheckAttribute: (self.GridEditors[cellindex].CheckedLabel == activecelltext) ? true : false,
                         LookupLogicalName: $cell.attr(_thisGlobals.DataAttr.Cell.Lookup.LogicalName),
                         LookupId: $cell.attr(_thisGlobals.DataAttr.Cell.Lookup.Guid),
+                        // Need to pass AssociatedNavigationProperty for lookups (WebApi)
+                        LookupAssociatedNavigationProperty: (self.GridEditors[cellindex].LookupData) ?
+                            self.GridEditors[cellindex].LookupData.AssociatedNavigationProperty : null,
                         TargetCell: $cell
                     });
 
@@ -4331,68 +5355,7 @@ list of translated languages
                 $('#' + self.activeOptions.GridContainerIds.SaveChanges).addClass('GreyImage');
                 $('#' + self.activeOptions.GridContainerIds.CancelAllChanges).addClass('GreyImage');
 
-                try {
-                    UpdateCrmField(toSave, self);
-
-                    var formatOptions = self.GridConfiguration.GetFormattingOptions();
-                    for (var i = 0; i < toSave.length; i++) {
-                        toSave[i].TargetCell.css("background-color", "").css("color", "");
-
-                        var headerformatOptions = formatOptions.GetHeader(toSave[i].FieldSchemaName);
-                        var cellformatOptions = formatOptions.GetField(toSave[i].FieldSchemaName);
-
-                        if ((headerformatOptions) && (headerformatOptions.ApplyToColumn)) {
-                            if ((headerformatOptions.BackgroundColor) && (_thisGlobals.DefaultBackgroundColor != headerformatOptions.BackgroundColor)) {
-                                toSave[i].TargetCell.css("background-color", headerformatOptions.BackgroundColor);
-                            }
-                            if ((headerformatOptions.TextColor) && (_thisGlobals.DefaultBackgroundColor != headerformatOptions.TextColor)) {
-                                toSave[i].TargetCell.css("color", headerformatOptions.TextColor);
-                            }
-                            if (headerformatOptions.FontCss) {
-                                DeccoupleCss(headerformatOptions.FontCss, toSave[i].TargetCell);
-                            }
-                        }
-                        if (cellformatOptions) {
-                            var valToExamin = { Value: toSave[i].ValueToSave };
-                            if (toSave[i].InternalEditorType == DCrmEditableGrid.Editors.Numeric) {
-                                if (valToExamin.Value.length > 0) {
-                                    valToExamin.Value = parseInt(_thisHelpers.RemoveNumericFormat(valToExamin.Value));
-                                }
-                            }
-                            if (toSave[i].InternalEditorType == DCrmEditableGrid.Editors.OptionSet) {
-                                valToExamin.Value = parseInt(toSave[i].OptionSetValue);
-                            }
-                            if (toSave[i].InternalEditorType == DCrmEditableGrid.Editors.Checkbox) {
-                                valToExamin.Value = toSave[i].CheckAttribute;
-                            }
-                            if (toSave[i].InternalEditorType == DCrmEditableGrid.Editors.Lookup) {
-                                valToExamin.LookupGuid = toSave[i].LookupId;
-                            }
-
-                            if ((cellformatOptions.Condition) && (ConditionIsTrue(cellformatOptions.Condition, null, valToExamin))) {
-                                if ((cellformatOptions.BackgroundColor) && (_thisGlobals.DefaultBackgroundColor != cellformatOptions.BackgroundColor)) {
-                                    toSave[i].TargetCell.css("background-color", cellformatOptions.BackgroundColor);
-                                }
-                                if ((cellformatOptions.TextColor) && (_thisGlobals.DefaultBackgroundColor != cellformatOptions.TextColor)) {
-                                    toSave[i].TargetCell.css("color", cellformatOptions.TextColor);
-                                }
-                                if (cellformatOptions.FontCss) {
-                                    DeccoupleCss(cellformatOptions.FontCss, toSave[i].TargetCell);
-                                }
-                            } else if (cellformatOptions.FontCss) {
-                                DeccoupleCss(cellformatOptions.FontCss, toSave[i].TargetCell, true);
-                            }
-                        }
-                    }
-                } catch (ex) {
-                    LogEx("Exception saving " + ex.message);
-                }
-
-                _thisHelpers.WaitDialog();
-
-                if ((self.activeOptions.RefreshAfterSave) && (refreshGrid)) {
-                    self.RefreshGridRows();
-                }
+                self.UpdateCrmField(toSave, refreshGrid);
             }
         };
 
@@ -4424,13 +5387,14 @@ list of translated languages
             self.activeOptions.selectedRows = [];
             self.activeOptions.DirtyCells = [];
 
-            GetEntityCount(self.GridConfiguration.DistinctValues,
+            GetEntityCount(self.activeOptions.DistinctValues,
                 self.activeOptions.ParentEntityInfo.ParentEntitySchemaname, self.activeOptions.ParentEntityInfo.PrimaryIdAttribute,
-                self.GridConfiguration.GetFetchXmlFilters(), self.RecordCountCallback);
+                self.activeOptions.GridFetchHelper.GetFetchXmlFilters(), self.RecordCountCallback);
         };
 
         self.mainTable.find(_thisGlobals.DefaultGridOptions.selectorHeaders).on("click", function (e) {
-            var totalRows = (self.mainTableRaw.tBodies[0] && self.mainTableRaw.tBodies[0].rows.length) || 0;
+            var rowstofind = self.GetBodyRows();
+            var totalRows = (rowstofind && rowstofind.length) ? rowstofind.length : 0;
 
             var colIndex = this.column || this.cellIndex;
 
@@ -4505,7 +5469,7 @@ list of translated languages
                 var savedLookupGuid = null;
                 var savedLookupUiType = null;
 
-                var savedFilter = self.GridConfiguration.GetInlineFilterBySchemaName(headerSchemaName);
+                var savedFilter = self.activeOptions.GridFetchHelper.GetInlineFilterBySchemaName(headerSchemaName);
                 if (savedFilter) {
                     savedValue = savedFilter.Value;
                     savedOperator = savedFilter.Operator;
@@ -4677,10 +5641,15 @@ list of translated languages
                     _thisFilterContent.removeAttr('data-fetchval');
                 }
 
+                _thisFilterContent[0].IndirectRefreshGrid = self.RefreshGridRows;
+                _thisFilterContent[0].IndirectSetFetchXmlFiltered = self.activeOptions.GridFetchHelper.SetFetchXmlFiltered
+                _thisFilterContent[0].IndirectClearInlineFilters = self.activeOptions.GridFetchHelper.ClearInlineFilters
+
                 _thisFilterContent
                     .attr(_thisGlobals.DataAttr.Header.EditorType, edType)
                     .attr(_thisGlobals.DataAttr.Header.SchemaName, self.activeOptions.ParentEntityInfo.ParentEntitySchemaname)
-                    .attr('data-table-configid', self.activeOptions.ConfigID)
+                    .attr('data-table-config-id', self.activeOptions.ConfigID)
+                    .attr('data-table-table-id', self.activeOptions.GridContainerIds.Table)
                     .attr('data-field-schemaname', headerSchemaName)
                     .attr('data-col-index', colIndex)
                     .attr('data-fetchop', ((savedFetchOp) ? savedFetchOp : filterUi.FetchOp))
@@ -4716,7 +5685,7 @@ list of translated languages
                 self.activeOptions.SortList.push([colIndex, this.order]);
 
                 var schemaName = $(this).attr(_thisGlobals.DataAttr.Header.SchemaName);
-                self.GridConfiguration.GetFetchXmlSorted(schemaName, this.order);
+                self.activeOptions.GridFetchHelper.GetFetchXmlSorted(schemaName, this.order);
 
                 var sortCSS = [_thisGlobals.DefaultGridOptions.cssAsc, _thisGlobals.DefaultGridOptions.cssDesc];
                 self.SetHeadersCss(tableHeaders,self.activeOptions.SortList, sortCSS);
@@ -4737,7 +5706,7 @@ list of translated languages
             var $tmp = $(e.target);
             tname = $tmp.parent()[0].tagName;
 
-            if ((e.target.tagName == 'SPAN') || (e.target.tagName == 'BUTTON') || (e.target.tagName == 'IMG') || (e.target.tagName == 'INPUT')) {
+            if ((e.target.tagName == 'SPAN') || (e.target.tagName == 'DIV') || (e.target.tagName == 'BUTTON') || (e.target.tagName == 'IMG') || (e.target.tagName == 'INPUT')) {
                 if (tname == 'TH') {
                     self.HighlightedRow = $tmp.parent();
                 }
@@ -4799,21 +5768,29 @@ list of translated languages
             if (self.activeOptions.AutoSaveChanges) {
                 self.SaveGridChanges(true);
             }
-        }
+        };
 
         self.CurrencySymbolCallback = function (result) {
             if ((result) && (result.length > 0)) {
-                if (result[0].attributes['currencysymbol'])
+                if (_thisGlobals.UseWebApi) {
+                    self.activeOptions.EntityCurrencySymbol = (result[0].currencysymbol) ?
+                        result[0].currencysymbol : _thisGlobals.userCurrencySettings.DecimalSymbol;
+
+                    if (result[0].currencyprecision) {
+                        self.activeOptions.EntityCurrencyPrecision = result[0].currencyprecision;
+                    }
+                } else {
                     self.activeOptions.EntityCurrencySymbol = (result[0].attributes['currencysymbol']) ?
                         result[0].attributes['currencysymbol'].value : _thisGlobals.userCurrencySettings.DecimalSymbol;
 
-                if (result[0].attributes['currencyprecision']) {
-                    self.activeOptions.EntityCurrencyPrecision = result[0].attributes['currencyprecision'].value;
+                    if (result[0].attributes['currencyprecision']) {
+                        self.activeOptions.EntityCurrencyPrecision = result[0].attributes['currencyprecision'].value;
+                    }
                 }
 
                 for (var i = 0; i < self.GridEditors.length; i++) {
                     if (self.GridEditors[i] != null) {
-                        if  (self.GridEditors[i].EditorType == DCrmEditableGrid.Editors.Currency){
+                        if (self.GridEditors[i].EditorType == DCrmEditableGrid.Editors.Currency) {
                             self.GridEditors[i].CurrencySymbol = self.activeOptions.EntityCurrencySymbol;
                             if (self.GridEditors[i].PrecisionSource == 2) {
                                 self.GridEditors[i].Precision = self.activeOptions.EntityCurrencyPrecision;
@@ -4835,7 +5812,7 @@ list of translated languages
                     }
                 }
             }
-        }
+        };
 
         self.UpdatePageDisplay = function () {
             if (self.activeOptions.TotalRecordsCount > 0) {
@@ -4854,8 +5831,6 @@ list of translated languages
                 $('#' + self.activeOptions.GridContainerIds.PagerButtonFirst).attr("disabled","disabled");
                 $('#' + self.activeOptions.GridContainerIds.PagerButtonPrev).attr("disabled", "disabled");
                 $('#' + self.activeOptions.GridContainerIds.PagerButtonNext).hide();
-
-
             if (self.activeOptions.TotalRecordsCount > self.activeOptions.PagerSize) {
                 $('#' + self.activeOptions.GridContainerIds.PagerButtonFirst).removeAttr("disabled");
                 $('#' + self.activeOptions.GridContainerIds.PagerButtonPrev).removeAttr("disabled");
@@ -4864,7 +5839,6 @@ list of translated languages
                     $('#' + self.activeOptions.GridContainerIds.PagerButtonNext).show();
                 }
             }
-
         };
 
         self.RepopulateGridCallback = function (fieldsresult, hasMoreRecords, pagingCookie) {
@@ -4877,6 +5851,7 @@ list of translated languages
             var refreshTrs = [];
 
             if ((fieldsresult) && (fieldsresult.length) && (fieldsresult.length > 0)) {
+                var allHeaders = self.GetHeaderCells();
 
                 var SelectedFields = self.GridConfiguration.SelectedFields;
 
@@ -4902,7 +5877,14 @@ list of translated languages
                 for (var i = 0; i < fieldsresult.length; i++) {
                     var item = fieldsresult[i];
 
-                    $tr = $('<tr' + extraRowHeight + '></tr>').attr(_thisGlobals.DataAttr.Cell.RecordGuid, item.id).appendTo($tbody);
+                    var recGuid = '';
+                    if (_thisGlobals.UseWebApi) {
+                        recGuid = item[self.activeOptions.ParentEntityInfo.PrimaryIdAttribute];
+                    } else {
+                        recGuid = item.id;
+                    }
+
+                    $tr = $('<tr' + extraRowHeight + '></tr>').attr(_thisGlobals.DataAttr.Cell.RecordGuid, recGuid).appendTo($tbody);
 
                     even = (i % 2 == 0);
                     if ((!even) && (formatOptions.EvenRows)) {
@@ -4911,7 +5893,7 @@ list of translated languages
                         $tr.css('background-color', formatOptions.OddRows);
                     }
 
-                    var callbackRowData = { RecordGuid: item.id, Fields: [], RowIndex: i };
+                    var callbackRowData = { RecordGuid: recGuid, Fields: [], RowIndex: i };
 
                     for (var iinner = 0; iinner < SelectedFields.length; iinner++) {
                         var inneritem = SelectedFields[iinner];
@@ -4937,52 +5919,105 @@ list of translated languages
                             (tmpLcase == _thisGlobals.CrmFieldTypes.DecimalType) ||
                             (tmpLcase == _thisGlobals.CrmFieldTypes.DoubleType) ||
                             (tmpLcase == _thisGlobals.CrmFieldTypes.IntegerType)) {
+                            if (_thisGlobals.UseWebApi) {
+                                if (item[inneritemSchemaName] != undefined) {
+                                    fval = item[inneritemSchemaName + '@OData.Community.Display.V1.FormattedValue'];
 
-                            if (item.attributes[inneritemSchemaName]) {
-                                fval = item.attributes[inneritemSchemaName].formattedValue;
-                                callbackField.Value = item.attributes[inneritemSchemaName].value;
+                                    callbackField.Value = item[inneritemSchemaName];
 
-                                if ((tmpLcase == _thisGlobals.CrmFieldTypes.OptionSetType) ||
-                                    (tmpLcase == _thisGlobals.CrmFieldTypes.State) ||
-                                    (tmpLcase == _thisGlobals.CrmFieldTypes.Status)) {
-                                    selectedOptionsetValue = item.attributes[inneritemSchemaName].value;
+                                    if ((tmpLcase == _thisGlobals.CrmFieldTypes.OptionSetType) ||
+                                        (tmpLcase == _thisGlobals.CrmFieldTypes.State) ||
+                                        (tmpLcase == _thisGlobals.CrmFieldTypes.Status)) {
+                                        selectedOptionsetValue = item[inneritemSchemaName];
 
-                                    callbackField.Value = selectedOptionsetValue;
+                                        callbackField.Value = selectedOptionsetValue;
+                                    }
+                                }
+                            } else {
+                                if (item.attributes[inneritemSchemaName] != undefined) {
+                                    fval = item.attributes[inneritemSchemaName].formattedValue;
+                                    callbackField.Value = item.attributes[inneritemSchemaName].value;
+
+                                    if ((tmpLcase == _thisGlobals.CrmFieldTypes.OptionSetType) ||
+                                        (tmpLcase == _thisGlobals.CrmFieldTypes.State) ||
+                                        (tmpLcase == _thisGlobals.CrmFieldTypes.Status)) {
+                                        selectedOptionsetValue = item.attributes[inneritemSchemaName].value;
+
+                                        callbackField.Value = selectedOptionsetValue;
+                                    }
                                 }
                             }
                         } else if ((tmpLcase == _thisGlobals.CrmFieldTypes.LookupType) ||
                             (tmpLcase == _thisGlobals.CrmFieldTypes.CustomerType) ||
                             (tmpLcase == _thisGlobals.CrmFieldTypes.OwnerType)) {
+                            if (_thisGlobals.UseWebApi) {
+                                // navigation property
+                                var tmpAttr = '_' + inneritemSchemaName + '_value';
+                                if (item[tmpAttr] != undefined) {
+                                    fval = item[tmpAttr + '@OData.Community.Display.V1.FormattedValue'] || '';
+                                    ceditors.LookupData.LookupId = item[tmpAttr] || '';
+                                    ceditors.LookupData.LookupLogicalName = item[tmpAttr + '@Microsoft.Dynamics.CRM.lookuplogicalname'];
+                                    ceditors.LookupData.LookupName = fval;
+                                    // LookupId = 'DFE54660-37CD-E511-80DE-6C3BE5A831DC'
+                                    // AssociatedNavigationProperty = 'primarycontactid'
+                                    // LookupLogicalName = 'contact' => plural 'contacts'
+                                    ceditors.LookupData.AssociatedNavigationProperty = item[tmpAttr + '@Microsoft.Dynamics.CRM.associatednavigationproperty'];
 
-                            if (item.attributes[inneritemSchemaName]) {
-                                fval = item.attributes[inneritemSchemaName].name || '';
-                                ceditors.LookupData.LookupId = item.attributes[inneritemSchemaName].id || '';
-                                ceditors.LookupData.LookupLogicalName = item.attributes[inneritemSchemaName].logicalName;
-                                ceditors.LookupData.LookupName = fval;
+                                    callbackField.AssociatedNavigationProperty = ceditors.LookupData.AssociatedNavigationProperty;
+                                    callbackField.LookupGuid = ceditors.LookupData.LookupId;
+                                    callbackField.LookupLogicalName = ceditors.LookupData.LookupLogicalName;
+                                    callbackField.LookupName = fval;
+                                    callbackField.Value = fval;
+                                }
+                            } else {
+                                if (item.attributes[inneritemSchemaName] != undefined) {
+                                    fval = item.attributes[inneritemSchemaName].name || '';
+                                    ceditors.LookupData.LookupId = item.attributes[inneritemSchemaName].id || '';
+                                    ceditors.LookupData.LookupLogicalName = item.attributes[inneritemSchemaName].logicalName;
+                                    ceditors.LookupData.LookupName = fval;
 
-                                callbackField.LookupGuid = ceditors.LookupData.LookupId;
-                                callbackField.LookupLogicalName = ceditors.LookupData.LookupLogicalName;
-                                callbackField.LookupName = fval;
-                                callbackField.Value = fval;
+                                    callbackField.LookupGuid = ceditors.LookupData.LookupId;
+                                    callbackField.LookupLogicalName = ceditors.LookupData.LookupLogicalName;
+                                    callbackField.LookupName = fval;
+                                    callbackField.Value = fval;
+                                }
                             }
-
                         } else if ((tmpLcase == _thisGlobals.CrmFieldTypes.TextType) || (tmpLcase == _thisGlobals.CrmFieldTypes.MemoType)) {
-                            if (item.attributes[inneritemSchemaName]) {
-                                fval = item.attributes[inneritemSchemaName].value;
+                            if (_thisGlobals.UseWebApi) {
+                                if (item[inneritemSchemaName] != undefined) {
+                                    fval = item[inneritemSchemaName];
+                                    callbackField.Value = fval;
+                                    callbackField.Format = ceditors.Format;
+                                    if (((ceditors.Format == 'Text') || (ceditors.Format == 'Phone'))
+                                        && (_thisHelpers.IsvalidPhoneNumber(fval + ''))) {
+                                        ceditors.Format = "Phone";
+                                    }
+                                }
+                            } else {
+                                if (item.attributes[inneritemSchemaName] != undefined) {
+                                    fval = item.attributes[inneritemSchemaName].value;
 
-                                callbackField.Value = fval;
-                                callbackField.Format = ceditors.Format;
+                                    callbackField.Value = fval;
+                                    callbackField.Format = ceditors.Format;
 
-                                if (((ceditors.Format == 'Text') || (ceditors.Format == 'Phone'))
-                                    && (_thisHelpers.IsvalidPhoneNumber(fval + ''))) {
-                                    ceditors.Format = "Phone";
+                                    if (((ceditors.Format == 'Text') || (ceditors.Format == 'Phone'))
+                                        && (_thisHelpers.IsvalidPhoneNumber(fval + ''))) {
+                                        ceditors.Format = "Phone";
+                                    }
                                 }
                             }
                         } else if (tmpLcase == _thisGlobals.CrmFieldTypes.DateTimeType) {
-                            if (item.attributes[inneritemSchemaName]) {
-                                fval = item.attributes[inneritemSchemaName].formattedValue;
+                            if (_thisGlobals.UseWebApi) {
+                                if (item[inneritemSchemaName + '@OData.Community.Display.V1.FormattedValue'] != undefined) {
+                                    fval = item[inneritemSchemaName + '@OData.Community.Display.V1.FormattedValue'];
+                                    callbackField.Value = fval;
+                                }
+                            } else {
+                                if (item.attributes[inneritemSchemaName] != undefined) {
+                                    fval = item.attributes[inneritemSchemaName].formattedValue;
 
-                                callbackField.Value = fval;
+                                    callbackField.Value = fval;
+                                }
                             }
                         }
                         if (fval.length > 0) {
@@ -4990,9 +6025,11 @@ list of translated languages
                         }
                         var $thistr = $('<td tabindex="1"></td>')
                             .attr(_thisGlobals.ToolTipAttrName, fval)
-                            .attr(_thisGlobals.DataAttr.Cell.RecordGuid, item.id)
+                            .attr(_thisGlobals.DataAttr.Cell.RecordGuid, recGuid)
                             .html('<span class="fieldcelltext" ' + _thisGlobals.ToolTipAttrName + '="' + fval + '">' + fval + '</span>')
                             .appendTo($tr);
+
+                        _thisHelpers.SetCellWidth($thistr, _thisHelpers.GetCellWidth($(allHeaders[iinner + 1]), true), true);
 
                         var headerformatOptions = formatOptions.GetHeader(inneritemSchemaName);
                         var cellformatOptions = formatOptions.GetField(inneritemSchemaName);
@@ -5073,10 +6110,12 @@ list of translated languages
                 return;
             }
 
-            SetupRowHighlighting(self);
+            self.SetupRowHighlighting();
             self.RebuildCache();
             self.UpdatePageDisplay();
             self.UpdatePagerButtons();
+
+            self.ReapplyAggregates();
 
             _thisHelpers.WaitDialog();
         };
@@ -5137,21 +6176,50 @@ list of translated languages
             self.activeOptions.selectedRows = [];
         };
 
+        //Aggregates
         if ((self.activeOptions.DisplayFieldsSum) && (self.activeOptions.HaveNumericFields.HaveNumeric)) {
-            self.AggregateCallback = function (result) {
-                if ((result) && (result.length) && (result.length > 0)) {
-                    if (result[0].attributes['fetch_aggregate']) {
-                        var aggreagtecell = self.mainTable.find("tfoot:last").find("tr:first").find("td")[self.activeOptions.AggregateCellIndex];
-                        _thisHelpers.SetFooterCellText($(aggreagtecell),
-                            self.activeOptions.AggregateCellOp.toUpperCase() + " " + result[0].attributes['fetch_aggregate'].formattedValue);
-                    }
-                }
-            };
         } else {
-            // remove footer all together
             self.mainTable.find('tfoot').empty().remove();
+            var tb = parseInt(self.GridTbody.css('height'));
+            tb += 50;
+            self.GridTbody.css('height', tb + 'px');
+            self.GridTfoot = null;
         }
+        self.AggregateHelper = new AggregateFieldsHelper(self.GridTfoot);
+        self.AggregateAction = function (field) {
+            var s = self.activeOptions.GridFetchHelper.GetFetchXmlFilters();
+            var aggregatefetch = "<fetch distinct='false' mapping='logical' aggregate='true'>" +
+                            "<entity name='" + self.activeOptions.ParentEntityInfo.ParentEntitySchemaname + "'>" +
+                               "<attribute name='" + field.SchemaName +
+                               "' alias='fetch_aggregate' aggregate='" + field.OP + "' />";
 
+            if (s.length > 0) {
+                aggregatefetch += s;
+            }
+            aggregatefetch += "</entity>" +
+                        "</fetch>";
+
+            if (_thisGlobals.UseWebApi) {
+                SdkWebAPI.getFetchXml(self.activeOptions.ParentEntityInfo.LogicalCollectionName,
+                    aggregatefetch, field.CallbackHelper.SuccessCallback, field.CallbackHelper.FailCallback);
+            } else {
+                XrmServiceToolkit.Soap.Fetch(aggregatefetch, false, field.CallbackHelper.SuccessCallback, field.CallbackHelper.FailCallback);
+            }
+        };
+        self.ReapplyAggregates = function () {
+            if (self.AggregateHelper.Fields.length > 0) {
+                for (var i = 0; i < self.AggregateHelper.Fields.length; i++) {
+                    self.AggregateAction(self.AggregateHelper.Fields[i]);
+                }
+            }
+        };
+        self.ApplyInitialAggregates = function () {
+            for (var i = 0; i < self.activeOptions.AggregateFields.length; i++) {
+                var field = self.activeOptions.AggregateFields[i];
+                self.AggregateHelper.AddField(field.AggregateOp, field.SchemaName, field.CellIndex);
+            }
+            self.ReapplyAggregates();
+        };
         self.mainTable.find("tfoot tr").find(".aggregate").on("click", function (e) {
             e.stopPropagation();
             var $this = $(this).parent();
@@ -5181,7 +6249,7 @@ list of translated languages
 
                 var id = $a.attr('id');
                 var schemaname = $a.parent().parent().attr(_thisGlobals.DataAttr.Header.SchemaName);
-                self.activeOptions.AggregateCellIndex = parseInt($a.parent().parent().attr("data-aggrefate-cellindex"));
+                var cellindex = parseInt($a.parent().parent().attr("data-aggrefate-cellindex"));
                 var op = "sum";
 
                 if (id == 'aggreagetavg') {
@@ -5191,24 +6259,13 @@ list of translated languages
                 } else if (id == 'aggreagetmax') {
                     op = "max";
                 }
-                self.activeOptions.AggregateCellOp = op;
-
-                var s = self.GridConfiguration.GetFetchXmlFilters();
-                var aggregatefetch = "<fetch distinct='false' mapping='logical' aggregate='true'>" +
-                                "<entity name='" + self.activeOptions.ParentEntityInfo.ParentEntitySchemaname + "'>" +
-                                   "<attribute name='" + schemaname + "' alias='fetch_aggregate' aggregate='" + op + "' />";
-
-                if (s.length > 0) {
-                    aggregatefetch += s;
-                }
-                aggregatefetch += "</entity>" +
-                            "</fetch>";
 
                 $bg.remove();
                 menu.remove();
                 e.stopPropagation();
 
-                XrmServiceToolkit.Soap.Fetch(aggregatefetch, false, self.AggregateCallback);
+                var aggfield = self.AggregateHelper.AddField(op, schemaname, cellindex);
+                self.AggregateAction(aggfield);
 
                 return false;
             });
@@ -5216,11 +6273,41 @@ list of translated languages
             menu.show();
 
             $this = $(this);
-            menu.css({ zIndex: 100006, left: $this.offset().left, top: ($this.offset().top + $this.outerHeight() + 2) })
+            menu.css({ zIndex: 100006, left: $this.offset().left, top: ($this.offset().top + $this.outerHeight() - menu.height()) })
                 .on('contextmenu', function () {
                     e.stopPropagation();
                     return false;
                 });
+        });
+
+        // table body scroll handling
+        self.GridTbody.on('scroll', function (e) { //detect a scroll event on the tbody
+            /*
+            Setting the thead left value to the negative value of tbody.scrollLeft will make it track the movement
+            of the tbody element. Setting an elements left value to that of the tbody.scrollLeft left makes it maintain
+            it's relative position at the left of the table.    
+            */
+            var tbody = self.GridTbody.scrollLeft();
+            self.GridThead.css("left", -tbody); //fix the thead relative to the body scrolling
+            if (self.GridTfoot != null) {
+                self.GridTfoot.css("left", -tbody); //fix the thead relative to the body scrolling
+            }
+
+            // Any editors open, adjust position
+            if ((self.activeCell) && (self.activeCell.length)) {
+                var curEditor = self.GridEditors[self.activeCell[0].cellIndex];
+
+                if ((curEditor != null) && (curEditor.is(':visible'))) {
+                    curEditor.offset(self.activeCell.offset());
+                }
+            }
+
+            //self.GridThead.find('th:nth-child(1)').css("left", tbody); //fix the first cell of the header
+            //self.GridTbody.find('td:nth-child(1)').css("left", tbody); //fix the first column of tdbody
+            //self.GridTfoot.find('td:nth-child(1)').css("left", tbody); //fix the first column of tfoot
+
+            // After first scroll, the header min-width is not working
+            self.ResetColResizerHeight();
         });
 
         for (var i = 0; i < self.GridEditors.length; i++) {
@@ -5239,7 +6326,13 @@ list of translated languages
         self.UpdatePagerButtons();
 
         if ((self.activeOptions.EntityCurrencyid) && (self.activeOptions.HaveNumericFields.HavePrecision)) {
-            XrmServiceToolkit.Soap.Fetch(GetCurrencyFetch(self.activeOptions.EntityCurrencyid), false, self.CurrencySymbolCallback);
+            if (_thisGlobals.UseWebApi) {
+                SdkWebAPI.getFetchXml(SdkWebAPI.GetEntitySetName('transactioncurrency'),
+                    _thisHelpers.GetCurrencyFetch(self.activeOptions.EntityCurrencyid), self.CurrencySymbolCallback, WebApiErrorCallback);
+            } else {
+                XrmServiceToolkit.Soap.Fetch(
+                    _thisHelpers.GetCurrencyFetch(self.activeOptions.EntityCurrencyid), false, self.CurrencySymbolCallback, WebApiErrorCallback);
+            }
         }
 
         $(window).on('resize', function () {
@@ -5263,13 +6356,369 @@ list of translated languages
                 self.ColumnResizer.destroy();
                 self.ColumnResizer = null;
             }
-        }
+        };
 
-        SetupRowHighlighting(self);
+        self.SetupRowHighlighting = function () {
+            self.mainTable.find(_thisGlobals.DefaultGridOptions.selectorBodyRows).off('mouseover').off('mouseleave').on('mouseover', function (e) {
+                var $tmp = $(e.target);
+                tname = $tmp.parent()[0].tagName;
+
+                if ((e.target.tagName == 'SPAN') || (e.target.tagName == 'BUTTON') || (e.target.tagName == 'IMG') || (e.target.tagName == 'INPUT')) {
+                    if (tname == 'TD') {
+                        self.HighlightedRow = $tmp.parent().parent();
+                    }
+                } else if (e.target.tagName == 'TD') {
+                    self.HighlightedRow = $tmp.parent();
+                }
+                if (self.HighlightedRow) {
+                    if (self.HighlightedRow.attr(_thisGlobals.DataAttr.Row.SubGrid.Row.Id)) {
+                    } else {
+                        self.HighlightedRow.addClass('rowheaderhovercolor');
+                    }
+                }
+            }).on('mouseleave', function (e) {
+                if (self.HighlightedRow) {
+                    self.HighlightedRow.removeClass('rowheaderhovercolor');
+                    self.HighlightedRow = undefined;
+                }
+            });
+        };
+
+        self.SetupRowHighlighting();
         self.ColumnResizer = new colResizable({
             ParentControlClass: self,
-            onDrag: self.HeaderOnDragHandler
+            onDrag: self.HeaderOnDragHandler,
+            minWidth: _thisGlobals.MinCellWidth
         });
+
+        self.UpdateCrmField = function (toSave, refreshGrid) {
+            //Update Entity
+            var updateEntities = [];
+            var updateEntity = undefined;
+
+            // Coming as multiple when only one entity
+            var isSingleUpdate = (toSave.length == 1) ? true : false;
+
+            $.each(toSave, function (i, field) {
+
+                var updateEntity = (_thisGlobals.UseWebApi) ?
+            { Uri: SdkWebAPI.GetUri(self.activeOptions.ParentEntityInfo.LogicalCollectionName, field.updateRecGuid), RecGuid: field.updateRecGuid, Value: {} } :
+                    new XrmServiceToolkit.Soap.BusinessEntity(self.activeOptions.ParentEntityInfo.ParentEntitySchemaname, field.updateRecGuid);
+                // If value to save is empty, we need to pass null to empty the contents of the crm field
+                var val = null;
+                var tmp = null;
+
+                if (field.InternalEditorType == DCrmEditableGrid.Editors.Text) {
+                    if (field.ValueToSave.length > 0) {
+                        //if ((field.InternalEditorFormat) && (field.InternalEditorFormat.toLowerCase() == 'phone')) {
+                        //    // remove formatting
+                        //    val = field.ValueToSave.replace(/[()-]/g, "").replace(" ", "");
+                        //} else {
+                        //    val = field.ValueToSave;
+                        //}
+                        val = field.ValueToSave;
+                    }
+                } else if (field.InternalEditorType == DCrmEditableGrid.Editors.Numeric) {
+                    if (field.ValueToSave === 0) {
+                        tmp = field.ValueToSave;
+                    } else if ((field.ValueToSave != undefined) &&
+                        (field.ValueToSave != null) && (field.ValueToSave != 'undefined') &&
+                        (field.ValueToSave != 'null') && (field.ValueToSave != '')) {
+                        tmp = parseInt(_thisHelpers.RemoveNumericFormat(field.ValueToSave));
+                    }
+                    val = (_thisGlobals.UseWebApi) ? tmp : { value: tmp, type: "int" };
+                } else if (field.InternalEditorType == DCrmEditableGrid.Editors.DatePicker) {
+                    if (field.ValueToSave.length > 0) {
+                        val = (_thisGlobals.UseWebApi) ? _thisHelpers.encodeDate(Date.parseDate(field.ValueToSave)) : Date.parseDate(field.ValueToSave);
+                    }
+                } else if (field.InternalEditorType == DCrmEditableGrid.Editors.Checkbox) {
+                    val = (_thisGlobals.UseWebApi) ? field.CheckAttribute : { value: field.CheckAttribute, type: "boolean" };
+                } else if (field.InternalEditorType == DCrmEditableGrid.Editors.OptionSet) {
+                    if ((field.ValueToSave.trim().length == 0) || (field.OptionSetValue == '-1')) {
+                        val = (_thisGlobals.UseWebApi) ? tmp : { value: tmp, type: 'OptionSetValue' };
+                    } else {
+                        val = (_thisGlobals.UseWebApi) ? parseInt(field.OptionSetValue) : { value: parseInt(field.OptionSetValue), type: 'OptionSetValue' };
+                    }
+                } else if (field.InternalEditorType == DCrmEditableGrid.Editors.Description) {
+                    if (field.ValueToSave.length > 0) {
+                        val = field.ValueToSave;
+                    }
+                } else if ((field.InternalEditorType == DCrmEditableGrid.Editors.Lookup) || (field.InternalEditorType == DCrmEditableGrid.Editors.Customer)) {
+                    if ((field.LookupId) && (field.LookupId.length > 0)) {
+                        val = (_thisGlobals.UseWebApi) ?
+                            //'/' + SdkWebAPI.GetEntitySetName(field.LookupLogicalName) + '(' + field.LookupId.replace('{', '').replace('}', '') + ')' :
+                            SdkWebAPI.GetEntitySetName(field.LookupLogicalName) + '(' + field.LookupId.replace('{', '').replace('}', '') + ')' :
+                        { id: field.LookupId, logicalName: field.LookupLogicalName, type: 'EntityReference' };
+                    } else {
+                        val = (_thisGlobals.UseWebApi) ? tmp : { value: tmp, type: 'EntityReference' };
+                    }
+                } else if (field.InternalEditorType == DCrmEditableGrid.Editors.Owner) {
+                    if ((field.LookupId) && (field.LookupId.length > 0)) {
+                        if (_thisGlobals.UseWebApi) {
+                            //val = '/' + SdkWebAPI.GetEntitySetName(field.LookupLogicalName) + '(' + field.LookupId.replace('{', '').replace('}', '') + ')';
+                            val = SdkWebAPI.GetEntitySetName(field.LookupLogicalName) + '(' + field.LookupId.replace('{', '').replace('}', '') + ')';
+                        } else {
+                            try {
+                                if (isSingleUpdate) {
+                                    XrmServiceToolkit.Soap.Assign(self.activeOptions.ParentEntityInfo.ParentEntitySchemaname,
+                                        field.RecGuid, field.LookupLogicalName, field.LookupId,
+                                        self.UpdateCrmFieldSucessCallback, self.ApiCallbackErrorHandler, toSave, refreshGrid);
+                                } else {
+                                    XrmServiceToolkit.Soap.Assign(self.activeOptions.ParentEntityInfo.ParentEntitySchemaname,
+                                        field.RecGuid, field.LookupLogicalName, field.LookupId);
+                                }
+                                updateEntity = undefined;
+                            } catch (e) {
+                                LogEx("Exception: Setting owner " + e.message);
+                            }
+                        }
+                    } else {
+                        val = (_thisGlobals.UseWebApi) ? tmp : { value: tmp, type: 'EntityReference' };
+                    }
+                } else if (field.InternalEditorType == DCrmEditableGrid.Editors.Decimal) {
+                    if (field.ValueToSave === 0) {
+                        tmp = field.ValueToSave;
+                    } else if ((field.ValueToSave != undefined) && (field.ValueToSave != null)
+                        && (field.ValueToSave != 'undefined')
+                        && (field.ValueToSave != 'null') && (field.ValueToSave != '')) {
+                        tmp = field.ValueToSave;
+                    }
+                    val = (_thisGlobals.UseWebApi) ? tmp : { value: tmp, type: "decimal" };
+                } else if (field.InternalEditorType == DCrmEditableGrid.Editors.Double) {
+                    if (field.ValueToSave === 0) {
+                        tmp = field.ValueToSave;
+                    } else if ((field.ValueToSave != undefined) && (field.ValueToSave != null)
+                        && (field.ValueToSave != 'undefined')
+                        && (field.ValueToSave != 'null') && (field.ValueToSave != '')) {
+                        tmp = field.ValueToSave;
+                    }
+                    val = (_thisGlobals.UseWebApi) ? tmp : { value: tmp, type: "double" };
+                } else if (field.InternalEditorType == DCrmEditableGrid.Editors.Currency) {
+                    if (field.ValueToSave === 0) {
+                        tmp = field.ValueToSave;
+                    } else if ((field.ValueToSave != undefined) && (field.ValueToSave != null)
+                        && (field.ValueToSave != 'undefined') &&
+                        (field.ValueToSave != 'null') && (field.ValueToSave != '')) {
+                        tmp = field.ValueToSave;
+                    }
+                    val = (_thisGlobals.UseWebApi) ? tmp : { value: tmp, type: "Money" };
+                } else if (field.InternalEditorType == DCrmEditableGrid.Editors.DateTimePicker) {
+                    if (field.ValueToSave.length > 0) {
+                        tmp = Date.parseDate(field.ValueToSave, _thisGlobals.userDatetimeSettings.DateTimeFormat);
+                    }
+                    val = (_thisGlobals.UseWebApi) ? _thisHelpers.encodeDate(tmp, true) : { value: tmp, type: "dateTime" };
+                }
+
+                if (updateEntity) {
+                    if (_thisGlobals.UseWebApi) {
+                        if ((val == null) &&
+                            ((field.InternalEditorType == DCrmEditableGrid.Editors.Customer) ||
+                            (field.InternalEditorType == DCrmEditableGrid.Editors.Lookup) ||
+                            (field.InternalEditorType == DCrmEditableGrid.Editors.Owner))) {
+
+                            var navProp = field.FieldSchemaName;
+                            if ((field.InternalEditorType == DCrmEditableGrid.Editors.Customer) || (field.InternalEditorType == DCrmEditableGrid.Editors.Owner)) {
+                                navProp += '_' + field.LookupLogicalName;
+                            }
+
+                            if (isSingleUpdate) {
+                                SdkWebAPI.removeReference(updateEntity.Uri, navProp, self.UpdateCrmFieldSucessCallback, self.ApiCallbackErrorHandler, toSave, refreshGrid);
+                            } else {
+                                SdkWebAPI.removeReference(updateEntity.Uri, navProp);
+                            }
+                            updateEntity = null;
+                        } else {
+                            if ((field.InternalEditorType == DCrmEditableGrid.Editors.Lookup) ||
+                                (field.InternalEditorType == DCrmEditableGrid.Editors.Customer) ||
+                                (field.InternalEditorType == DCrmEditableGrid.Editors.Owner)) {
+
+                                var navProp = field.LookupAssociatedNavigationProperty;
+                                var uri2 = SdkWebAPI.AddUrlPath(val);
+
+                                if (isSingleUpdate) {
+                                    SdkWebAPI.addReference(updateEntity.Uri, navProp, uri2, self.UpdateCrmFieldSucessCallback, self.ApiCallbackErrorHandler, toSave, refreshGrid);
+                                } else {
+                                    SdkWebAPI.addReference(updateEntity.Uri, navProp);
+                                }
+                                updateEntity = null;
+
+                            } else {
+                                updateEntity.Value[field.FieldSchemaName] = val;
+                            }
+                        }
+                    } else {
+                        updateEntity.attributes[field.FieldSchemaName] = val;
+                    }
+
+                    if (updateEntity) {
+                        if (isSingleUpdate) {
+                            if (_thisGlobals.UseWebApi) {
+                                SdkWebAPI.update(updateEntity.Uri, updateEntity.Value, self.UpdateCrmFieldSucessCallback, self.ApiCallbackErrorHandler, toSave, refreshGrid);
+                            } else {
+                                XrmServiceToolkit.Soap.Update(updateEntity, self.UpdateCrmFieldSucessCallback, self.ApiCallbackErrorHandler, toSave, refreshGrid);
+                            }
+                        } else {
+                            // check for duplicates and replace with new one
+                            updateEntities.push(updateEntity);
+                        }
+                    }
+                }
+            });
+
+            // Batch update
+            if (updateEntities.length > 0) {
+                try {
+                    if (_thisGlobals.UseWebApi) {
+                        var payload = SdkWebAPI.CreateBatchUpdatePayload(updateEntities);
+                        SdkWebAPI.executeBatch(payload.payload, payload.batchId, self.UpdateCrmFieldSucessCallback, self.ApiCallbackErrorHandler, toSave, refreshGrid);
+                    } else {
+                        var requests = XrmServiceToolkit.Soap.CreateBatchUpdatePayload(updateEntities, true, false);
+                        XrmServiceToolkit.Soap.Execute(requests, self.UpdateCrmFieldSucessCallback, self.ApiCallbackErrorHandler, toSave, refreshGrid);
+                    }
+                } catch (e) {
+                    LogEx("Exception: " + e.message);
+                }
+            }
+        };
+
+        self.RemoveAllSubgrids = function () {
+            if (self.GridConfiguration.ChildConfigurations.length > 0) {
+                for (var i = 0; i < self.GridConfiguration.ChildConfigurations.length; i++) {
+                    try {
+                        for (var inner = 0; inner < self.GridConfiguration.ChildConfigurations[i].ChildGrids.length; inner++) {
+                            var tt = self.GridConfiguration.ChildConfigurations[i].ChildGrids[inner];
+                            if (tt) {
+                                var ids = tt.activeOptions.GridContainerIds;
+                                $('#' + ids.TableCaptionContainer).empty().remove();
+                                $('#' + ids.Table).empty().remove();
+                                for (var index = 0; index < tt.GridEditors.length; index++) {
+                                    if (tt.GridEditors[index] != null) {
+                                        tt.GridEditors[index].DestroyEditor();
+                                    }
+                                }
+                                tt.DestroyGrid();
+                            }
+                        }
+                    } catch (e) {
+                        LogEx('RemoveAllSubgrids error ' + e.message);
+                    }
+                    self.GridConfiguration.ChildConfigurations[i].ChildGrids = [];
+                }
+            }
+        };
+
+        // Callbacks
+        self.UpdateCrmFieldSucessCallback = function (result, toSave, refreshGrid) {
+            _thisHelpers.WaitDialog();
+
+            try {
+                var formatOptions = self.GridConfiguration.GetFormattingOptions();
+                for (var i = 0; i < toSave.length; i++) {
+                    toSave[i].TargetCell.css("background-color", "").css("color", "");
+
+                    var headerformatOptions = formatOptions.GetHeader(toSave[i].FieldSchemaName);
+                    var cellformatOptions = formatOptions.GetField(toSave[i].FieldSchemaName);
+
+                    if ((headerformatOptions) && (headerformatOptions.ApplyToColumn)) {
+                        if ((headerformatOptions.BackgroundColor) && (_thisGlobals.DefaultBackgroundColor != headerformatOptions.BackgroundColor)) {
+                            toSave[i].TargetCell.css("background-color", headerformatOptions.BackgroundColor);
+                        }
+                        if ((headerformatOptions.TextColor) && (_thisGlobals.DefaultBackgroundColor != headerformatOptions.TextColor)) {
+                            toSave[i].TargetCell.css("color", headerformatOptions.TextColor);
+                        }
+                        if (headerformatOptions.FontCss) {
+                            DeccoupleCss(headerformatOptions.FontCss, toSave[i].TargetCell);
+                        }
+                    }
+                    if (cellformatOptions) {
+                        var valToExamin = { Value: toSave[i].ValueToSave };
+                        if (toSave[i].InternalEditorType == DCrmEditableGrid.Editors.Numeric) {
+                            if (valToExamin.Value.length > 0) {
+                                valToExamin.Value = parseInt(_thisHelpers.RemoveNumericFormat(valToExamin.Value));
+                            }
+                        }
+                        if (toSave[i].InternalEditorType == DCrmEditableGrid.Editors.OptionSet) {
+                            valToExamin.Value = parseInt(toSave[i].OptionSetValue);
+                        }
+                        if (toSave[i].InternalEditorType == DCrmEditableGrid.Editors.Checkbox) {
+                            valToExamin.Value = toSave[i].CheckAttribute;
+                        }
+                        if (toSave[i].InternalEditorType == DCrmEditableGrid.Editors.Lookup) {
+                            valToExamin.LookupGuid = toSave[i].LookupId;
+                        }
+
+                        if ((cellformatOptions.Condition) && (ConditionIsTrue(cellformatOptions.Condition, null, valToExamin))) {
+                            if ((cellformatOptions.BackgroundColor) && (_thisGlobals.DefaultBackgroundColor != cellformatOptions.BackgroundColor)) {
+                                toSave[i].TargetCell.css("background-color", cellformatOptions.BackgroundColor);
+                            }
+                            if ((cellformatOptions.TextColor) && (_thisGlobals.DefaultBackgroundColor != cellformatOptions.TextColor)) {
+                                toSave[i].TargetCell.css("color", cellformatOptions.TextColor);
+                            }
+                            if (cellformatOptions.FontCss) {
+                                DeccoupleCss(cellformatOptions.FontCss, toSave[i].TargetCell);
+                            }
+                        } else if (cellformatOptions.FontCss) {
+                            DeccoupleCss(cellformatOptions.FontCss, toSave[i].TargetCell, true);
+                        }
+                    }
+                }
+            } catch (ex) {
+                LogEx("Exception saving " + ex.message);
+            }
+            if ((self.activeOptions.RefreshAfterSave) && (refreshGrid)) {
+                self.RefreshGridRows();
+            }
+            self.ReapplyAggregates();
+        };
+
+        self.DeleteRecordSuccessCallback = function (result, toDel, toCheckForSubgrid) {
+            _thisHelpers.WaitDialog();
+
+            if (toDel.length > 0) {
+                // Delete subgrids for this row if any exists
+                try {
+                    for (var i = 0; i < toCheckForSubgrid.length; i++) {
+                        var rowid = toCheckForSubgrid[i].attr(_thisGlobals.DataAttr.Row.SubGrid.Row.Id);
+                        if (rowid) {
+                            if (toCheckForSubgrid[i][0].DSubGridRow) {
+                                LogIt("Deleting subgrids before deleting row");
+                                var subgridid = toCheckForSubgrid[i][0].DSubGridRow.attr(_thisGlobals.DataAttr.Row.SubGrid.Id);
+                                toCheckForSubgrid[i][0].DSubGridRow = undefined;
+
+                                if (self.activeOptions.HasChildGrids) {
+                                    self.SelectedRecordGuid = toCheckForSubgrid[i].attr(_thisGlobals.DataAttr.Cell.RecordGuid);
+                                    ParentGridSelectedRecord(self, subgridid, true);
+                                }
+                            }
+
+                            $('#' + rowid).empty().remove();
+                            toCheckForSubgrid[i].removeAttr(_thisGlobals.DataAttr.Row.SubGrid.Row.Id);
+                        }
+                    }
+                } catch (e) {
+                    LogEx("Exception: deleting subgrids " + e.message);
+                }
+
+                self.DeleteSelectedRows(toDel);
+                self.ResetColResizerHeight();
+
+                self.activeOptions.TotalRecordsCount = self.activeOptions.TotalRecordsCount - toDel.length;
+
+                $('#' + self.activeOptions.GridContainerIds.TotalRecords)
+                    .text(_thisGlobals.Translation_Labels.TotalRecords + ' ' + self.activeOptions.TotalRecordsCount);
+
+                if (self.activeOptions.TotalRecordsCount <= self.activeOptions.PagerSize) {
+                    $('#' + self.activeOptions.GridContainerIds.Pager).hide();
+                }
+
+                self.ReapplyAggregates();
+            }
+        };
+
+        // Initialize any aggregates
+        if ((self.activeOptions.AggregateFields.length > 0) && (self.GridTfoot != null)) {
+            self.ApplyInitialAggregates();
+        }
     }
 
     function openEntityRecord(enityLogicalName, guid) {
@@ -5317,6 +6766,8 @@ http://localhost/Demo/main.aspx?etc=112&extraqs=?_CreateFromId=%7b5B6DFA60-6456-
                     alleditors[index] = new $.fn.DCrmEditableGrid.OptionSet(parent, editorsArray[i], requiredContainer);
                     break;
                 case DCrmEditableGrid.Editors.Lookup:
+                case DCrmEditableGrid.Editors.Customer:
+                case DCrmEditableGrid.Editors.Owner:
                     alleditors[index] = new $.fn.DCrmEditableGrid.Lookup(parent, editorsArray[i], requiredContainer, inputFormatErrorContainer);
                     break;
                 case DCrmEditableGrid.Editors.Status:
@@ -5328,681 +6779,6 @@ http://localhost/Demo/main.aspx?etc=112&extraqs=?_CreateFromId=%7b5B6DFA60-6456-
             }
         }
         return alleditors;
-    }
-
-    function SetupButtons (who) {
-        var self = who;
-
-        $('#' + self.activeOptions.GridContainerIds.RefreshGrid).click(function (e) {
-            e.stopPropagation();
-            self.RefreshGridRows();
-        });
-
-        $('#' + self.activeOptions.GridContainerIds.ClearAllFilters).click(function (e) {
-            e.stopPropagation();
-            self.GridConfiguration.ClearInlineFilters();
-            var filterHeaders = self.GetHeaderCells();
-            filterHeaders.find('span.recfilterset').removeClass('recfilterset').addClass('recfilternotset');
-            self.RefreshGridRows();
-        });
-
-        $('#' + self.activeOptions.GridContainerIds.AutoSave).click(function (e) {
-            e.stopPropagation();
-            self.activeOptions.AutoSaveChanges = $(this).is(':checked');
-            if (self.activeOptions.AutoSaveChanges) {
-                $('#' + self.activeOptions.GridContainerIds.UndoChanges).hide();
-                $('#' + self.activeOptions.GridContainerIds.CancelAllChanges).hide();
-                $('#' + self.activeOptions.GridContainerIds.SaveChanges).hide();
-            } else {
-                $('#' + self.activeOptions.GridContainerIds.UndoChanges).show();
-                $('#' + self.activeOptions.GridContainerIds.CancelAllChanges).show();
-                $('#' + self.activeOptions.GridContainerIds.SaveChanges).show();
-            }
-        });
-
-        $('#' + self.activeOptions.GridContainerIds.UndoChanges).click(function (e) {
-
-            if ($(this).hasClass('GreyImage')) {
-                LogIt("Undo is disabled");
-                return;
-            }
-
-            if ((self.activeCell) && (self.activeCell.length)) {
-                var rows = self.activeOptions.DirtyCells;
-                var item;
-
-                if (rows.length == 0) {
-                    return;
-                }
-
-                for (var i = 0; i < rows.length; i++) {
-                    item = rows[i];
-                    if (self.activeCell.attr('id') == item.id) {
-
-                        item.CurrentUndoIndex--;
-                        if (item.CurrentUndoIndex < 0) {
-                            item.CurrentUndoIndex = (item.Changes.length - 1);
-                        }
-                        var tochagneto = item.Changes[item.CurrentUndoIndex];
-
-                        if (item.originalContent == tochagneto) {
-
-                            item.TargetCell.removeClass('IsDirty fieldvaluechanged');
-                            $('#' + self.activeOptions.GridContainerIds.UndoChanges).addClass('GreyImage');
-                            if (rows.length == 1) {
-                                $('#' + self.activeOptions.GridContainerIds.SaveChanges).addClass('GreyImage');
-                                $('#' + self.activeOptions.GridContainerIds.CancelAllChanges).addClass('GreyImage');
-                                self.activeOptions.DirtyCells = [];
-                            } else {
-                                self.activeOptions.DirtyCells.splice(i, 1);
-                            }
-                        }
-
-                        _thisHelpers.SetActiveCellText(item.TargetCell, tochagneto);
-
-                        if (item.AdditionalAttr.length > 0) {
-                            var tmp = item.AdditionalAttr[0];
-                            if (tmp) {
-                                var cellindex = item.TargetCell[0].cellIndex;
-                                var $theadcells = self.mainTable.find('thead:first').find('tr:first').find('th');
-                                var ed = parseInt($($theadcells[cellindex]).attr(_thisGlobals.DataAttr.Header.EditorType));
-
-                                if (ed == DCrmEditableGrid.Editors.OptionSet) {
-                                    item.TargetCell.attr(_thisGlobals.DataAttr.Cell.Optionset.SelectedValue, tmp);
-                                } else if (ed == DCrmEditableGrid.Editors.Lookup) {
-                                    item.TargetCell.attr(_thisGlobals.DataAttr.Cell.Lookup.Guid, tmp);
-                                    item.TargetCell.attr(_thisGlobals.DataAttr.Cell.Lookup.LogicalName, item.AdditionalAttr[1]);
-                                }
-                            }
-                        }
-
-                        self.activeCell.attr(_thisGlobals.ToolTipAttrName, tochagneto);
-                        self.activeCell.focus();
-                        return false;
-                    }
-                }
-            }
-        }).addClass('GreyImage');
-
-        $('#' + self.activeOptions.GridContainerIds.CancelAllChanges).click(function (e) {
-
-            if ($(this).hasClass('GreyImage')) {
-                LogIt("Undo all is disabled");
-                return;
-            }
-            var rows = self.activeOptions.DirtyCells;
-            var $cell;
-            for (var i = 0; i < rows.length; i++) {
-                $cell = rows[i].TargetCell;
-                _thisHelpers.SetActiveCellText($cell, rows[i].originalContent);
-                $cell.removeClass('IsDirty fieldvaluechanged');
-
-                if ((rows[i].AdditionalAttr) && (rows[i].AdditionalAttr.length) && (rows[i].AdditionalAttr.length > 0)) {
-                    var tmp = rows[i].AdditionalAttr[0];
-                    if (tmp) {
-                        var cellindex = rows[i].TargetCell[0].cellIndex;
-                        var $theadcells = self.mainTable.find('thead:first').find('tr:first').find('th');
-                        var ed = parseInt($($theadcells[cellindex]).attr(_thisGlobals.DataAttr.Header.EditorType));
-
-                        if (ed == DCrmEditableGrid.Editors.OptionSet) {
-                            $cell.attr(_thisGlobals.DataAttr.Cell.Optionset.SelectedValue, tmp);
-                        } else if (ed == DCrmEditableGrid.Editors.Lookup) {
-                            $cell.attr(_thisGlobals.DataAttr.Cell.Lookup.Guid, tmp);
-                            $cell.attr(_thisGlobals.DataAttr.Cell.Lookup.LogicalName, rows[i].AdditionalAttr[1]);
-                        }
-                    }
-                }
-                $cell.attr(_thisGlobals.ToolTipAttrName, rows[i].originalContent);
-            };
-            self.activeOptions.DirtyCells = [];
-            self.SaveUndoCancelEnable(false);
-
-        }).addClass('GreyImage');
-
-        $('#' + self.activeOptions.GridContainerIds.SaveChanges).click(function (e) {
-            e.stopPropagation();
-
-            if (($(this).hasClass('GreyImage')) && (!self.activeOptions.AutoSaveChanges)) {
-                LogIt("Save is disabled");
-                return false;
-            }
-
-            self.SaveGridChanges(true);
-
-        }).addClass('GreyImage');
-
-        $('#' + self.activeOptions.GridContainerIds.ExportToExcel).click(function (e) {
-            e.stopPropagation();
-
-            if (self.activeOptions.TotalRecordsCount == 0) {
-                return false;
-            }
-
-            var menu = $('<ul class="contextMenuPlugin"><div class="gutterLine"></div></ul>').appendTo('body');
-            var $bg = $('<div></div>')
-              .addClass('InvisibleFrame')
-              .appendTo('body')
-              .on('contextmenu click', function (e) {
-                  e.stopPropagation();
-                  $bg.remove();
-                  menu.remove();
-                  return false;
-              }).show();
-
-            var $row = $('<li><a href="#" class="contextMenuLink" id="ExportGridToExcel"><span class="itemTitle">Excel</span></a></li>').appendTo(menu);
-            var icon = $('<img>');
-            icon.attr('src', 'dcrmeg_excel');
-            icon.insertBefore($row.find('.itemTitle'));
-
-            $row = $('<li><a href="#" class="contextMenuLink" id="ExportGridToCSV"><span class="itemTitle">CSV</span></a></li>').appendTo(menu);
-            icon = $('<img>');
-            icon.attr('src', 'dcrmeg_csv16');
-            icon.insertBefore($row.find('.itemTitle'));
-
-            $row = $('<li><a href="#" class="contextMenuLink" id="ExportGridToPdf"><span class="itemTitle">PDF</span></a></li>').appendTo(menu);
-            icon = $('<img>');
-            icon.attr('src', 'dcrmeg_pdf16');
-            icon.insertBefore($row.find('.itemTitle'));
-
-            menu.find('a').click(function (e) {
-                var id = $(this).attr('id');
-                var msg = undefined;
-
-                if (id == 'ExportGridToExcel') {
-                    try {
-                        var tt = new SaveAsGridCallbackHelper(self);
-                    } catch (e) {
-                        msg = e.message;
-                    }
-                } else if (id == 'ExportGridToCSV') {
-                    try {
-                        var tt = new SaveAsGridCallbackHelper(self, 1);
-                    } catch (e) {
-                        msg = e.message;
-                    }
-                } else if (id == 'ExportGridToPdf') {
-                    try {
-                        var tt = new SaveAsGridCallbackHelper(self, 2);
-                    } catch (e) {
-                        msg = e.message;
-                    }
-                }
-
-                $bg.remove();
-                menu.remove();
-                e.stopPropagation();
-                if (msg) {
-                    DisplayCrmAlertDialog("Unable to export due to exception:\r" + msg);
-                }
-                return false;
-            });
-
-            menu.show();
-
-            $this = $(this);
-            menu.css({ zIndex: 100006, left: $this.offset().left, top: ($this.offset().top + $this.outerHeight() + 2) })
-                .on('contextmenu', function () {
-                    e.stopPropagation();
-                    return false;
-                });
-        });
-
-        $('#' + self.activeOptions.GridContainerIds.AddNewRec).click(function (e) {
-
-            e.stopPropagation();
-            var msg = undefined;
-
-            // 10 inline, 20 new window, 30 show menu
-            if (self.GridConfiguration.MSProductGrid) {
-                // Dispaly a different menu
-                if (self.GridConfiguration.MSProductGridHelperc && self.GridConfiguration.MSProductGridHelperc.GetPriceList()) {
-                    var $bg = $('<div></div>')
-                      .addClass('InvisibleFrame')
-                      .appendTo('body')
-                      .on('contextmenu click', function () {
-                          $bg.remove();
-                          menu.remove();
-                          return false;
-                      }).show();
-
-                    var menu = $('<ul class="contextMenuPlugin"><div class="gutterLine"></div></ul>').appendTo('body');
-                    $('<li><a href="#" class="contextMenuLink" id="getexistingproducts"><span class="itemTitle">Existing Products</span></a></li>').appendTo(menu);
-                    $('<li><a href="#" class="contextMenuLink" id="newinlineproduct"><span class="itemTitle">Write-in Product</span></a></li>').appendTo(menu);
-                    menu.find('a').click(function (e) {
-                        var id = $(this).attr('id');
-                        var msg = undefined;
-
-                        if (id == 'getexistingproducts') {
-                            self.GridConfiguration.MSProductGridHelperc.DisplayExistingProducts();
-                        } else if (id == 'newinlineproduct') {
-
-                        }
-
-                        $bg.remove();
-                        menu.remove();
-                        e.stopPropagation();
-                        if (msg) {
-                            DisplayCrmAlertDialog("Unable to proceed due to exception:\r" + msg);
-                        }
-                        return false;
-                    });
-
-                    menu.show();
-
-                    $this = $(this);
-                    menu.css({ zIndex: 100006, left: $this.offset().left, top: ($this.offset().top + $this.outerHeight() + 2) })
-                        .on('contextmenu', function () {
-                            e.stopPropagation();
-                            return false;
-                        });
-
-                } else {
-                    self.GridConfiguration.MSProductGridHelperc.DisplayNativePricelistSelect();
-                }
-            } else if (self.activeOptions.NewBtnBehavoir == "30") {
-                DisplayNewButtonMenu(who, $(this));
-            } else if (self.activeOptions.NewBtnBehavoir == "20") {
-                try {
-                    window.parent.Xrm.Utility.openEntityForm(self.activeOptions.ParentEntityInfo.ParentEntitySchemaname);
-                } catch (e) {
-                    msg = e.message;
-                }
-            } else if (self.activeOptions.NewBtnBehavoir == "10") {
-                msg = CreateInlineRecord(who);
-            }
-
-            if (msg) {
-                DisplayCrmAlertDialog(_thisGlobals.Translation_Labels.CreateNewError + "\r" + msg);
-            }
-
-            return false;
-        });
-
-        $('#' + self.activeOptions.GridContainerIds.DeleteRec).click(function (e) {
-
-            var selRows = self.activeOptions.selectedRows;
-            if (selRows.length == 0) {
-                return;
-            }
-            var toDel = [];
-            var toDelGuids = [];
-            var toCheckForSubgrid = [];
-            var $row = undefined;
-            var confirmMsg = '';
-
-            for (var i = 0; i < selRows.length; i++) {
-                $row = $(selRows[i]);
-                
-                var dirtycells = $row.find('td.IsDirty');
-                if ((dirtycells) && (dirtycells.length)) {
-                    confirmMsg = _thisGlobals.Translation_Labels.DeleteUnsavedConfirmation.replace('%S%', _thisHelpers.GetActiveCellText($(dirtycells[0])));
-                    if (confirm(confirmMsg) == true) {
-                        toDel.push(parseInt($row.attr(_thisGlobals.DataAttr.Row.InternalIndex)));
-                        toDelGuids.push($row.attr(_thisGlobals.DataAttr.Cell.RecordGuid));
-                        toCheckForSubgrid.push($row);
-                    } else {
-                        continue;
-                    }
-                } else {
-                    toDel.push(parseInt($row.attr(_thisGlobals.DataAttr.Row.InternalIndex)));
-                    toDelGuids.push($row.attr(_thisGlobals.DataAttr.Cell.RecordGuid));
-                    toCheckForSubgrid.push($row);
-                }
-                
-            };
-
-            confirmMsg = _thisGlobals.Translation_Labels.DeleteConfirmation.replace('%S%', toDelGuids.length + '');
-            if ((toDelGuids.length > 0) && (confirm(confirmMsg) == true)) {
-
-                if (window.parent.DCrmEgGridDeleting) {
-                    if (!window.parent.DCrmEgGridDeleting(toDelGuids, self.activeOptions.ParentEntityInfo)) {
-                        LogIt("Deleting cancelled by user");
-                        //DisplayCrmAlertDialog("Delete operation cancelled by javascript callback.");
-                        return;
-                    }
-                }
-
-                _thisHelpers.WaitDialog(true);
-
-                var finalToDel = [];
-                var finalToCheck = [];
-
-                var haveErrors = '';
-
-                for (var i = 0; i < toDelGuids.length; i++) {
-                    try {
-                        XrmServiceToolkit.Soap.Delete(self.activeOptions.ParentEntityInfo.ParentEntitySchemaname, toDelGuids[i]);
-                        finalToDel.push(toDel[i]);
-                        finalToCheck.push(toCheckForSubgrid[i]);
-                    } catch (e) {
-                        LogEx("Exception: Deleting Record " + e.message);
-                        haveErrors += e.message;
-                    } 
-                }
-                _thisHelpers.WaitDialog();
-
-                if (finalToDel.length > 0) {
-
-                    // Delete subgrids for this row if any exists
-                    try {
-                        for (var i = 0; i < finalToCheck.length; i++) {
-                            var rowid = finalToCheck[i].attr(_thisGlobals.DataAttr.Row.SubGrid.Row.Id);
-                            if (rowid) {
-                                if (finalToCheck[i][0].DSubGridRow) {
-                                    LogIt("Deleting subgrids before deleting row");
-                                    var subgridid = finalToCheck[i][0].DSubGridRow.attr(_thisGlobals.DataAttr.Row.SubGrid.Id);
-                                    finalToCheck[i][0].DSubGridRow = undefined;
-
-                                    if (self.activeOptions.HasChildGrids) {
-                                        self.SelectedRecordGuid = finalToCheck[i].attr(_thisGlobals.DataAttr.Cell.RecordGuid);
-                                        ParentGridSelectedRecord(self, subgridid, true);
-                                    }
-                                }
-
-                                $('#' + rowid).empty().remove();
-                                finalToCheck[i].removeAttr(_thisGlobals.DataAttr.Row.SubGrid.Row.Id);
-                            }
-                        }
-                    } catch (e) {
-                        LogEx("Exception: deleting subgrids " + e.message);
-                    }
-
-                    self.DeleteSelectedRows(finalToDel);
-                    self.ResetColResizerHeight();
-
-                    self.activeOptions.TotalRecordsCount = self.activeOptions.TotalRecordsCount - finalToDel.length;
-
-                    $('#' + self.activeOptions.GridContainerIds.TotalRecords)
-                        .text(_thisGlobals.Translation_Labels.TotalRecords + ' ' + self.activeOptions.TotalRecordsCount);
-
-                    if (self.activeOptions.TotalRecordsCount <= self.activeOptions.PagerSize) {
-                        $('#' + self.activeOptions.GridContainerIds.Pager).hide();
-                    }
-                }
-
-                if (haveErrors.length > 0) {
-                    DisplayCrmAlertDialog(_thisGlobals.Translation_Labels.DeletionError + "\r" + haveErrors);
-                }
-            }
-        });
-
-        $('#' + self.activeOptions.GridContainerIds.PagerButtonFirst).click(function (e) {
-            e.stopPropagation();
-            if (self.activeOptions.Page > 1) {
-
-                if (self.CheckForDirtyCells() == false) {
-                    return false;
-                }
-
-                self.RefreshGridRows();
-            }
-        });
-
-        $('#' + self.activeOptions.GridContainerIds.PagerButtonPrev).click(function (e) {
-            e.stopPropagation();
-            if (self.activeOptions.Page > 1) {
-
-                if (self.CheckForDirtyCells() == false) {
-                    return false;
-                }
-
-                self.SaveUndoCancelEnable(false);
-                self.clearTableBody();
-
-                self.activeOptions.Page--;
-                XrmServiceToolkit.Soap.Fetch(
-                    self.GridConfiguration.GetFetchXml(self.activeOptions.Page,
-                        self.activeOptions.PagingCookies[self.activeOptions.Page - 1]), false, self.RepopulateGridCallback);
-            }
-
-        });
-
-        $('#' + self.activeOptions.GridContainerIds.PagerButtonNext).click(function (e) {
-            e.stopPropagation();
-            
-            if (self.activeOptions.HasMoreRecords) {
-
-                if (self.CheckForDirtyCells() == false) {
-                    return false;
-                }
-
-                self.SaveUndoCancelEnable(false);
-                self.clearTableBody();
-
-                if (self.activeOptions.PagingCookies.length == self.activeOptions.Page.length) {
-                    self.activeOptions.PagingCookie = null;
-                } else {
-                    self.activeOptions.PagingCookie = "a";
-                }
-
-                self.activeOptions.Page++;
-                XrmServiceToolkit.Soap.Fetch(
-                    self.GridConfiguration.GetFetchXml(self.activeOptions.Page,
-                        self.activeOptions.PagingCookies[self.activeOptions.Page - 1]), false, self.RepopulateGridCallback);
-            }
-
-        });
-
-        $('#' + self.activeOptions.GridContainerIds.CloneRecord).click(function (e) {
-            e.stopPropagation();
-
-            var selRows = self.activeOptions.selectedRows;
-            if (selRows.length == 0) {
-                return false;
-            }
-            var lastone = selRows.length - 1;
-            for (var i = 0; i < selRows.length; i++) {
-                CloneRecord(self, $(selRows[i]).clone(), ((lastone == i) ? true : false));
-            }
-        });
-
-        $('#' + self.activeOptions.GridContainerIds.SearchGridBox).on('change', function (e) {
-            e.stopPropagation();
-
-            try {
-                var rows = $(this).val().split("\n");
-                $(this).val('');
-
-                for (var i = 0; i < rows.length; i++) {
-                    if ((rows[i]) && (rows[i].trim().length > 0)) {
-                        // number and order of the cells must match the number of fields and their order
-
-                        // Grid Fields
-                        // Name      Price      Somedate   Description    Revenue   FieldA         FieldB         FieldC
-
-                        // Excel Cells
-                        // John      5.6        6/23/2016  (empty cell)   3405.65   (empty cell)   (empty cell)   (empty cell)
-
-                        // Ensue that decimal, float, and money types use "." character as decimal separator
-                        // We use parseInt and parseFloat to parse the numbers
-                        // 55,55 => would return 55
-                        // 55.55 => would return 55.55
-
-                        // Limitations:
-                        // This functionality works only with the following data types.
-                        // Text, Description, Date, Datetime, Integer, Decimal, Float, and Money
-                        // Optionset, Boolean, and Lookup fields require further modifications to the CreateInlineRecord logic
-
-                        var cells = rows[i].split("\t");
-
-                        /* Uncomment for debug messages
-                        for (var ii = 0; ii < cells.length; ii++) {
-                            if ((cells[ii]) && (cells[ii].length == 0)) {
-                                cells[ii] = null;
-                            }
-                        }
-                        */
-
-                        var msg = CreateInlineRecord(self, cells, (((i+1) == rows.length) ? true : null));
-                        if (msg) {
-                            DisplayCrmAlertDialog(_thisGlobals.Translation_Labels.CreateNewError + "\r" + msg);
-                            Break;
-                        }
-                    }
-                }
-
-            } catch (ex) {
-                DisplayCrmAlertDialog(_thisGlobals.Translation_Labels.CreateNewError + "\r" + ex.message);
-            }
-        });
-    }
-
-    function SetupRowHighlighting(who) {
-        var self = who;
-
-        self.mainTable.find(_thisGlobals.DefaultGridOptions.selectorBodyRows).off('mouseover').off('mouseleave')
-            .on('mouseover', function (e) {
-                var $tmp = $(e.target);
-                tname = $tmp.parent()[0].tagName;
-
-                if ((e.target.tagName == 'SPAN') || (e.target.tagName == 'BUTTON') || (e.target.tagName == 'IMG') || (e.target.tagName == 'INPUT')) {
-                    if (tname == 'TD') {
-                        self.HighlightedRow = $tmp.parent().parent();
-                    }
-                } else if (e.target.tagName == 'TD') {
-                    self.HighlightedRow = $tmp.parent();
-                }
-                if (self.HighlightedRow) {
-                    if (self.HighlightedRow.attr(_thisGlobals.DataAttr.Row.SubGrid.Row.Id)) {
-                    } else {
-                        self.HighlightedRow.addClass('rowheaderhovercolor');
-                    }
-                }
-        })
-            .on('mouseleave', function (e) {
-                if (self.HighlightedRow) {
-                    self.HighlightedRow.removeClass('rowheaderhovercolor');
-                    self.HighlightedRow = undefined;
-                }
-        });
-    }
-
-    function UpdateCrmField(toSave, who) {
-        //Update Entity
-        var updateEntity = undefined;
-        $.each(toSave, function (i, field) {
-
-            if (updateEntity) {
-                if (updateEntity.id != field.RecGuid) {
-                    try {
-                        var updateResponse = XrmServiceToolkit.Soap.Update(updateEntity);
-                    } catch (e) {
-                        LogEx("Exception: " + e.message);
-                    }
-                    updateEntity = new XrmServiceToolkit.Soap.BusinessEntity(who.activeOptions.ParentEntityInfo.ParentEntitySchemaname, field.RecGuid);
-                }
-            } else {
-                updateEntity = new XrmServiceToolkit.Soap.BusinessEntity(who.activeOptions.ParentEntityInfo.ParentEntitySchemaname, field.RecGuid);
-            }
- 
-            // If value to save is empty, we need to pass null to empty the contents of the crm field
-            var val = null;
-            var tmp = null;
-
-            if (field.InternalEditorType == DCrmEditableGrid.Editors.Text) {
-                if (field.ValueToSave.length > 0) {
-                    //if ((field.InternalEditorFormat) && (field.InternalEditorFormat.toLowerCase() == 'phone')) {
-                    //    // remove formatting
-                    //    val = field.ValueToSave.replace(/[()-]/g, "").replace(" ", "");
-                    //} else {
-                    //    val = field.ValueToSave;
-                    //}
-                    val = field.ValueToSave;
-                }
-
-            } else if (field.InternalEditorType == DCrmEditableGrid.Editors.Numeric) {
-                if (field.ValueToSave === 0) {
-                    tmp = field.ValueToSave;
-                } else if ((field.ValueToSave != undefined) &&
-                    (field.ValueToSave != null) && (field.ValueToSave != 'undefined') &&
-                    (field.ValueToSave != 'null') && (field.ValueToSave != '')) {
-                    tmp = parseInt(_thisHelpers.RemoveNumericFormat(field.ValueToSave));
-                }
-                val = { value: tmp, type: "int" };
-
-            } else if (field.InternalEditorType == DCrmEditableGrid.Editors.DatePicker) {
-                if (field.ValueToSave.length > 0) {
-                    val = Date.parseDate(field.ValueToSave);
-                }
-
-            } else if (field.InternalEditorType == DCrmEditableGrid.Editors.Checkbox) {
-                val = { value: field.CheckAttribute, type: "boolean" };
-
-            } else if (field.InternalEditorType == DCrmEditableGrid.Editors.OptionSet) {
-                if ((field.ValueToSave.trim().length == 0) || (field.OptionSetValue == '-1')) {
-                    val = { value: tmp, type: 'OptionSetValue' };
-                } else {
-                    val = { value: parseInt(field.OptionSetValue), type: 'OptionSetValue' };
-                }
-
-            } else if (field.InternalEditorType == DCrmEditableGrid.Editors.Description) {
-                if (field.ValueToSave.length > 0) {
-                    val = field.ValueToSave;
-                }
-
-            } else if (field.InternalEditorType == DCrmEditableGrid.Editors.Lookup) {
-                if ((field.LookupId) && (field.LookupId.length > 0)) {
-                    val = { id: field.LookupId, logicalName: field.LookupLogicalName, type: 'EntityReference' };
-                } else {
-                    val = { value: tmp, type: 'EntityReference' };
-                }
-
-                if (field.FieldSchemaName == 'ownerid') {
-                    // Set the owner
-                    try {
-                        var res = XrmServiceToolkit.Soap.Assign(who.activeOptions.ParentEntityInfo.ParentEntitySchemaname, field.RecGuid, field.LookupLogicalName, field.LookupId);
-                    } catch (e) {
-                        LogEx("Exception: Setting owner " + e.message);
-                    }
-                    return;
-                }
-
-            } else if (field.InternalEditorType == DCrmEditableGrid.Editors.Decimal) {
-                if (field.ValueToSave === 0) {
-                    tmp = field.ValueToSave;
-                } else if ((field.ValueToSave != undefined) && (field.ValueToSave != null)
-                    && (field.ValueToSave != 'undefined')
-                    && (field.ValueToSave != 'null') && (field.ValueToSave != '')) {
-                    tmp = field.ValueToSave;
-                }
-                val = { value: tmp, type: "decimal" };
-            } else if (field.InternalEditorType == DCrmEditableGrid.Editors.Double) {
-                if (field.ValueToSave === 0) {
-                    tmp = field.ValueToSave;
-                } else if ((field.ValueToSave != undefined) && (field.ValueToSave != null)
-                    && (field.ValueToSave != 'undefined')
-                    && (field.ValueToSave != 'null') && (field.ValueToSave != '')) {
-                    tmp = field.ValueToSave;
-                }
-                val = { value: tmp, type: "double" };
-            } else if (field.InternalEditorType == DCrmEditableGrid.Editors.Currency) {
-                if (field.ValueToSave === 0) {
-                    tmp = field.ValueToSave;
-                } else if ((field.ValueToSave != undefined) && (field.ValueToSave != null)
-                    && (field.ValueToSave != 'undefined') &&
-                    (field.ValueToSave != 'null') && (field.ValueToSave != '')) {
-                    tmp = field.ValueToSave;
-                }
-                val = { value: tmp, type: "Money" };
-
-            } else if (field.InternalEditorType == DCrmEditableGrid.Editors.DateTimePicker) {
-                if (field.ValueToSave.length > 0) {
-                    tmp = Date.parseDate(field.ValueToSave, _thisGlobals.userDatetimeSettings.DateTimeFormat);
-                }
-                val = { value: tmp, type: "dateTime" };
-            }
-
-            updateEntity.attributes[field.FieldSchemaName] = val;
-        });
-
-        if (updateEntity) {
-            try {
-                var updateResponse = XrmServiceToolkit.Soap.Update(updateEntity);
-            } catch (e) {
-                LogEx("Exception: " + e.message);
-            }
-        }
-
     }
 
     function HideError(who) {
@@ -6030,142 +6806,19 @@ http://localhost/Demo/main.aspx?etc=112&extraqs=?_CreateFromId=%7b5B6DFA60-6456-
         fetchXml += "</entity>" +
             "</fetch>";
 
-        XrmServiceToolkit.Soap.Fetch(fetchXml, true, callback);
+        if (_thisGlobals.UseWebApi) {
+            SdkWebAPI.getFetchXml(SdkWebAPI.GetEntitySetName(schemaName), fetchXml, callback, WebApiErrorCallback);
+        } else {
+            XrmServiceToolkit.Soap.Fetch(fetchXml, true, callback, WebApiErrorCallback);
+        }
     }
 
-    function buildCache(who) {
-        var table = who.mainTableRaw;
-
-        var totalRows = (table.tBodies[0] && table.tBodies[0].rows.length) || 0,
-            totalCells = (table.tBodies[0].rows[0] && table.tBodies[0].rows[0].cells.length) || 0;
-
-        if (totalRows == 0) {
-            return;
+    function WebApiErrorCallback(error) {
+        if (_thisGlobals.UseWebApi) {
+            LogEx(error.message);
+        } else {
+            LogEx(error);
         }
-
-        // First td for selection is added after
-        totalCells++;
-
-        var $tmpCell = null;
-        var $chk = null;
-        var $openRec = null;
-        var gridOptions = who.activeOptions;
-
-        for (var i = 0; i < totalRows; ++i) {
-
-            var c = $(table.tBodies[0].rows[i]);
-
-            $tmpCell = $('<td style="text-align:center"></td>');
-            if ((!gridOptions.ParentFormIsReadOnly) &&
-                ((gridOptions.UserCanDelete) || (gridOptions.DisplayCloneRecordButton))) {
-                // Select row checkbox
-                $chk = $("<input type='checkbox' />")
-                    .attr(_thisGlobals.ToolTipAttrName, _thisGlobals.Translation_Labels.SelectRecord)
-                    .click(function (e) {
-                        var row = $(this).parent().parent();
-
-                        if ((row) && (row.length)) {
-
-                            if ($(this).is(':checked')) {
-                                // add to selected rows
-                                gridOptions.selectedRows[gridOptions.selectedRows.length] = row[0];
-                                $(row[0]).addClass(_thisGlobals.DefaultGridOptions.rowSelectedCss);
-                            } else {
-                                $(row[0]).removeClass(_thisGlobals.DefaultGridOptions.rowSelectedCss);
-                                // remove from selected rows
-                                for (var i = gridOptions.selectedRows.length - 1; i >= 0; i--) {
-                                    if ($(gridOptions.selectedRows[i]).attr(_thisGlobals.DataAttr.Row.InternalIndex) === $(row[0]).attr(_thisGlobals.DataAttr.Row.InternalIndex)) {
-                                        gridOptions.selectedRows.splice(i, 1);
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        e.stopPropagation();
-                    }).appendTo($tmpCell);
-            }
-            if (gridOptions.HasChildGrids) {
-                $openRec = $('<img></img>')
-                    .attr('src', _thisGlobals.DefaultGridOptions.ExpandRecordIcon)
-                    .addClass('firstColOpenImg')
-                    .attr(_thisGlobals.DataAttr.Row.SubGrid.ChildGridOpen, _thisGlobals.DataAttr.NO)
-                    .click(function (e) {
-                        e.stopPropagation();
-                        $this = $(this);
-                        var $parentrow = $this.parent().parent();
-
-                        if ($this.attr(_thisGlobals.DataAttr.Row.SubGrid.ChildGridOpen) == _thisGlobals.DataAttr.NO) {
-                            $this.attr(_thisGlobals.DataAttr.Row.SubGrid.ChildGridOpen, _thisGlobals.DataAttr.YES);
-                            $this.attr('src', _thisGlobals.DefaultGridOptions.CollapsedRecordIcon);
-
-                            var subgridid = _thisHelpers.GenerateUUID();
-                            var subgridrowid = _thisHelpers.GenerateUUID();
-                            // Call parent passing only the subgrid div id
-                            var tableHeaders = who.GetHeaderCells();
-                            var $tr = $('<tr><td colspan="' + tableHeaders.length + '"></td></tr>')
-                                .attr('id', subgridrowid)
-                                .attr(_thisGlobals.DataAttr.Row.SubGrid.Id, subgridid)
-                                .insertAfter($this.parent().parent());
-
-                            $parentrow.attr(_thisGlobals.DataAttr.Row.SubGrid.Row.Id, subgridrowid);
-                            $parentrow[0].DSubGridRow = $tr;
-
-                            $gridParentDiv = $('<div></div>')
-                                .attr('id', subgridid)
-                                .addClass('subgridparentdiv')
-                                .appendTo($tr.find('td:first'));
-
-                            $parentrow.addClass('bgSelectedSubGridRow');
-
-                            who.SelectedRecordGuid = $parentrow.attr(_thisGlobals.DataAttr.Cell.RecordGuid);
-                            _thisHelpers.WaitDialog(true);
-                            ParentGridSelectedRecord(who, $gridParentDiv);
-
-                        } else {
-                            $this.attr(_thisGlobals.DataAttr.Row.SubGrid.ChildGridOpen, _thisGlobals.DataAttr.NO);
-                            $this.attr('src', _thisGlobals.DefaultGridOptions.ExpandRecordIcon);
-                            $parentrow.removeClass('bgSelectedSubGridRow');
-
-                            var rowid = $parentrow.attr(_thisGlobals.DataAttr.Row.SubGrid.Row.Id);
-                            if (rowid) {
-                                if ($parentrow[0].DSubGridRow) {
-                                    var subgridid = $parentrow[0].DSubGridRow.attr(_thisGlobals.DataAttr.Row.SubGrid.Id);
-                                    $parentrow[0].DSubGridRow = undefined;
-
-                                    who.SelectedRecordGuid = $parentrow.attr(_thisGlobals.DataAttr.Cell.RecordGuid);
-                                    ParentGridSelectedRecord(who, subgridid, true);
-                                }
-
-                                $('#' + rowid).empty().remove();
-                                $parentrow.removeAttr(_thisGlobals.DataAttr.Row.SubGrid.Row.Id);
-                            }
-                        }
-
-                    }).appendTo($tmpCell);
-            } else {
-                $openRec = $('<img></img>')
-                    .attr('src', _thisGlobals.DefaultGridOptions.OpenRecordIcon)
-                    .attr(_thisGlobals.ToolTipAttrName, _thisGlobals.Translation_Labels.OpenRecord)
-                    .attr(_thisGlobals.DataAttr.Row.SubGrid.ChildGridOpen, _thisGlobals.DataAttr.NO)
-                    .click(function (e) {
-                        e.stopPropagation();
-
-                        var $parentrow = $(this).parent().parent();
-                        if (($parentrow) && ($parentrow.length > 0)) {
-                            if (gridOptions.OpenRecordBehavoir == '10') {
-                                window.parent.Xrm.Utility.openEntityForm(gridOptions.ParentEntityInfo.ParentEntitySchemaname,
-                                    $($parentrow).attr(_thisGlobals.DataAttr.Cell.RecordGuid));
-                            } else {
-                                openEntityRecord(gridOptions.ParentEntityInfo.ParentEntitySchemaname,
-                                    $($parentrow).attr(_thisGlobals.DataAttr.Cell.RecordGuid));
-                            }
-                        }
-                    }).appendTo($tmpCell);
-            }
-
-            $("td:first", c).before($tmpCell);
-            $(c[0]).attr(_thisGlobals.DataAttr.Row.InternalIndex, i);
-        };
     }
 
     // return the instance
@@ -6182,8 +6835,10 @@ var colResizable = (function () {
             draggingClass: 'JCLRgripDrag',	//css-class used when a grip is being dragged (for visual feedback purposes)
             gripInnerHtml: '',				//if it is required to use a custom grip it can be done using some custom HTML				
             liveDrag: true,				//enables table-layout updating while dragging	
-            fixed: true,                    //table width does not change if columns are resized
-            minWidth: 15, 					//minimum width value in pixels allowed for a column 
+
+            fixed: false,                    //table width does not change if columns are resized
+            minWidth: 100, 					//minimum width value in pixels allowed for a column 
+
             headerOnly: false,				//specifies that the size of the the column resizing anchors will be bounded to the size of the first row 
             hoverCursor: "e-resize",  		//cursor to be used on grip hover
             dragCursor: "e-resize",  		//cursor to be used while dragging
@@ -6201,9 +6856,9 @@ var colResizable = (function () {
         }
 
         self.doc = $(document); 		//window object
-        self.head = $("head");			//head object
+        self.head = $("head");			//head object       
+
         self.drag = null;			//reference to the current grip that is being dragged
-        //self.count = 0;				//internal count to create unique IDs when needed.
 
         //common strings for packing
         self.ID = "id";
@@ -6211,41 +6866,45 @@ var colResizable = (function () {
         self.SIGNATURE = "JColResizer";
         self.FLEX = "JCLRFlex";
 
+
+        self.SetElemWidth = function ($el, width) {
+            // overflow tables need min & max width set as well
+            $el.css({
+                'width': width,
+                'min-width': width,
+                'max-width': width
+            });
+        };
+
+        self.GetElemWidth = function ($e1) {
+            return $e1.css('width');
+        };
+
+
         //short-cuts
         //self.I = parseInt;
         //self.M = Math;
-        //self.IE = /Trident\/[4-9]/.test(navigator.userAgent); // navigator.userAgent.indexOf('Trident/4.0')>0
-        self.IE = _thisGlobals.IsBrowser.IE;
-
-        self.SessionStrage;
-        try { self.SessionStrage = sessionStorage; } catch (e) { }	//Firefox crashes when executed as local file system
-
+        self.IE = (/*@cc_on!@*/false || !!document.documentMode);
         self.options = $.extend(defaults, options);
+        self.tmpMainTable = self.options.ParentControlClass.mainTable;
 
-        self.UpdatecolResizable = function () {
-            //LogIt("UpdatecolResizable Called");
-            self.syncGrips(self.options.ParentControlClass.mainTable);
-        };
+        var id = self.tmpMainTable.id = self.tmpMainTable.attr(self.ID) || self.SIGNATURE + _thisHelpers.GenerateRandomLetters(10);	//its id is obtained, if null new one is generated		
+        self.tmpMainTable.p = self.options.postbackSafe; 							//short-cut to detect postback safe 		
+        if (!self.tmpMainTable.is("table") && !self.options.partialRefresh) return; 		//if the object is not a table or if it was already processed then it is ignored.
+        self.tmpMainTable.addClass(self.SIGNATURE).attr(self.ID, id).before('<div class="JCLRgrips"/>');	//the grips container object is added. Signature class forces table rendering in fixed-layout mode to prevent column's min-width
 
-        /**
-         * Function to allow column resizing for table objects. It is the starting point to apply the plugin.
-         * @param {DOM node} tb - reference to the DOM table object to be enhanced
-         * @param {Object} options	- some customization values
-         */
+        self.tmpMainTable.g = []; self.tmpMainTable.c = []; self.tmpMainTable.w = self.GetElemWidth(self.tmpMainTable); self.tmpMainTable.gc = self.tmpMainTable.prev(); self.tmpMainTable.f = self.options.fixed;	//self.tmpMainTable.c and self.tmpMainTable.g are arrays of columns and grips respectively				
+        if (self.options.marginLeft) self.tmpMainTable.gc.css("marginLeft", self.options.marginLeft);  	//if the table contains margins, it must be specified
+        if (self.options.marginRight) self.tmpMainTable.gc.css("marginRight", self.options.marginRight);  	//since there is no (direct) way to obtain margin values in its original units (%, em, ...)
 
-        var tmpTable = self.options.ParentControlClass.mainTable;										//the table object is wrapped
+        self.tmpMainTable.cs = parseInt(self.IE ? self.tmpMainTable[0].cellSpacing || self.tmpMainTable[0].currentStyle.borderSpacing : self.tmpMainTable.css('border-spacing')) || 2;	//table cellspacing (not even jQuery is fully cross-browser)
+        self.tmpMainTable.b = parseInt(self.IE ? [0].border || self.tmpMainTable[0].currentStyle.borderLeftWidth : self.tmpMainTable.css('border-left-width')) || 1;	//outer border width (again cross-browser issues)
 
-        var id = tmpTable.id = tmpTable.attr(self.ID) || self.SIGNATURE + _thisHelpers.GenerateRandomLetters(10);	//its id is obtained, if null new one is generated		
-        tmpTable.p = self.options.postbackSafe; 							//short-cut to detect postback safe 		
-        if (!tmpTable.is("table") && !self.options.partialRefresh) return; 		//if the object is not a table or if it was already processed then it is ignored.
-        tmpTable.addClass(self.SIGNATURE).attr(self.ID, id).before('<div class="JCLRgrips"/>');	//the grips container object is added. Signature class forces table rendering in fixed-layout mode to prevent column's min-width
-
-        tmpTable.g = []; tmpTable.c = []; tmpTable.w = tmpTable.width(); tmpTable.gc = tmpTable.prev(); tmpTable.f = self.options.fixed;	//tmpTable.c and tmpTable.g are arrays of columns and grips respectively				
-        if (self.options.marginLeft) tmpTable.gc.css("marginLeft", self.options.marginLeft);  	//if the table contains margins, it must be specified
-        if (self.options.marginRight) tmpTable.gc.css("marginRight", self.options.marginRight);  	//since there is no (direct) way to obtain margin values in its original units (%, em, ...)
-
-        tmpTable.cs = parseInt(self.IE ? tmpTable[0].cellSpacing || tmpTable[0].currentStyle.borderSpacing : tmpTable.css('border-spacing')) || 2;	//table cellspacing (not even jQuery is fully cross-browser)
-        tmpTable.b = parseInt(self.IE ? [0].border || tmpTable[0].currentStyle.borderLeftWidth : tmpTable.css('border-left-width')) || 1;	//outer border width (again cross-browser issues)
+        self.tfootRow = null;
+        var footrow = self.tmpMainTable.find('tfoot tr');
+        if ((footrow) && (footrow.length)) {
+            self.tfootRow = footrow;
+        }
 
         /**
          * This function allows to remove any enhancements performed by this plugin on a previously processed table.
@@ -6254,9 +6913,12 @@ var colResizable = (function () {
         self.destroy = function () {
             //var id = t.attr(self.ID), t = tables[id];		//its table object is found
             //if (!t || !t.is("table")) return;			//if none, then it wasn't processed	 
-            self.options.ParentControlClass.mainTable.removeClass(self.SIGNATURE + " " + self.FLEX).gc.remove();	//class and grips are removed
+            self.tmpMainTable.removeClass(self.SIGNATURE + " " + self.FLEX).gc.remove();	//class and grips are removed
         };
 
+        self.UpdatecolResizable = function () {
+            self.syncGrips(self.tmpMainTable);
+        };
 
         /**
          * Function to create all the grips associated with the table given by parameters 
@@ -6265,10 +6927,8 @@ var colResizable = (function () {
         self.createGrips = function (t) {
             var th = t.find(">thead>tr>th,>thead>tr>td");	//if table headers are specified in its semantically correct tag, are obtained
             if (!th.length) th = t.find(">tbody>tr:first>th,>tr:first>th,>tbody>tr:first>td, >tr:first>td");	 //but headers can also be included in different ways
-            //th = th.filter(":visible");					//filter invisible columns
             t.cg = t.find("col"); 						//a table can also contain a colgroup with col elements		
             t.ln = th.length;							//table length is stored	
-            if (t.p && self.SessionStrage && self.SessionStrage[t.id]) self.memento(t, th);		//if 'postbackSafe' is enabled and there is data for the current table, its coloumn layout is restored
             th.each(function (i) {						//iterate through the table column headers	
                 var c = $(this); 						//jquery wrap for the current column			
                 var g = $(t.gc.append('<div class="JCLRgrip"></div>')[0].lastChild); //add the visual node to be used as grip
@@ -6287,55 +6947,16 @@ var colResizable = (function () {
                 }
 
                 g.t = t; g.i = i; g.c = c; 		//some values are stored in the grip's node data
-                c.w = c.width();
+                c.w = self.GetElemWidth(c); 
 
-                t.g.push(g); t.c.push(c);						//the current grip and column are added to its table object
-                c.width(c.w).removeAttr("width");				//the width of the column is converted into pixel-based measurements
+                t.g.push(g); t.c.push(c);
+                self.SetElemWidth(c, c.w);
                 g.data(self.SIGNATURE, { i: i, t: t.attr(self.ID), last: i == t.ln - 1 });	 //grip index and its table name are stored in the HTML 												
             });
-            t.cg.removeAttr("width");	//remove the width attribute from elements in the colgroup 
             self.syncGrips(t); 				//the grips are positioned according to the current table layout			
-            //there is a small problem, some cells in the table could contain dimension values interfering with the 
-            //width value set by this plugin. Those values are removed
-            t.find('td, th').not(th).not('table th, table td').each(function () {
-                $(this).removeAttr('width');	//the width attribute is removed from all table cells which are not nested in other tables and dont belong to the header
-            });
+
             if (!self.FLEX) {
-                t.removeAttr('width').addClass(self.FLEX); //if not fixed, let the table grow as needed
-            }
-        };
-
-
-        /**
-         * Function to allow the persistence of columns dimensions after a browser postback. It is based in
-         * the HTML5 sessionStorage object, which can be emulated for older browsers using sessionstorage.js
-         * @param {jQuery ref} t - table object
-         * @param {jQuery ref} th - reference to the first row elements (only set in deserialization)
-         */
-        self.memento = function (t, th) {
-            var w, m = 0, i = 0, aux = [], tw;
-            if (th) {										//in deserialization mode (after a postback)
-                t.cg.removeAttr("width");
-                if (self.options.flush) { self.SessionStrage[t.id] = ""; return; } 	//if flush is activated, stored data is removed
-                w = self.SessionStrage[t.id].split(";");					//column widths is obtained
-                tw = w[t.ln + 1];
-                if (!t.f && tw) t.width(tw);			//it not fixed and table width data available its size is restored
-                for (; i < t.ln; i++) {						//for each column
-                    aux.push(100 * w[i] / w[t.ln] + "%"); 	//width is stored in an array since it will be required again a couple of lines ahead
-                    th.eq(i).css("width", aux[i]); 	//each column width in % is restored
-                }
-                for (i = 0; i < t.ln; i++)
-                    t.cg.eq(i).css("width", aux[i]);	//this code is required in order to create an inline CSS rule with higher precedence than an existing CSS class in the "col" elements
-            } else {							//in serialization mode (after resizing a column)
-                self.SessionStrage[t.id] = "";				//clean up previous data
-                for (; i < t.c.length; i++) {	//iterate through columns
-                    w = t.c[i].width();		//width is obtained
-                    self.SessionStrage[t.id] += w + ";";		//width is appended to the sessionStorage object using ID as key
-                    m += w;					//carriage is updated to obtain the full size used by columns
-                }
-                self.SessionStrage[t.id] += m;							//the last item of the serialized string is the table's active area (width), 
-                //to be able to obtain % width value of each columns while deserializing
-                if (!self.FLEX) self.SessionStrage[t.id] += ";" + t.width(); 	//if not fixed, table width is stored
+                t.addClass(self.FLEX); //if not fixed, let the table grow as needed
             }
         };
 
@@ -6345,11 +6966,11 @@ var colResizable = (function () {
          * @param {jQuery ref} t - table object
          */
         self.syncGrips = function (t) {
-            t.gc.width(t.w);			//the grip's container width is updated				
+            self.SetElemWidth(t.gc, t.w);
             for (var i = 0; i < t.ln; i++) {	//for each column
                 var c = t.c[i];
                 t.g[i].css({			//height and position of the grip is updated according to the table layout
-                    left: c.offset().left - t.offset().left + c.outerWidth(false) + t.cs / 2 + self.PX,
+                    left: c.offset().left - t.offset().left + c.outerWidth(false) + t.cs / 2,
                     height: self.options.headerOnly ? t.c[0].outerHeight(false) : t.outerHeight(false)
                 });
             }
@@ -6365,17 +6986,35 @@ var colResizable = (function () {
         * @param {bool} isOver - to identify when the function is being called from the onGripDragOver event	
         */
         self.syncCols = function (t, i, isOver) {
-            var inc = self.drag.x - self.drag.l, c = t.c[i], c2 = t.c[i + 1];
-            var w = c.w + inc; var w2 = c2.w - inc;	//their new width is obtained					
-            c.width(w + self.PX);
-            t.cg.eq(i).width(w + self.PX);
-            if (t.f) { //if fixed mode
-                c2.width(w2 + self.PX);
-                t.cg.eq(i + 1).width(w2 + self.PX);
+            // is last column
+            var last = i == t.ln - 1;
+
+            var inc = self.drag.x - self.drag.l, c = t.c[i];
+            var c2 = null;
+            if (!last) {
+                c2 = t.c[i + 1];
+            } else {
+                c2 = t.c[i];
             }
+
+            var w = parseInt(c.w) + inc; var w2 = parseInt(c2.w) - inc;	//their new width is obtained
+            self.SetElemWidth($(c), w + self.PX);
+
+            var bodyfirstrow = self.tmpMainTable.find('tbody tr');
+            if ((bodyfirstrow) && (bodyfirstrow.length)) {
+                for (var ii = 0; ii < bodyfirstrow.length; ii++) {
+                    var row = bodyfirstrow[ii];
+                    self.SetElemWidth($(row.cells[i]), w + self.PX);
+                }
+            }
+
+            if (self.tfootRow) {
+                self.SetElemWidth($(self.tfootRow[0].cells[i]), w + self.PX);
+            }
+
             if (isOver) {
-                c.w = w;
-                c2.w = t.f ? w2 : c2.w;
+                c.w = w + self.PX;
+                c2.w = t.f ? w2 + self.PX : c2.w + self.PX;
             }
         };
 
@@ -6388,11 +7027,13 @@ var colResizable = (function () {
         */
         self.applyBounds = function (t) {
             var w = $.map(t.c, function (c) {			//obtain real widths
-                return c.width();
+                return self.GetElemWidth(c); // c.width();
             });
-            t.width(t.width()).removeClass(self.FLEX);	//prevent table width changes
+            self.SetElemWidth(t, self.GetElemWidth(t));
+            t.removeClass(self.FLEX);	//prevent table width changes
             $.each(t.c, function (i, c) {
-                c.width(w[i]).w = w[i];				//set column widths applying bounds (table's max-width)
+                self.SetElemWidth(c, w[i]);
+                c.w = w[i];				//set column widths applying bounds (table's max-width)
             });
             t.addClass(self.FLEX);						//allow table width changes
         };
@@ -6414,24 +7055,32 @@ var colResizable = (function () {
             var min = i ? t.g[i - 1].position().left + t.cs + mw : l;	//min position according to the contiguous cells
             var max = t.f ? 	//fixed mode?
                 i == t.ln - 1 ?
-                    t.w - l :
+                    parseInt(t.w) - l :
                     t.g[i + 1].position().left - t.cs - mw :
-                Infinity; 								//max position according to the contiguous cells 
+                Infinity;
+            //max position according to the contiguous cells 
             x = Math.max(min, Math.min(max, x));				//apply bounding		
-            self.drag.x = x; self.drag.css("left", x + self.PX); 	//apply position increment	
+
+            self.drag.x = x; self.drag.css("left", x); 	//apply position increment	
             if (last) {									//if it is the last grip
                 var c = t.c[self.drag.i];					//width of the last column is obtained
-                self.drag.w = c.w + x - self.drag.l;
+                self.drag.w = parseInt(c.w) + x - self.drag.l;
             }
             if (self.options.liveDrag) { 			//if liveDrag is enabled
                 if (last) {
-                    c.width(self.drag.w);
-                    t.w = t.width();
+                    self.SetElemWidth(c, self.drag.w + self.PX);
+                    t.w = self.GetElemWidth(t); // t.width();
+
+                    self.syncCols(t, i);
                 } else {
                     self.syncCols(t, i); 			//columns are synchronized
                 }
+
+                //if not fixed mode, then apply bounds to obtain real width values
+                if (!self.FLEX) self.applyBounds(t);
+
                 self.syncGrips(t);
-                var cb = self.options.onDrag;							//check if there is an onDrag callback
+                var cb = self.options.onDrag;    //check if there is an onDrag callback
                 if (cb) { e.currentTarget = t[0]; cb(e); }		//if any, it is fired			
             }
             return false; 	//prevent text selection while dragging				
@@ -6442,7 +7091,6 @@ var colResizable = (function () {
          * Event handler fired when the dragging is over, updating table layout
          */
         self.onGripDragOver = function (e) {
-
             self.doc.unbind('touchend.' + self.SIGNATURE + ' mouseup.' + self.SIGNATURE).unbind('touchmove.' + self.SIGNATURE + ' mousemove.' + self.SIGNATURE);
             $("head :last-child").remove(); 				//remove the dragging cursor style	
             if (!self.drag) return;
@@ -6453,7 +7101,7 @@ var colResizable = (function () {
             var last = i == t.ln - 1;         //check if it is the last column's grip (usually hidden)
             var c = t.g[i].c;               //the column being dragged
             if (last) {
-                c.width(self.drag.w);
+                self.SetElemWidth(c, self.drag.w + self.PX);
                 c.w = self.drag.w;
             } else {
                 self.syncCols(t, i, true);	//the columns are updated
@@ -6461,7 +7109,6 @@ var colResizable = (function () {
             if (!self.FLEX) self.applyBounds(t);	//if not fixed mode, then apply bounds to obtain real width values
             self.syncGrips(t);				//the grips are updated
             if (cb) { e.currentTarget = t[0]; cb(e); }	//if there is a callback function, it is fired
-            if (t.p && self.SessionStrage) self.memento(t); 						//if postbackSafe is enabled and there is sessionStorage support, the new layout is serialized and stored
             self.drag = null;									//since the grip's dragging is over									
         };
 
@@ -6473,7 +7120,7 @@ var colResizable = (function () {
          */
         self.onGripMouseDown = function (e) {
             var o = $(this).data(self.SIGNATURE);			//retrieve grip's data
-            var t = self.options.ParentControlClass.mainTable, g = t.g[o.i];			//shortcuts for the table and grip objects
+            var t = self.tmpMainTable, g = t.g[o.i];			//shortcuts for the table and grip objects
             var oe = e.originalEvent.touches;           //touch or mouse event?
             g.ox = oe ? oe[0].pageX : e.pageX;            //the initial position is kept
             g.l = g.position().left;
@@ -6481,7 +7128,7 @@ var colResizable = (function () {
             self.head.append("<style type='text/css'>*{cursor:" + self.options.dragCursor + "!important}</style>"); 	//change the mouse cursor
             g.addClass(self.options.draggingClass); 	//add the dragging class (to allow some visual feedback)				
             self.drag = g;							//the current grip is stored as the current dragging object
-            if (t.c[o.i].l) for (var i = 0, c; i < t.ln; i++) { c = t.c[i]; c.l = false; c.w = c.width(); } 	//if the colum is locked (after browser resize), then c.w must be updated		
+            if (t.c[o.i].l) for (var i = 0, c; i < t.ln; i++) { c = t.c[i]; c.l = false; c.w = self.GetElemWidth(c); } // c.width(); } 	//if the colum is locked (after browser resize), then c.w must be updated
             return false; 	//prevent text selection
         };
 
@@ -6491,7 +7138,7 @@ var colResizable = (function () {
          * table layout according to the browser's size synchronizing related grips 
          */
         self.onResize = function () {
-            var t = self.options.ParentControlClass.mainTable, i, mw = 0;
+            var t = self.tmpMainTable, i, mw = 0;
             t.removeClass(self.SIGNATURE);						//firefox doesn't like layout-fixed in some cases
             if (t.f && t.w != t.width()) {					//if the the table's width has changed and it is in fixed mode
                 t.w = t.width();							//its new value is kept the active cells area is obtained
@@ -6500,16 +7147,17 @@ var colResizable = (function () {
                 //each browser. In the beginning i had a big switch for each browser, but since the code
                 //was extremely ugly now I use a different approach with several re-flows. This works 
                 //pretty well but it's a bit slower. For now, lets keep things simple...   
-                for (i = 0; i < t.ln; i++) t.c[i].css("width", Math.round(1000 * t.c[i].w / mw) / 10 + "%").l = true;
+                for (i = 0; i < t.ln; i++)
+                    t.c[i].css("width", Math.round(1000 * t.c[i].w / mw) / 10 + "%").l = true;
                 //c.l locks the column, telling us that its c.w is outdated									
             }
             self.syncGrips(t.addClass(self.SIGNATURE));
         };
 
         //bind resize event, to update grips position 
-        $(window).bind('resize.' + self.SIGNATURE, self.onResize);
+        //$(window).bind('resize.' + self.SIGNATURE, self.onResize);
 
-        self.createGrips(tmpTable);		//grips are created
+        self.createGrips(self.tmpMainTable);		//grips are created
 
     }
 
@@ -6565,12 +7213,12 @@ function DisplayNewButtonMenu(self, $this) {
  parameters["parentcustomeridname"] = "Contoso";
  parameters["parentcustomeridtype"] = "account";
 
-For simple lookups you must set the value and the text to display in the lookup. Use the suffix “name” with the name of the attribute to set the value for the text.
-Don’t use any other arguments.
+For simple lookups you must set the value and the text to display in the lookup. Use the suffix â€œnameâ€ with the name of the attribute to set the value for the text.
+Donâ€™t use any other arguments.
 For customer and owner lookups you must set the value and the name in the same way you set them for simple lookups.
-In addition you must use the suffix “type” to specify the type of entity.
+In addition you must use the suffix â€œtypeâ€ to specify the type of entity.
 Allowable values are account, contact, systemuser, and team.
-You can’t set the values for partylist or regarding lookups.
+You canâ€™t set the values for partylist or regarding lookups.
                     */
                     var parameters = {};
 
@@ -6612,33 +7260,57 @@ You can’t set the values for partylist or regarding lookups.
 function CloneRecord(self, rowToBeCloned, lastone) {
     var msg = undefined;
     try {
-        var $cloneRow = (rowToBeCloned) ? rowToBeCloned : self.contextMenuTarget.parent().clone();
+
+        var $tobeCloned = rowToBeCloned || self.contextMenuTarget.parent();
+        var $cloneRow = $tobeCloned.clone();
         var lastcloneRefresh = false;
         if ((lastone == undefined) || (lastone == true)) {
             lastcloneRefresh = true;
         }
         self.contextMenuTarget = undefined;
-        var $theadcells = self.mainTable.find('thead th');
+        var $theadcells = self.mainTable.find(_thisGlobals.DefaultGridOptions.selectorHeaders);
         var cells = $cloneRow[0].cells;
         var $cell = undefined;
         var val = undefined;
         var formattedVal = '';
 
+        // Remove selected css state
         $cloneRow.removeAttr(_thisGlobals.DataAttr.Cell.RecordGuid).removeClass(_thisGlobals.DefaultGridOptions.rowSelectedCss);
+        // Remove record guids from each cell
         $cloneRow.find('td').each(function () {
             $(this).removeAttr('id');
         });
+        // Uncheck select checkbox
+        var firsttd = $cloneRow.find('td:first');
+        if ((firsttd) && (firsttd.length)) {
+            var chk = firsttd.find("input[type='checkbox']");
+            if ((chk) && (chk.length)) {
+                chk.prop('checked', false);
+            }
+        }
 
         var recSchema = self.activeOptions.ParentEntityInfo.ParentEntitySchemaname;
-        var recNew = new XrmServiceToolkit.Soap.BusinessEntity(recSchema);
+
+        var recNew = null;
+        if (_thisGlobals.UseWebApi) {
+            recNew = {};
+        } else {
+            recNew = new XrmServiceToolkit.Soap.BusinessEntity(recSchema);
+        }
         var exclude = ['transactioncurrencyid', 'createdby', 'createdon', , 'modifiedby', 'modifiedon', 'ownerid'];
 
         if (self.activeOptions.ParentChildLookupInfo.Related) {
-            recNew.attributes[self.activeOptions.ParentChildLookupInfo.LookupSchemaName] = {
-                id: self.activeOptions.ParentChildLookupInfo.Guid,
-                logicalName: self.activeOptions.ParentChildLookupInfo.ParentSchemaName,
-                type: self.activeOptions.ParentChildLookupInfo.Type
-            };
+            if (_thisGlobals.UseWebApi) {
+                SetupEntityReference(recNew, self.activeOptions.ParentChildLookupInfo.LookupSchemaName,
+                    self.activeOptions.ParentChildLookupInfo.ParentSchemaName, 
+                    self.activeOptions.ParentChildLookupInfo.Guid, false);
+            } else {
+                recNew.attributes[self.activeOptions.ParentChildLookupInfo.LookupSchemaName] = {
+                    id: self.activeOptions.ParentChildLookupInfo.Guid,
+                    logicalName: self.activeOptions.ParentChildLookupInfo.ParentSchemaName,
+                    type: self.activeOptions.ParentChildLookupInfo.Type
+                };
+            }
         }
 
         for (var i = 1; i < $theadcells.length; i++) {
@@ -6659,8 +7331,12 @@ function CloneRecord(self, rowToBeCloned, lastone) {
 
                     formattedVal = _thisHelpers.GetActiveCellText($cell);
                     if ((formattedVal) && (formattedVal.length > 0)) {
-                        recNew.attributes[schema] = formattedVal;
                         val = formattedVal;
+                        if (_thisGlobals.UseWebApi) {
+                            recNew[schema] = val;
+                        } else {
+                            recNew.attributes[schema] = val;
+                        }
                     }
 
                 } else if (ed == DCrmEditableGrid.Editors.Numeric) {
@@ -6668,7 +7344,11 @@ function CloneRecord(self, rowToBeCloned, lastone) {
                     formattedVal = _thisHelpers.GetActiveCellText($cell);
                     if ((formattedVal) && (formattedVal.length > 0)) {
                         val = parseInt(_thisHelpers.RemoveNumericFormat(formattedVal));
-                        recNew.attributes[schema] = { value: val, type: "int" };
+                        if (_thisGlobals.UseWebApi) {
+                            recNew[schema] = val;
+                        } else {
+                            recNew.attributes[schema] = { value: val, type: "int" };
+                        }
                     }
 
                 } else if (ed == DCrmEditableGrid.Editors.Decimal) {
@@ -6676,28 +7356,44 @@ function CloneRecord(self, rowToBeCloned, lastone) {
                     formattedVal = _thisHelpers.GetActiveCellText($cell);
                     if ((formattedVal) && (formattedVal.length > 0)) {
                         val = parseFloat(_thisHelpers.RemoveNumericFormat(formattedVal).replace(_thisGlobals.userCurrencySettings.DecimalSymbol, '.'));
-                        recNew.attributes[schema] = { value: val, type: "decimal" };
+                        if (_thisGlobals.UseWebApi) {
+                            recNew[schema] = val;
+                        } else {
+                            recNew.attributes[schema] = { value: val, type: "decimal" };
+                        }
                     }
                 } else if (ed == DCrmEditableGrid.Editors.Double) {
 
                     formattedVal = _thisHelpers.GetActiveCellText($cell);
                     if ((formattedVal) && (formattedVal.length > 0)) {
                         val = parseFloat(_thisHelpers.RemoveNumericFormat(formattedVal).replace(_thisGlobals.userCurrencySettings.DecimalSymbol, '.'));
-                        recNew.attributes[schema] = { value: val, type: "double" };
+                        if (_thisGlobals.UseWebApi) {
+                            recNew[schema] = val;
+                        } else {
+                            recNew.attributes[schema] = { value: val, type: "double" };
+                        }
                     }
                 } else if (ed == DCrmEditableGrid.Editors.Currency) {
 
                     formattedVal = _thisHelpers.GetActiveCellText($cell);
                     if ((formattedVal) && (formattedVal.length > 0)) {
                         val = parseFloat(_thisHelpers.RemoveNumericFormat(formattedVal).replace(_thisGlobals.userCurrencySettings.DecimalSymbol, '.'));
-                        recNew.attributes[schema] = { value: val, type: "Money" };
+                        if (_thisGlobals.UseWebApi) {
+                            recNew[schema] = val;
+                        } else {
+                            recNew.attributes[schema] = { value: val, type: "Money" };
+                        }
                     }
                 } else if (ed == DCrmEditableGrid.Editors.DatePicker) {
 
                     formattedVal = _thisHelpers.GetActiveCellText($cell);
                     if ((formattedVal) && (formattedVal.length > 0)) {
                         val = Date.parseDate(formattedVal);
-                        recNew.attributes[schema] = val;
+                        if (_thisGlobals.UseWebApi) {
+                            recNew[schema] = _thisHelpers.encodeDate(val);
+                        } else {
+                            recNew.attributes[schema] = val;
+                        }
                     }
 
                 } else if (ed == DCrmEditableGrid.Editors.DateTimePicker) {
@@ -6705,7 +7401,11 @@ function CloneRecord(self, rowToBeCloned, lastone) {
                     formattedVal = _thisHelpers.GetActiveCellText($cell);
                     if ((formattedVal) && (formattedVal.length > 0)) {
                         val = Date.parseDate(formattedVal);
-                        recNew.attributes[schema] = { value: val, type: "dateTime" };
+                        if (_thisGlobals.UseWebApi) {
+                            recNew[schema] = _thisHelpers.encodeDate(val, true);
+                        } else {
+                            recNew.attributes[schema] = { value: val, type: "dateTime" };
+                        }
                     }
 
                 } else if (ed == DCrmEditableGrid.Editors.Checkbox) {
@@ -6713,7 +7413,11 @@ function CloneRecord(self, rowToBeCloned, lastone) {
                     formattedVal = _thisHelpers.GetActiveCellText($cell);
                     if ((formattedVal) && (formattedVal.length > 0)) {
                         val = (formattedVal == self.GridEditors[i].CheckedLabel) ? true : false;
-                        recNew.attributes[schema] = { value: val, type: "boolean" };
+                        if (_thisGlobals.UseWebApi) {
+                            recNew[schema] = val;
+                        } else {
+                            recNew.attributes[schema] = { value: val, type: "boolean" };
+                        }
                     }
 
                 } else if (ed == DCrmEditableGrid.Editors.OptionSet) {
@@ -6724,23 +7428,48 @@ function CloneRecord(self, rowToBeCloned, lastone) {
                         if (optionsetVal) {
                             val = parseInt(optionsetVal);
                         }
-                        recNew.attributes[schema] = { value: val, type: "OptionSetValue" };
+                        if (val) {
+                            if (_thisGlobals.UseWebApi) {
+                                recNew[schema] = val;
+                            } else {
+                                recNew.attributes[schema] = { value: val, type: "OptionSetValue" };
+                            }
+                        }
                     }
 
-                } else if ((ed == DCrmEditableGrid.Editors.Lookup) || (ed == DCrmEditableGrid.Editors.CustomerType)) {
+                } else if ((ed == DCrmEditableGrid.Editors.Lookup) || (ed == DCrmEditableGrid.Editors.Customer)) {
+
                     if (self.activeOptions.ParentChildLookupInfo.LookupSchemaName != schema) {
                         formattedVal = _thisHelpers.GetActiveCellText($cell);
                         if ((formattedVal) && (formattedVal.length > 0)) {
-                            recNew.attributes[schema] = {
-                                id: _thisHelpers.AddCurlyBrace($cell.attr(_thisGlobals.DataAttr.Cell.Lookup.Guid)),
-                                logicalName: $cell.attr(_thisGlobals.DataAttr.Cell.Lookup.LogicalName),
-                                type: "EntityReference"
-                            };
+                            var ln = $cell.attr(_thisGlobals.DataAttr.Cell.Lookup.LogicalName);
+                            var gu = $cell.attr(_thisGlobals.DataAttr.Cell.Lookup.Guid);
+                            
+                            // in case of the Customer field type, the AssociatedNavigationProperty can be one of
+                            // parentcustomerid_account or parentcustomerid_contact
+                            if ((ln) && (gu)) {
+                                if (_thisGlobals.UseWebApi) {
+                                    var navProp = self.GridEditors[i].LookupData.AssociatedNavigationProperty;
+
+                                    if (ed == DCrmEditableGrid.Editors.Customer) {
+                                        SetupEntityReference(recNew, navProp, ln, gu, true);
+                                    } else {
+                                        SetupEntityReference(recNew, navProp, ln, gu, false);
+                                    }
+
+                                } else {
+                                    recNew.attributes[schema] = {
+                                        id: _thisHelpers.AddCurlyBrace(gu),
+                                        logicalName: ln,
+                                        type: "EntityReference"
+                                    };
+                                }
+                            }
                         }
                     }
-                }
-            }
+                } // End if
 
+            }
         }
 
         // JS callback
@@ -6752,7 +7481,13 @@ function CloneRecord(self, rowToBeCloned, lastone) {
             }
         }
 
-        var newRecGuid = XrmServiceToolkit.Soap.Create(recNew);
+        var newRecGuid = null;
+        if (_thisGlobals.UseWebApi) {
+            newRecGuid = SdkWebAPI.create(SdkWebAPI.GetEntitySetName(recSchema), recNew, true);
+        } else {
+            newRecGuid = XrmServiceToolkit.Soap.Create(recNew);
+        }
+
         $cloneRow.attr(_thisGlobals.DataAttr.Cell.RecordGuid, newRecGuid)
             .attr(_thisGlobals.DataAttr.Row.SubGrid.ChildGridOpen, _thisGlobals.DataAttr.NO);
 
@@ -6762,7 +7497,7 @@ function CloneRecord(self, rowToBeCloned, lastone) {
             }
         }
 
-        self.mainTable.find('tbody:first').append($cloneRow);
+        $tobeCloned.after($cloneRow);
 
         var tableRows = self.GetBodyRows();
         for (var i = 0; i < tableRows.length; i++) {
@@ -6787,6 +7522,7 @@ function CloneRecord(self, rowToBeCloned, lastone) {
             } else {
                 self.ResetRowHighlighting();
             }
+            self.ReapplyAggregates();
         }
     } catch (e) {
         msg = e.message;
@@ -6794,6 +7530,18 @@ function CloneRecord(self, rowToBeCloned, lastone) {
 
     if (msg) {
         DisplayCrmAlertDialog("Unable to clone record due to exception:\r" + msg);
+    }
+}
+
+function SetupEntityReference(ref, schema, logicalname, guid, isComplex) {
+    if(isComplex) {
+        ref[schema + '_' + logicalname + '@odata.bind'] = '/'
+            + SdkWebAPI.GetEntitySetName(logicalname)
+            + '(' + guid.replace('{', '').replace('}', '') + ')';
+    } else {
+        ref[schema + '@odata.bind'] = '/'
+            + SdkWebAPI.GetEntitySetName(logicalname)
+            + '(' + guid.replace('{', '').replace('}', '') + ')';
     }
 }
 
@@ -6810,8 +7558,7 @@ function CreateInlineRecord(self, excelCells, lastRec) {
     }
 
     try {
-
-        var $theadcells = self.mainTable.find('thead th');
+        var $theadcells = self.mainTable.find(_thisGlobals.DefaultGridOptions.selectorHeaders);
         var $cloneRow = $('<tr' + extraRowHeight + '></tr>');
         var cells = undefined;
         var $cell = undefined;
@@ -6819,15 +7566,20 @@ function CreateInlineRecord(self, excelCells, lastRec) {
 
         for (var i = 0; i < $theadcells.length; i++) {
             if (i > 0) {
-                $('<td tabindex="1"></td>')
+                var $thistr = $('<td tabindex="1"></td>')
                 .html('<span class="fieldcelltext"></span>')
                 .appendTo($cloneRow);
+
+                _thisHelpers.SetCellWidth($thistr, _thisHelpers.GetCellWidth($($theadcells[i]), true), true);
             } else {
-                var $tmpCell = $('<td style="text-align:center"></td>').appendTo($cloneRow);
+                var $tmpCell = $('<td></td>').appendTo($cloneRow);
 
                 if ((!self.activeOptions.ParentFormIsReadOnly)
                     && (self.activeOptions.UserCanDelete)
                     && (self.activeOptions.AllowDelete)) {
+
+                    $tmpCell.addClass('firstColCheckbox');
+
                     // Select row checkbox
                     $chk = $("<input type='checkbox' />")
                         .attr(_thisGlobals.ToolTipAttrName, _thisGlobals.Translation_Labels.SelectRecord)
@@ -6853,6 +7605,8 @@ function CreateInlineRecord(self, excelCells, lastRec) {
                             }
                             e.stopPropagation();
                         }).appendTo($tmpCell);
+                } else {
+                    $tmpCell.addClass('firstColNoCheckbox');
                 }
 
                 if (self.activeOptions.HasChildGrids) {
@@ -6937,15 +7691,27 @@ function CreateInlineRecord(self, excelCells, lastRec) {
 
         var recSchema = self.activeOptions.ParentEntityInfo.ParentEntitySchemaname;
 
-        var recNew = new XrmServiceToolkit.Soap.BusinessEntity(recSchema);
+        var recNew = null;
+        if (_thisGlobals.UseWebApi) {
+            recNew = {};
+        } else {
+            recNew = new XrmServiceToolkit.Soap.BusinessEntity(recSchema);
+        }
+
         var exclude = ['transactioncurrencyid', 'createdby', 'createdon', , 'modifiedby', 'modifiedon', 'ownerid'];
 
         if (self.activeOptions.ParentChildLookupInfo.Related) {
-            recNew.attributes[self.activeOptions.ParentChildLookupInfo.LookupSchemaName] = {
-                id: self.activeOptions.ParentChildLookupInfo.Guid,
-                logicalName: self.activeOptions.ParentChildLookupInfo.ParentSchemaName,
-                type: self.activeOptions.ParentChildLookupInfo.Type
-            };
+            if (_thisGlobals.UseWebApi) {
+                SetupEntityReference(recNew, self.activeOptions.ParentChildLookupInfo.LookupSchemaName,
+                    self.activeOptions.ParentChildLookupInfo.ParentSchemaName,
+                    self.activeOptions.ParentChildLookupInfo.Guid, true);
+            } else {
+                recNew.attributes[self.activeOptions.ParentChildLookupInfo.LookupSchemaName] = {
+                    id: self.activeOptions.ParentChildLookupInfo.Guid,
+                    logicalName: self.activeOptions.ParentChildLookupInfo.ParentSchemaName,
+                    type: self.activeOptions.ParentChildLookupInfo.Type
+                };
+            }
         }
 
         var val = undefined;
@@ -6959,12 +7725,16 @@ function CreateInlineRecord(self, excelCells, lastRec) {
             var ed = parseInt($thcell.attr(_thisGlobals.DataAttr.Header.EditorType));
             var schema = $thcell.attr(_thisGlobals.DataAttr.Header.SchemaName);
             var requier = ($thcell.attr(_thisGlobals.DataAttr.Header.Required) == _thisGlobals.DataAttr.YES) ? true : false;
-            var defaultVal = null;
+            var defaultVal = undefined;
 
             if ((excelCells) && (excelCells[i - 1])) {
                 defaultVal = excelCells[i - 1];
             } else {
                 defaultVal = $thcell.attr(_thisGlobals.DataAttr.Header.DefaultValueForCreate);
+            }
+
+            if (!axis.isUndefined(defaultVal) && !axis.isNull(defaultVal) && defaultVal.length == 0) {
+                defaultVal = undefined;
             }
 
             formattedVal = '';
@@ -6985,86 +7755,112 @@ function CreateInlineRecord(self, excelCells, lastRec) {
             }
 
             if (!exclude.ExactMatchExists(schema)) {
+
                 if ((ed == DCrmEditableGrid.Editors.Text) || (ed == DCrmEditableGrid.Editors.Description)) {
-                    if (defaultVal) {
-                        formattedVal = defaultVal;
-                        recNew.attributes[schema] = formattedVal;
-                        _thisHelpers.SetActiveCellText($cell, formattedVal);
+                    if (!axis.isUndefined(defaultVal)) {
+                        val = defaultVal;
+                        _thisHelpers.SetActiveCellText($cell, val);
                     } else if (requier) {
-                        formattedVal = _thisHelpers.GetHeaderCellText($thcell) + Math.floor((Math.random() * 1000) + 1);
-                        
-                        recNew.attributes[schema] = formattedVal;
-                        _thisHelpers.SetActiveCellText($cell, formattedVal);
+                        val = _thisHelpers.GetHeaderCellText($thcell) + Math.floor((Math.random() * 1000) + 1);
+                        _thisHelpers.SetActiveCellText($cell, val);
                     }
 
-                    val = formattedVal;
-                    callbackField.Value = val;
-                    callbackField.FormattedValue = formattedVal;
+                    if (!axis.isUndefined(val)) {
+                        if (_thisGlobals.UseWebApi) {
+                            recNew[schema] = val;
+                        } else {
+                            recNew.attributes[schema] = val;
+                        }
 
+                        formattedVal = val;
+                        callbackField.Value = val;
+                        callbackField.FormattedValue = val;
+                    }
                 } else if (ed == DCrmEditableGrid.Editors.Numeric) {
-                    if (defaultVal) {
+                    if (!axis.isUndefined(defaultVal)) {
                         val = parseInt(defaultVal);
-                        recNew.attributes[schema] = { value: val, type: "int" };
                         formattedVal = _thisHelpers.AddIntegerFormat(defaultVal);
                         _thisHelpers.SetActiveCellText($cell, formattedVal);
                     } else if (requier) {
                         val = 1;
-                        recNew.attributes[schema] = { value: 1, type: "int" };
                         formattedVal = _thisHelpers.AddIntegerFormat(val);
                         _thisHelpers.SetActiveCellText($cell, formattedVal);
                     }
-                    callbackField.Value = val;
-                    callbackField.FormattedValue = formattedVal;
 
-                } else if (ed == DCrmEditableGrid.Editors.Decimal) {
-                    if (defaultVal) {
-                        val = parseFloat(defaultVal);
-                        recNew.attributes[schema] = { value: val, type: "decimal" };
-                        formattedVal = _thisHelpers.AddDecimalFormat(val, self.GridEditors[i].Precision);
-                        _thisHelpers.SetActiveCellText($cell, formattedVal);
-                    } else if (requier) {
-                        val = 1.0;
-                        recNew.attributes[schema] = { value: val, type: "decimal" };
-                        formattedVal = _thisHelpers.AddDecimalFormat(val, self.GridEditors[i].Precision);
-                        _thisHelpers.SetActiveCellText($cell, formattedVal);
-                    }
-                    callbackField.Value = val;
-                    callbackField.FormattedValue = formattedVal;
-                } else if (ed == DCrmEditableGrid.Editors.Double) {
-                        if (defaultVal) {
-                            val = parseFloat(defaultVal);
-                            recNew.attributes[schema] = { value: val, type: "double" };
-                            formattedVal = _thisHelpers.AddDecimalFormat(val, self.GridEditors[i].Precision);
-                            _thisHelpers.SetActiveCellText($cell, formattedVal);
-                        } else if (requier) {
-                            val = 1.0;
-                            recNew.attributes[schema] = { value: val, type: "double" };
-                            formattedVal = _thisHelpers.AddDecimalFormat(val, self.GridEditors[i].Precision);
-                            _thisHelpers.SetActiveCellText($cell, formattedVal);
+                    if (!axis.isUndefined(val)) {
+                        if (_thisGlobals.UseWebApi) {
+                            recNew[schema] = val;
+                        } else {
+                            recNew.attributes[schema] = { value: val, type: "int" };
                         }
-                    callbackField.Value = val;
-                    callbackField.FormattedValue = formattedVal;
-                } else if (ed == DCrmEditableGrid.Editors.Currency) {
-                    if (defaultVal) {
+                        callbackField.Value = val;
+                        callbackField.FormattedValue = formattedVal;
+                    }
+                } else if (ed == DCrmEditableGrid.Editors.Decimal) {
+                    if (!axis.isUndefined(defaultVal)) {
                         val = parseFloat(defaultVal);
-                        recNew.attributes[schema] = { value: val, type: "Money" };
+                        formattedVal = _thisHelpers.AddDecimalFormat(val, self.GridEditors[i].Precision);
+                        _thisHelpers.SetActiveCellText($cell, formattedVal);
+                    } else if (requier) {
+                        val = 1.0;
+                        formattedVal = _thisHelpers.AddDecimalFormat(val, self.GridEditors[i].Precision);
+                        _thisHelpers.SetActiveCellText($cell, formattedVal);
+                    }
+                    if (!axis.isUndefined(val)) {
+                        if (_thisGlobals.UseWebApi) {
+                            recNew[schema] = val;
+                        } else {
+                            recNew.attributes[schema] = { value: val, type: "decimal" };
+                        }
+                        callbackField.Value = val;
+                        callbackField.FormattedValue = formattedVal;
+                    }
+                } else if (ed == DCrmEditableGrid.Editors.Double) {
+                    if (!axis.isUndefined(defaultVal)) {
+                        val = parseFloat(defaultVal);
+                        formattedVal = _thisHelpers.AddDecimalFormat(val, self.GridEditors[i].Precision);
+                        _thisHelpers.SetActiveCellText($cell, formattedVal);
+                    } else if (requier) {
+                        val = 1.0;
+                        formattedVal = _thisHelpers.AddDecimalFormat(val, self.GridEditors[i].Precision);
+                        _thisHelpers.SetActiveCellText($cell, formattedVal);
+                    }
+
+                    if (!axis.isUndefined(val)) {
+                        if (_thisGlobals.UseWebApi) {
+                            recNew[schema] = val;
+                        } else {
+                            recNew.attributes[schema] = { value: val, type: "double" };
+                        }
+                        callbackField.Value = val;
+                        callbackField.FormattedValue = formattedVal;
+                    }
+                } else if (ed == DCrmEditableGrid.Editors.Currency) {
+                    if (!axis.isUndefined(defaultVal)) {
+                        val = parseFloat(defaultVal);
                         formattedVal = _thisHelpers.AddCurrencyFormat(val,
                             self.GridEditors[i].Precision,
                             self.activeOptions.EntityCurrencySymbol);
                         _thisHelpers.SetActiveCellText($cell, formattedVal);
                     } else if (requier) {
                         val = 1.0;
-                        recNew.attributes[schema] = { value: val, type: "Money" };
                         formattedVal = _thisHelpers.AddCurrencyFormat(val,
                             self.GridEditors[i].Precision,
                             self.activeOptions.EntityCurrencySymbol);
                         _thisHelpers.SetActiveCellText($cell, formattedVal);
                     }
-                    callbackField.Value = val;
-                    callbackField.FormattedValue = formattedVal;
 
+                    if (!axis.isUndefined(val)) {
+                        if (_thisGlobals.UseWebApi) {
+                            recNew[schema] = val;
+                        } else {
+                            recNew.attributes[schema] = { value: val, type: "Money" };
+                        }
+                        callbackField.Value = val;
+                        callbackField.FormattedValue = formattedVal;
+                    }
                 } else if (ed == DCrmEditableGrid.Editors.DatePicker) {
-                    if (defaultVal) {
+                    if (!axis.isUndefined(defaultVal)) {
                         val = Date.parseDate(defaultVal);
                         recNew.attributes[schema] = val;
                         formattedVal = val.dateFormat(_thisGlobals.userDatetimeSettings.DateFormat);
@@ -7075,70 +7871,78 @@ function CreateInlineRecord(self, excelCells, lastRec) {
                         formattedVal = val.dateFormat(_thisGlobals.userDatetimeSettings.DateFormat);
                         _thisHelpers.SetActiveCellText($cell, formattedVal);
                     }
-                    callbackField.Value = val;
-                    callbackField.FormattedValue = formattedVal;
 
+                    if (!axis.isUndefined(val)) {
+                        if (_thisGlobals.UseWebApi) {
+                            recNew[schema] = (val) ? _thisHelpers.encodeDate(val) : val;
+                        } else {
+                            recNew.attributes[schema] = val;
+                        }
+                        callbackField.Value = val;
+                        callbackField.FormattedValue = formattedVal;
+                    }
                 } else if (ed == DCrmEditableGrid.Editors.DateTimePicker) {
-                    if (defaultVal) {
+                    if (!axis.isUndefined(defaultVal)) {
                         val = Date.parseDate(defaultVal);
-                        recNew.attributes[schema] = { value: val, type: "dateTime" };
-                        formattedVal = val.dateFormat(_thisGlobals.userDatetimeSettings.DateFormat + ' ' + _thisGlobals.userDatetimeSettings.TimeFormat);
-                        _thisHelpers.SetActiveCellText($cell, formattedVal);
                     } else if (requier) {
                         val = new Date();
-                        recNew.attributes[schema] = { value: val, type: "dateTime" };
+                    }
+
+                    if (!axis.isUndefined(val)) {
                         formattedVal = val.dateFormat(_thisGlobals.userDatetimeSettings.DateFormat + ' ' + _thisGlobals.userDatetimeSettings.TimeFormat);
                         _thisHelpers.SetActiveCellText($cell, formattedVal);
+
+                        if (_thisGlobals.UseWebApi) {
+                            recNew[schema] = (val) ? _thisHelpers.encodeDate(val, true) : val;
+                        } else {
+                            recNew.attributes[schema] = { value: val, type: "dateTime" };
+                        }
+                        callbackField.Value = val;
+                        callbackField.FormattedValue = formattedVal;
                     }
-                    callbackField.Value = val;
-                    callbackField.FormattedValue = formattedVal;
 
                 } else if (ed == DCrmEditableGrid.Editors.Checkbox) {
-                    if (defaultVal) {
+                    if (!axis.isUndefined(defaultVal)) {
                         var parts = defaultVal.split("{}");
                         val = (parts[1] == '1') ? true : false;
-                        recNew.attributes[schema] = {
-                            value: val,
-                            type: "boolean"
-                        };
                         formattedVal = parts[0];
-                        _thisHelpers.SetActiveCellText($cell, parts[0]);
                     } else if (requier) {
                         val = true;
-                        recNew.attributes[schema] = {
-                            value: val,
-                            type: "boolean"
-                        };
-
                         formattedVal = self.GridEditors[i].CheckedLabel;
-                        _thisHelpers.SetActiveCellText($cell, formattedVal);
                     }
-                    callbackField.Value = val;
-                    callbackField.FormattedValue = formattedVal;
 
+                    if (!axis.isUndefined(val)) {
+                        _thisHelpers.SetActiveCellText($cell, formattedVal);
+                        if (_thisGlobals.UseWebApi) {
+                            recNew[schema] = val;
+                        } else {
+                            recNew.attributes[schema] = { value: val, type: "boolean" };
+                        }
+                        callbackField.Value = val;
+                        callbackField.FormattedValue = formattedVal;
+                    }
                 } else if (ed == DCrmEditableGrid.Editors.OptionSet) {
-                    if (defaultVal) {
+                    if (!axis.isUndefined(defaultVal)) {
                         var parts = defaultVal.split("{}");
                         val = parseInt(parts[1]);
-                        recNew.attributes[schema] = { value: val, type: "OptionSetValue" };
                         formattedVal = parts[0];
-                        _thisHelpers.SetActiveCellText($cell, parts[0]);
-
-                        $cell.attr(_thisGlobals.DataAttr.Cell.Optionset.SelectedValue, val)
-                            .attr(_thisGlobals.DataAttr.Cell.OriginalAttrValue, val);
                     } else if (requier) {
-
                         val = parseInt(self.GridEditors[i].optionsData[0].value);
-                        recNew.attributes[schema] = { value: val, type: "OptionSetValue" };
                         formattedVal = self.GridEditors[i].optionsData[0].text;
-                        _thisHelpers.SetActiveCellText($cell, formattedVal);
+                    }
 
+                    if (!axis.isUndefined(val)) {
+                        _thisHelpers.SetActiveCellText($cell, formattedVal);
                         $cell.attr(_thisGlobals.DataAttr.Cell.Optionset.SelectedValue, val)
                             .attr(_thisGlobals.DataAttr.Cell.OriginalAttrValue, val);
+                        if (_thisGlobals.UseWebApi) {
+                            recNew[schema] = val;
+                        } else {
+                            recNew.attributes[schema] = { value: val, type: "OptionSetValue" };
+                        }
+                        callbackField.Value = val;
+                        callbackField.FormattedValue = formattedVal;
                     }
-                    callbackField.Value = val;
-                    callbackField.FormattedValue = formattedVal;
-
                 } else if (ed == DCrmEditableGrid.Editors.Status) {
                     LogIt("Detected state or state reason. By passing [" + schema + "]");
                 }
@@ -7157,66 +7961,76 @@ function CreateInlineRecord(self, excelCells, lastRec) {
                 $cell.addClass('NumericTextbox');
             }
 
-            if ((ed == DCrmEditableGrid.Editors.Lookup) || (ed == DCrmEditableGrid.Editors.CustomerType)) {
+            if ((ed == DCrmEditableGrid.Editors.Lookup) || (ed == DCrmEditableGrid.Editors.Customer)) {
                 if (self.activeOptions.ParentChildLookupInfo.LookupSchemaName == schema) {
 
-                    //tmpLookupStruc.Index = i;
-                    //tmpLookupStruc.Schema = schema;
-                    //tmpLookupStruc.UiType = recNew.attributes[schema].logicalName;
+                    var tid = self.activeOptions.ParentChildLookupInfo.Guid;
+                    var tlogicalName = self.activeOptions.ParentChildLookupInfo.ParentSchemaName;
 
-                    self.activeOptions.columneditors[i - 1].LookupData.LookupId = recNew.attributes[schema].id || '';
-                    self.activeOptions.columneditors[i - 1].LookupData.LookupLogicalName = recNew.attributes[schema].logicalName;
+                    self.activeOptions.columneditors[i - 1].LookupData.LookupId = tid || '';
+                    self.activeOptions.columneditors[i - 1].LookupData.LookupLogicalName = tlogicalName;
 
                     $cell
-                        .attr(_thisGlobals.DataAttr.Cell.Lookup.Guid, recNew.attributes[schema].id)
-                        .attr(_thisGlobals.DataAttr.Cell.Lookup.LogicalName, recNew.attributes[schema].logicalName)
-                        .attr(_thisGlobals.DataAttr.Cell.OriginalAttrValue, recNew.attributes[schema].id)
-                        .attr(_thisGlobals.DataAttr.Cell.Lookup.OriginalLogicalName, recNew.attributes[schema].logicalName);
+                        .attr(_thisGlobals.DataAttr.Cell.Lookup.Guid, tid)
+                        .attr(_thisGlobals.DataAttr.Cell.Lookup.LogicalName, tlogicalName)
+                        .attr(_thisGlobals.DataAttr.Cell.OriginalAttrValue, tid)
+                        .attr(_thisGlobals.DataAttr.Cell.Lookup.OriginalLogicalName, tlogicalName);
 
 
                     self.activeOptions.columneditors[i - 1].LookupData.LookupName = self.activeOptions.ParentChildLookupInfo.PrimaryNameAttributeValue;
                     $cell = $($cloneRow[0].cells[i]);
                     _thisHelpers.SetActiveCellText($cell, self.activeOptions.ParentChildLookupInfo.PrimaryNameAttributeValue);
 
-                    callbackField.LookupGuid = recNew.attributes[schema].id;
-                    callbackField.LookupLogicalName = recNew.attributes[schema].logicalName;
+                    callbackField.LookupGuid = tid;
+                    callbackField.LookupLogicalName = tlogicalName;
                     callbackField.LookupName = self.activeOptions.ParentChildLookupInfo.PrimaryNameAttributeValue;;
                     callbackField.FormattedValue = callbackField.LookupName;
                     callbackField.Value = callbackField.LookupName;
+                    if (_thisGlobals.UseWebApi) {
+                        callbackField.WebApiValue = recNew[schema];
+                    }
 
-                } else if (defaultVal) {
-                    var parts = defaultVal.split("{}");
+                } else if ((!axis.isUndefined(defaultVal)) && (defaultVal.contains('{}'))) {
+                    var parts = defaultVal.split('{}');
                     //LogIt("Label [" + parts[0] + "] LogicalName [" + parts[2] + "] Guid [{" + parts[1] + "}]");
-                    recNew.attributes[schema] = {
-                        id: "{" + parts[1] + "}",
-                        logicalName: parts[2],
-                        type: "EntityReference"
-                    };
+                    if (_thisGlobals.UseWebApi) {
+                        if (ed == DCrmEditableGrid.Editors.Customer) {
+                            SetupEntityReference(recNew, schema, parts[2], parts[1], true);
+                        } else {
+                            SetupEntityReference(recNew, schema, parts[2], parts[1], false);
+                        }
+                    } else {
+                        recNew.attributes[schema] = {
+                            id: "{" + parts[1] + "}",
+                            logicalName: parts[2],
+                            type: "EntityReference"
+                        };
+                    }
 
-                    //tmpLookupStruc.Index = i;
-                    //tmpLookupStruc.Schema = schema;
-                    //tmpLookupStruc.UiType = recNew.attributes[schema].logicalName;
-
-                    self.activeOptions.columneditors[i - 1].LookupData.LookupId = recNew.attributes[schema].id || '';
-                    self.activeOptions.columneditors[i - 1].LookupData.LookupLogicalName = recNew.attributes[schema].logicalName;
+                    self.activeOptions.columneditors[i - 1].LookupData.LookupId = parts[1] || '';
+                    self.activeOptions.columneditors[i - 1].LookupData.LookupLogicalName = parts[2];
 
                     $cell
-                        .attr(_thisGlobals.DataAttr.Cell.Lookup.Guid, recNew.attributes[schema].id)
-                        .attr(_thisGlobals.DataAttr.Cell.Lookup.LogicalName, recNew.attributes[schema].logicalName)
-                        .attr(_thisGlobals.DataAttr.Cell.OriginalAttrValue, recNew.attributes[schema].id)
-                        .attr(_thisGlobals.DataAttr.Cell.Lookup.OriginalLogicalName, recNew.attributes[schema].logicalName);
+                        .attr(_thisGlobals.DataAttr.Cell.Lookup.Guid, parts[1])
+                        .attr(_thisGlobals.DataAttr.Cell.Lookup.LogicalName, parts[2])
+                        .attr(_thisGlobals.DataAttr.Cell.OriginalAttrValue, parts[1])
+                        .attr(_thisGlobals.DataAttr.Cell.Lookup.OriginalLogicalName, parts[2]);
 
                     self.activeOptions.columneditors[i - 1].LookupData.LookupName = parts[0];
                     $cell = $($cloneRow[0].cells[i]);
                     _thisHelpers.SetActiveCellText($cell, parts[0]);
 
-                    callbackField.LookupGuid = recNew.attributes[schema].id;
-                    callbackField.LookupLogicalName = recNew.attributes[schema].logicalName;
+                    callbackField.LookupGuid = parts[1];
+                    callbackField.LookupLogicalName = parts[2];
                     callbackField.LookupName = parts[0];
                     callbackField.FormattedValue = callbackField.LookupName;
                     callbackField.Value = callbackField.LookupName;
+                    if (_thisGlobals.UseWebApi) {
+                        callbackField.WebApiValue = recNew[schema];
+                    }
                 } else if (requier) {
-                    LogEx("Lookup field with the schema name [" + schema + "] is requiered. No default value was present.");
+                    DisplayCrmAlertDialog("Lookup field with the schema name [" + schema + "] is requiered. No default value was present.");
+                    return;
                 }
             }
             callbackRowData.Fields.push(callbackField);
@@ -7231,7 +8045,13 @@ function CreateInlineRecord(self, excelCells, lastRec) {
             }
         }
 
-        var newRecGuid = XrmServiceToolkit.Soap.Create(recNew);
+        var newRecGuid = null;
+        if (_thisGlobals.UseWebApi) {
+            newRecGuid = SdkWebAPI.create(SdkWebAPI.GetEntitySetName(recSchema), recNew, true);
+        } else {
+            newRecGuid = XrmServiceToolkit.Soap.Create(recNew);
+        }
+
         $cloneRow.attr(_thisGlobals.DataAttr.Cell.RecordGuid, newRecGuid)
             .attr(_thisGlobals.DataAttr.Row.SubGrid.ChildGridOpen, _thisGlobals.DataAttr.NO);
 
@@ -7246,8 +8066,15 @@ function CreateInlineRecord(self, excelCells, lastRec) {
             }
         }
 
-        self.mainTable.find('tbody:first').append($cloneRow);
-
+        // Add before the first row if possible
+        var firstbody = self.mainTable.find('tbody:first');
+        var firstTr = firstbody.find('tr:first');
+        if ((firstTr) && (firstTr.length)) {
+            firstTr.before($cloneRow);
+        } else {
+            firstbody.append($cloneRow);
+        }
+        
         var tableRows = self.GetBodyRows();
         for (var i = 0; i < tableRows.length; i++) {
             $(tableRows[i]).attr(_thisGlobals.DataAttr.Row.InternalIndex, i);
@@ -7279,9 +8106,10 @@ function CreateInlineRecord(self, excelCells, lastRec) {
                 self.RefreshGridRows();
             } else {
                 self.ResetRowHighlighting();
-                // Set focus to the first cell of the ;ast record (newly created record)
             }
         }
+
+        self.ReapplyAggregates();
 
     } catch (e) {
         msg = e.message;
@@ -7290,9 +8118,11 @@ function CreateInlineRecord(self, excelCells, lastRec) {
 }
 
 function EntityStateExists(entity) {
-    for (var i = 0; i < _thisGlobals.EntityStates.length; i++) {
-        if (_thisGlobals.EntityStates[i].SchemaName == entity) {
-            return _thisGlobals.EntityStates[i];
+    if ((_thisGlobals.EntityStates) && axis.isArray(_thisGlobals.EntityStates)) {
+        for (var i = 0; i < _thisGlobals.EntityStates.length; i++) {
+            if (_thisGlobals.EntityStates[i].SchemaName == entity) {
+                return _thisGlobals.EntityStates[i];
+            }
         }
     }
     return null;
@@ -7303,23 +8133,49 @@ function DisplayRecordState(entity, primaryidattr, recGuid, refreshBtnId) {
     var entityState = EntityStateExists(entity);
     
     if (entityState == null) {
+        var optionset = null;
+        var result = null;
+
         // Status
-        var optionset = XrmServiceToolkit.Soap.RetrieveAttributeMetadata(entity, 'statecode', true);
+        if (_thisGlobals.UseWebApi) {
+            optionset = SdkWebAPI.retrieveMetadataByLogicalName(entity, 'statecode', { isState: true }, null, null);
+        } else {
+            optionset = XrmServiceToolkit.Soap.RetrieveAttributeMetadata(entity, 'statecode', true);
+        }
+
         var item = { SchemaName: entity, Status: [], StatusReason: [] };
 
-        if (optionset.length > 0) {
-            for (var i = 0; i < optionset[0].OptionSet.Options.length; i++) {
+        if (optionset) {
+            if (_thisGlobals.UseWebApi) {
+                result = (optionset.OptionSet) ? optionset.OptionSet : optionset.GlobalOptionSet;
+            } else {
+                result = optionset[0].OptionSet;
+            }
+
+            for (var i = 0; i < result.Options.length; i++) {
                 item.Status.push(
                 {
-                    text: _thisHelpers.GetUserLocalizedLabel(optionset[0].OptionSet.Options[i].Label),
-                    value: optionset[0].OptionSet.Options[i].Value
+                    text: _thisHelpers.GetUserLocalizedLabel(result.Options[i].Label),
+                    value: result.Options[i].Value
                 });
             }
         }
 
         // Status Reason
-        optionset = XrmServiceToolkit.Soap.RetrieveAttributeMetadata(entity, 'statuscode', true);
-        if (optionset.length > 0) {
+        if (_thisGlobals.UseWebApi) {
+            optionset = SdkWebAPI.retrieveMetadataByLogicalName(entity, 'statuscode', { isStatus: true }, null, null);
+        } else {
+            optionset = XrmServiceToolkit.Soap.RetrieveAttributeMetadata(entity, 'statuscode', true);
+        }
+
+        if (optionset) {
+            result = null;
+            if (_thisGlobals.UseWebApi) {
+                result = (optionset.OptionSet) ? optionset.OptionSet : optionset.GlobalOptionSet;
+            } else {
+                result = optionset[0].OptionSet;
+            }
+
             for (var i = 0; i < optionset[0].OptionSet.Options.length; i++) {
                 item.StatusReason.push(
                 {
@@ -7346,39 +8202,45 @@ function DisplayRecordState(entity, primaryidattr, recGuid, refreshBtnId) {
             '</filter>' +
           '</entity>' +
         '</fetch>';
-    var result = XrmServiceToolkit.Soap.Fetch(fetch, false);
+
+    var result = null;
+
+    if (_thisGlobals.UseWebApi) {
+        var tmp = SdkWebAPI.getFetchXml(SdkWebAPI.GetEntitySetName(entity), fetch);
+        result = tmp.Value;
+    } else {
+        result = XrmServiceToolkit.Soap.Fetch(fetch, false);
+    }
+
     if ((result) && (result.length > 0)) {
-        var status = result[0].attributes.statecode.value;
-        var statusreason = (result[0].attributes.statuscode) ? result[0].attributes.statuscode.value : -1;
+
+        var status = (_thisGlobals.UseWebApi) ? result[0].statecode : result[0].attributes.statecode.value;
+        var statusreason = (_thisGlobals.UseWebApi) ?
+            ((result[0].statuscode != undefined) ? result[0].statuscode : -1) :
+            ((result[0].attributes.statuscode != undefined) ? result[0].attributes.statuscode.value : -1);
 
         var st = new $.fn.DCrmEditableGrid.SetEntityState(entityState, recGuid, status, statusreason, refreshBtnId);
         st.show().css({ 'left': 350, 'top': 100 });
     }
 }
 
-function RetrieveEntityOutput(text, what) {
-    var tmp = null;
-
-    if (what) {
-        var decrypted = CryptoJS.AES.decrypt(text, _thisGlobals.TargetOutputEncSeed);
-        // 4d657373616765
-        tmp = decrypted.toString(CryptoJS.enc.Utf8);
-        // Message
-    } else {
-        var encrypted = CryptoJS.AES.encrypt(text, _thisGlobals.TargetOutputEncSeed);
-        // AABsAABkAABiAAAAAAAAAABNAABlAABPAAC0AABHAAA=
-        tmp = encrypted.toString();
-    }
-    //LogIt("RetrieveEntityOutput [" + tmp + "]");
-    return tmp;
-}
-
 function getWebresourceParameter() {
     var passedParameters = undefined;
 
     try {
-        if (location.search != "") {
-            var vals = location.search.substr(1).split("&");
+        var vals = null;
+        if (_thisGlobals.IsBrowser.Chrome) {
+            var href = decodeURIComponent(location.href);
+            if (href.contains('?')) {
+                var tmp = href.split('?');
+                vals = tmp[1].split('&');
+            }
+        } else if ((location) && (location.search) && (location.search.length > 0)) {
+            vals = location.search.substr(1).split("&");
+        }
+
+        if (vals) {
+            //var vals = location.search.substr(1).split("&");
             for (var i = 0; i < vals.length; i++) {
                 vals[i] = vals[i].split("=");
                 if (vals[i][0].toLowerCase() == "data" && vals[i][1] != "") {
@@ -7396,6 +8258,8 @@ function getWebresourceParameter() {
                 //    passedParameters[vals[i][0]] = vals[i][1];
                 //}
             }
+        } else {
+            LogIt("No window parameters was passed.");
         }
     } catch (e) {
         LogEx("Unable to retrieve Guid of the configuration from data parameter.\r\n" + e.message);
@@ -7404,15 +8268,14 @@ function getWebresourceParameter() {
 }
 
 function GetInitialFetch() {
-
     // Do we have a specific grid configuration
     _thisGlobals.DCrmConfigurationGuid = getWebresourceParameter();
-
     var fetch = '<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false">' +
     '<entity name="dcrmeg_dcrmegconfiguration">' +
       '<attribute name="dcrmeg_dcrmegconfigurationid" />' +
       '<attribute name="dcrmeg_headerfieldnameshidden" />' +
       '<attribute name="dcrmeg_fromentityfieldsattrhidden" />' +
+      '<attribute name="dcrmeg_selectedfieldstodisplay" />' +
       '<attribute name="dcrmeg_displayfromentityhidden" />' +
       '<attribute name="dcrmeg_fieldcondition" />' +
       '<attribute name="dcrmeg_entitiesinfo" />' +
@@ -7424,35 +8287,11 @@ function GetInitialFetch() {
         if (_thisGlobals.DCrmConfigurationGuid) {
             fetch += '<condition attribute="dcrmeg_dcrmegconfigurationid" operator="eq" uitype="dcrmeg_dcrmegconfiguration" value="' + _thisGlobals.DCrmConfigurationGuid + '" />'
         }
-
       fetch += '</filter>' +
     '</entity>' +
   '</fetch>';
-
     return fetch;
 }
-
-function GetCurrencyFetch(id) {
-    return '<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false">' +
-     '<entity name="transactioncurrency">' +
-        '<attribute name="transactioncurrencyid" />' +
-        '<attribute name="currencysymbol" />' +
-        '<attribute name="exchangerate" />' +
-        '<attribute name="currencyprecision" />' +
-        '<filter type="and">' +
-        '<condition attribute="transactioncurrencyid" operator="eq" uitype="transactioncurrency" value="' + id + '" />' +
-        '</filter>' +
-      '</entity>' +
-      '</fetch>';
-}
-
-function ValidateEditor(editorType, editorValue) {
-    
-    if ((window.parent.ValidateDCrmEgGrid) && (typeof(window.parent.ValidateDCrmEgGrid) === 'function')) {
-        return window.parent.ValidateDCrmEgGrid(editorType, editorValue);
-    }
-    return true;
-};
 
 function GetSelectedFields(d) {
     var ReloadedSavedFields = [];
@@ -7481,18 +8320,109 @@ function GetSelectedFields(d) {
                 LookupTargetEntity: items[11],
                 DefaultValue: ((items.length >= 13 && items[12].length > 0) ? items[12] : null),
                 DefaultView: ((items.length >= 14 && items[13].length > 0) ? items[13] : null),
-                DefaultViewObjectTypeCode: ((items.length == 15 && items[14].length > 0) ? items[14] : null),
+                DefaultViewObjectTypeCode: ((items.length >= 15 && items[14].length > 0) ? items[14] : null),
+                AggregateOp: ((items.length >= 16 && items[15].length > 0) ? items[15] : null)
             });
         });
     }
     return ReloadedSavedFields;
 }
 
-function GetOptionSet(entityLogicalName, attributeLogicalName) {
-    return XrmServiceToolkit.Soap.RetrieveAttributeMetadata(entityLogicalName, attributeLogicalName, true);
+/* User Settings - Translations */
+_thisGlobals.UseWebApi = false;
+function WebApiVersionCheckSuccessCallback(VersionResponse) {
+    _thisGlobals.UseWebApi = true;
+    var userid = _thisGlobals.xrmPage.context.getUserId();
+    userid = userid.replace('{', '').replace('}', '');
+    SdkWebAPI.getUserSetttings(userid, WebApiGetUserSettingsSuccessCallback, WebApiGetUserSettingsFailCallback);
+}
+function WebApiVersionCheckFailCallback(error) {
+    LogEx(error.message);
+    GetAllUserSettings();
+}
+function WebApiGetUserSettingsSuccessCallback(settings) {
+    if ((settings == undefined) || ((settings.length) && (settings.length == 0))) {
+        _thisHelpers.WaitDialog();
+        LogEx("Unable to fetch user settings.");
+        return;
+    }
+    var result = settings[0];
+
+    _thisGlobals.userDatetimeSettings = {
+        // /
+        DateSeparator: result.dateseparator,
+        // M/d/yyyy
+        DateFormat: result.dateformatstring.replace(/[//]/g, result.dateseparator),
+        // h:mm tt
+        TimeFormat: result.timeformatstring.replace(":", result.timeseparator),
+        // :
+        TimeSeparator: result.timeseparator,
+        DateTimeFormat: ""
+    };
+
+    _thisGlobals.userDatetimeSettings.DateTimeFormat = _thisGlobals.userDatetimeSettings.DateFormat + " " + _thisGlobals.userDatetimeSettings.TimeFormat;
+
+    // Need to be set first in options. +1
+    _thisGlobals.userCurrencySettings = {
+        // Need to be set first in options. +1
+        DefaultCountryCode: (result.defaultcountrycode) ? result.defaultcountrycode : undefined,
+        // 1033 en
+        LanguageId: result.uilanguageid,
+        // $
+        CurrencySymbol: result.currencysymbol,
+        CurrencySymbolRegEx: result.currencysymbol,
+        RemoveCurrenyFormatRegEx: '',
+        CurrencySymbolCharCode: 0,
+        // ,
+        NumberSeparator: result.numberseparator,
+        NumberSeparatorCharCode: 0,
+        // .
+        DecimalSymbol: result.decimalsymbol,
+        DecimalSymbolCharCode: 0,
+        // 2
+        CurrencyDecimalPrecision: parseInt(result.currencydecimalprecision + ''),
+        // 3
+        NumberGroupFormat: parseInt(result.numbergroupformat + ''),
+
+        CurrencyFormatCode: (result.currencyformatcode) ? result.currencyformatcode : undefined,
+        NegativeCurrencyFormatCode: (result.negativecurrencyformatcode) ? result.negativecurrencyformatcode : undefined,
+        NegativeNumberFormatCode: (result.negativeformatcode) ? result.negativeformatcode : undefined
+    };
+
+    if (_thisGlobals.userCurrencySettings.CurrencySymbol == '$') {
+        _thisGlobals.userCurrencySettings.CurrencySymbolRegEx = '\\' + _thisGlobals.userCurrencySettings.CurrencySymbol;
+    }
+    _thisGlobals.userCurrencySettings.RemoveCurrenyFormatRegEx = '/[' + _thisGlobals.userCurrencySettings.CurrencySymbolRegEx + _thisGlobals.userCurrencySettings.NumberSeparator + '()-]/g';
+
+    _thisGlobals.userCurrencySettings.CurrencySymbolCharCode = _thisGlobals.userCurrencySettings.CurrencySymbol.charCodeAt(0);
+    _thisGlobals.userCurrencySettings.NumberSeparatorCharCode = _thisGlobals.userCurrencySettings.NumberSeparator.charCodeAt(0);
+    _thisGlobals.userCurrencySettings.DecimalSymbolCharCode = _thisGlobals.userCurrencySettings.DecimalSymbol.charCodeAt(0);
+
+    var tmpDate = new Date();
+    var todayDate = tmpDate.dateFormat(_thisGlobals.userDatetimeSettings.DateFormat);
+    $("#fieldfilter_calendarinput").val(todayDate);
+
+    $("#fieldfilter_calendarinput").datetimepicker({
+        timepicker: false,
+        inline: true,
+        format: _thisGlobals.userDatetimeSettings.DateFormat,
+        formatDate: _thisGlobals.userDatetimeSettings.DateFormat,
+        formatTime: _thisGlobals.userDatetimeSettings.TimeFormat
+    });
+    $('#fieldfilter_inputcontainer').find('.xdsoft_datetimepicker').addClass('hidefilters');
+
+    _thisGlobals.Select2Option = $("#fieldfilter_optionsetselect").select2({
+        minimumResultsForSearch: Infinity
+        //closeOnSelect: false
+    });
+
+    GetTranslationsFor(_thisGlobals.UserLcid);
+}
+function WebApiGetUserSettingsFailCallback(error) {
+    _thisHelpers.WaitDialog();
+    LogEx("WebApiGetUserSettingsFailCallback:\r\n" + error.message);
 }
 
-/* User Settings - Translations */
 function GetAllUserSettings() {
     var userId = _thisGlobals.xrmPage.context.getUserId();
     var settings = ["dateformatstring",
@@ -7527,7 +8457,6 @@ function GetAllUserSettings() {
 
     XrmServiceToolkit.Soap.Fetch(fetchXml, false, GetAllUserSettingsCallback);
 }
-
 function GetAllUserSettingsCallback(allsettings) {
     var result = allsettings[0];
     // /
@@ -7603,7 +8532,6 @@ function GetAllUserSettingsCallback(allsettings) {
 }
 
 function GetTranslationsFor(lcid) {
-
     var fetch = '<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false">' +
       '<entity name="dcrmeg_dcrmegtranslation">' +
         '<attribute name="dcrmeg_dcrmegtranslationid" />' +
@@ -7662,7 +8590,168 @@ function GetTranslationsFor(lcid) {
         '</filter>' +
     '</entity>' +
   '</fetch>';
-  XrmServiceToolkit.Soap.Fetch(fetch, false, GetTranslationsForCallback);
+
+    if (_thisGlobals.UseWebApi) {
+        SdkWebAPI.getFetchXml(
+            SdkWebAPI.GetEntitySetName('dcrmeg_dcrmegtranslation'),
+            fetch, WebApiGetTranslationsSuccessCallback, WebApiGetTranslationsFailCallback);
+    } else {
+        XrmServiceToolkit.Soap.Fetch(fetch, false, GetTranslationsForCallback);
+    }
+}
+
+function WebApiGetTranslationsSuccessCallback(translations) {
+    SetDefaultTranslations();
+
+    if (((translations != undefined)) && ((translations.length) && (translations.length > 0))) {
+        var translation = translations[0];
+
+        _thisGlobals.Translation_Labels.ValidationRequired = (translation.dcrmeg_requiredfield ? translation.dcrmeg_requiredfield : _thisGlobals.Translation_Labels.ValidationRequired);
+        _thisGlobals.Translation_Labels.ValidationInvalidFormat = (translation.dcrmeg_incorrectformat ? translation.dcrmeg_incorrectformat : _thisGlobals.Translation_Labels.ValidationInvalidFormat);
+        $("#validationerror").text(_thisGlobals.Translation_Labels.ValidationRequired);
+        $("#inputformaterror").text(_thisGlobals.Translation_Labels.ValidationInvalidFormat);
+        _thisGlobals.Translation_Labels.TotalRecords = (translation.dcrmeg_totalrecords ? translation.dcrmeg_totalrecords : _thisGlobals.Translation_Labels.TotalRecords);
+        _thisGlobals.Translation_Labels.CopyValueToClipboard = (translation.dcrmeg_copyvaluetoclipboard ? translation.dcrmeg_copyvaluetoclipboard : _thisGlobals.Translation_Labels.CopyValueToClipboard);
+        _thisGlobals.Translation_Labels.OpenRecordInNewWindow = (translation.dcrmeg_openrecordinnewwindow ? translation.dcrmeg_openrecordinnewwindow : _thisGlobals.Translation_Labels.OpenRecordInNewWindow);
+        _thisGlobals.Translation_Labels.OpenLookupInNewWindow = (translation.dcrmeg_openlookuprecordinnewwindow ? translation.dcrmeg_openlookuprecordinnewwindow : _thisGlobals.Translation_Labels.OpenLookupInNewWindow);
+        _thisGlobals.Translation_Labels.ClearValue = (translation.dcrmeg_clearvlaue ? translation.dcrmeg_clearvlaue : _thisGlobals.Translation_Labels.ClearValue);
+        _thisGlobals.Translation_Labels.Ok = (translation.dcrmeg_ok ? translation.dcrmeg_ok : _thisGlobals.Translation_Labels.Ok);
+        $("#fieldfilter_btnok").text(_thisGlobals.Translation_Labels.Ok);
+        _thisGlobals.Translation_Labels.Cancel = (translation.dcrmeg_cancel ? translation.dcrmeg_cancel : _thisGlobals.Translation_Labels.Cancel);
+        $("#fieldfilter_btncancel").text(_thisGlobals.Translation_Labels.Cancel);
+        _thisGlobals.Translation_Labels.AggregateFunctions = (translation.dcrmeg_sum ? translation.dcrmeg_sum : _thisGlobals.Translation_Labels.AggregateFunctions);
+        _thisGlobals.Translation_Labels.SelectRecord = (translation.dcrmeg_selectrecord ? translation.dcrmeg_selectrecord : _thisGlobals.Translation_Labels.SelectRecord);
+        _thisGlobals.Translation_Labels.SelectAllRecords = (translation.dcrmeg_selectallrecords ? translation.dcrmeg_selectallrecords : _thisGlobals.Translation_Labels.SelectAllRecords);
+        _thisGlobals.Translation_Labels.UndoChanges = (translation.dcrmeg_undochanges ? translation.dcrmeg_undochanges : _thisGlobals.Translation_Labels.UndoChanges);
+        _thisGlobals.Translation_Labels.UndoAllChanges = (translation.dcrmeg_undoallchanges ? translation.dcrmeg_undoallchanges : _thisGlobals.Translation_Labels.UndoAllChanges);
+        _thisGlobals.Translation_Labels.NewRecord = (translation.dcrmeg_newrecord ? translation.dcrmeg_newrecord : _thisGlobals.Translation_Labels.NewRecord);
+        _thisGlobals.Translation_Labels.DeleteSelectedRecord = (translation.dcrmeg_deleteselectedrecords ? translation.dcrmeg_deleteselectedrecords : _thisGlobals.Translation_Labels.DeleteSelectedRecord);
+        _thisGlobals.Translation_Labels.SaveChanges = (translation.dcrmeg_savechanges ? translation.dcrmeg_savechanges : _thisGlobals.Translation_Labels.SaveChanges);
+        //_thisGlobals.Translation_Labels.ActivateEditorOnDBClick = (translation.dcrmeg_activateeditorondoubleclick ? translation.dcrmeg_activateeditorondoubleclick : _thisGlobals.Translation_Labels.ActivateEditorOnDBClick);
+        //_thisGlobals.Translation_Labels.EnterTextToSearch = (translation.dcrmeg_entertexttosearch ? translation.dcrmeg_entertexttosearch : _thisGlobals.Translation_Labels.EnterTextToSearch);
+        _thisGlobals.Translation_Labels.GoToFirst = (translation.dcrmeg_gotofirst ? translation.dcrmeg_gotofirst : _thisGlobals.Translation_Labels.GoToFirst);
+        _thisGlobals.Translation_Labels.GoToNext = (translation.dcrmeg_gotonext ? translation.dcrmeg_gotonext : _thisGlobals.Translation_Labels.GoToNext);
+        _thisGlobals.Translation_Labels.GoToPrevious = (translation.dcrmeg_gotoprevious ? translation.dcrmeg_gotoprevious : _thisGlobals.Translation_Labels.GoToPrevious);
+        //_thisGlobals.Translation_Labels.GoToLast = (translation.dcrmeg_gotolast ? translation.dcrmeg_gotolast : _thisGlobals.Translation_Labels.GoToLast);
+        _thisGlobals.Translation_Labels.PageSize = (translation.dcrmeg_pagesize ? translation.dcrmeg_pagesize : _thisGlobals.Translation_Labels.PageSize);
+        _thisGlobals.Translation_Labels.LockedField = (translation.dcrmeg_lockedfield ? translation.dcrmeg_lockedfield : _thisGlobals.Translation_Labels.LockedField);
+        _thisGlobals.Translation_Labels.ReadOnly = (translation.dcrmeg_readonly ? translation.dcrmeg_readonly : _thisGlobals.Translation_Labels.ReadOnly);
+        _thisGlobals.Translation_Labels.OpenRecord = (translation.dcrmeg_openrecord ? translation.dcrmeg_openrecord : _thisGlobals.Translation_Labels.OpenRecord);
+        _thisGlobals.Translation_Labels.IncorrectFormat = (translation.dcrmeg_incorrectformat ? translation.dcrmeg_incorrectformat : _thisGlobals.Translation_Labels.IncorrectFormat);
+        _thisGlobals.Translation_Labels.MaxValue = (translation.dcrmeg_maxvalue ? translation.dcrmeg_maxvalue : _thisGlobals.Translation_Labels.MaxValue);
+        _thisGlobals.Translation_Labels.MinValue = (translation.dcrmeg_minvalue ? translation.dcrmeg_minvalue : _thisGlobals.Translation_Labels.MinValue);
+        _thisGlobals.Translation_Labels.NotaValidEntry = (translation.dcrmeg_notavalidentry ? translation.dcrmeg_notavalidentry : _thisGlobals.Translation_Labels.NotaValidEntry);
+        _thisGlobals.Translation_Labels.OpenUrlInNewWindow = (translation.dcrmeg_openurlinnewwindow ? translation.dcrmeg_openurlinnewwindow : _thisGlobals.Translation_Labels.OpenUrlInNewWindow);
+        _thisGlobals.Translation_Labels.AutoSaveOn = (translation.dcrmeg_autosaveon ? translation.dcrmeg_autosaveon : _thisGlobals.Translation_Labels.AutoSaveOn);
+        _thisGlobals.Translation_Labels.AutoSaveOff = (translation.dcrmeg_autosaveoff ? translation.dcrmeg_autosaveoff : _thisGlobals.Translation_Labels.AutoSaveOff);
+        _thisGlobals.Translation_Labels.RefreshGrid = (translation.dcrmeg_refreshgrid ? translation.dcrmeg_refreshgrid : _thisGlobals.Translation_Labels.RefreshGrid);
+        _thisGlobals.Translation_Labels.Export = (translation.dcrmeg_exportgrid ? translation.dcrmeg_exportgrid : _thisGlobals.Translation_Labels.Export);
+        _thisGlobals.Translation_Labels.CloneRecord = (translation.dcrmeg_clonerecord ? translation.dcrmeg_clonerecord : _thisGlobals.Translation_Labels.CloneRecord);
+        _thisGlobals.Translation_Labels.CloneSelectedRecord = (translation.dcrmeg_cloneselectedrecord ? translation.dcrmeg_cloneselectedrecord : _thisGlobals.Translation_Labels.CloneSelectedRecord);
+        _thisGlobals.Translation_Labels.ClearAllFilters = (translation.dcrmeg_clearallfilters ? translation.dcrmeg_clearallfilters : _thisGlobals.Translation_Labels.ClearAllFilters);
+        _thisGlobals.Translation_Labels.PasteFromExcel = (translation.dcrmeg_pastefromexcel ? translation.dcrmeg_pastefromexcel : _thisGlobals.Translation_Labels.PasteFromExcel);
+        _thisGlobals.Translation_Labels.SetRecordStatus = (translation.dcrmeg_setrecordstatus ? translation.dcrmeg_setrecordstatus : _thisGlobals.Translation_Labels.SetRecordStatus);
+        _thisGlobals.Translation_Labels.FieldValue = (translation.dcrmeg_fieldvaluelabel ? translation.dcrmeg_fieldvaluelabel : _thisGlobals.Translation_Labels.FieldValue);
+        $("#fieldfilter_datetimeconditionslabel").text(_thisGlobals.Translation_Labels.FieldValue);
+        $("#fieldfilter_numericconditionslabel").text(_thisGlobals.Translation_Labels.FieldValue);
+        $("#fieldfilter_stringconditionslabel").text(_thisGlobals.Translation_Labels.FieldValue);
+        $("#fieldfilter_optionsetconditionslabel").text(_thisGlobals.Translation_Labels.FieldValue);
+        $("#fieldfilter_lookupconditionslabel").text(_thisGlobals.Translation_Labels.FieldValue);
+        $("#fieldfilter_systemuserctllabel").text(_thisGlobals.Translation_Labels.FieldValue);
+        $("#fieldfilter_customerlookuplabel").text(_thisGlobals.Translation_Labels.FieldValue);
+        _thisGlobals.Translation_Labels.RemoveFilter = (translation.dcrmeg_removefilter ? translation.dcrmeg_removefilter : _thisGlobals.Translation_Labels.RemoveFilter);
+        $('#fieldfilter_btnremovefilter').text(_thisGlobals.Translation_Labels.RemoveFilter);
+        _thisGlobals.Translation_Labels.DeletionError = (translation.dcrmeg_deletionerror ? translation.dcrmeg_deletionerror : _thisGlobals.Translation_Labels.DeletionError);
+        _thisGlobals.Translation_Labels.DeleteUnsavedConfirmation = (translation.dcrmeg_deleteunsavedconfirmation ? translation.dcrmeg_deleteunsavedconfirmation : _thisGlobals.Translation_Labels.DeleteUnsavedConfirmation);
+        _thisGlobals.Translation_Labels.DeleteConfirmation = (translation.dcrmeg_deleteconfirmation ? translation.dcrmeg_deleteconfirmation : _thisGlobals.Translation_Labels.DeleteConfirmation);
+        _thisGlobals.Translation_Labels.CreateNewError = (translation.dcrmeg_createnewerror ? translation.dcrmeg_createnewerror : _thisGlobals.Translation_Labels.CreateNewError);
+    }
+
+    if (_thisGlobals.ParentFieldsFormType != 1) {
+        if (_thisGlobals.UseWebApi) {
+            SdkWebAPI.getFetchXml('dcrmeg_dcrmegconfigurations',
+                GetInitialFetch(), WebApiGetGridConfigurationSuccessCallback, WebApiGetGridConfigurationErrorCallback);
+        } else {
+            XrmServiceToolkit.Soap.Fetch(GetInitialFetch(), false, LoadDCrmEGConfigurationCallback);
+        }
+    } else {
+        _thisHelpers.WaitDialog();
+        if ((_thisGlobals.xrmPage.data) && (_thisGlobals.xrmPage.data.entity)) {
+            _thisGlobals.xrmPage.data.entity.addOnSave(HandleParentFormOnSave);
+        }
+    }
+}
+function WebApiGetTranslationsFailCallback(error) {
+    _thisHelpers.WaitDialog();
+    LogEx("WebApiGetTranslationsFailCallback:\r\n" + error.message);
+}
+
+/* Loading grid configuration */
+function LoadDCrmEGConfigurationCallback(fetchResults) {
+    if (fetchResults.length <= 0) {
+        LogEx("No D CRM Editable Grid records found matching this entity.");
+        _thisHelpers.WaitDialog();
+        return;
+    }
+
+    var val = fetchResults[0].attributes['dcrmeg_headerfieldnameshidden'].value;
+    // Display order
+    var entities = (val) ? _thisHelpers.RetrieveEntityOutput(val, true).split(_thisGlobals._SEPERATOR) : '';
+
+    // All Entities info
+    val = fetchResults[0].attributes['dcrmeg_displayfromentityhidden'].value;
+    var entitesInfo = (val) ? _thisHelpers.RetrieveEntityOutput(val, true).split(_thisGlobals._pSeperator) : '';
+
+    // All fields
+    if (fetchResults[0].attributes['dcrmeg_fromentityfieldsattrhidden']) {
+        val = fetchResults[0].attributes['dcrmeg_fromentityfieldsattrhidden'].value;
+    } else if (fetchResults[0].attributes['dcrmeg_selectedfieldstodisplay']) {
+        val = fetchResults[0].attributes['dcrmeg_selectedfieldstodisplay'].value;
+    }
+    var fields = (val) ? _thisHelpers.RetrieveEntityOutput(val, true).split(_thisGlobals._pSeperator) : '';
+
+    // All conditions
+    val = (fetchResults[0].attributes['dcrmeg_fieldcondition']) ? fetchResults[0].attributes['dcrmeg_fieldcondition'].value : undefined;
+    var consitions = (val) ? _thisHelpers.RetrieveEntityOutput(val, true).split(_thisGlobals._pSeperator) : '';
+    // All Formatting dcrmeg_entitiesinfo
+    val = (fetchResults[0].attributes['dcrmeg_entitiesinfo']) ? fetchResults[0].attributes['dcrmeg_entitiesinfo'].value : undefined;
+    var formattings = (val) ? val.split(_thisGlobals._pSeperator) : null;
+
+    ProcessLoadedGridConfiguration(entities, entitesInfo, fields, consitions, formattings);
+}
+function WebApiGetGridConfigurationSuccessCallback(fetchResults) {
+    if (((fetchResults == undefined)) || ((fetchResults.length) && (fetchResults.length == 0))) {
+        LogEx("No D CRM Editable Grid records found matching this entity.");
+        _thisHelpers.WaitDialog();
+        return;
+    }
+
+    var val = fetchResults[0].dcrmeg_headerfieldnameshidden;
+    // Display order
+    var entities = (val) ? _thisHelpers.RetrieveEntityOutput(val, true).split(_thisGlobals._SEPERATOR) : '';
+
+    // All Entities info
+    val = fetchResults[0].dcrmeg_displayfromentityhidden;
+    var entitesInfo = (val) ? _thisHelpers.RetrieveEntityOutput(val, true).split(_thisGlobals._pSeperator) : '';
+    // All fields
+    val = fetchResults[0].dcrmeg_fromentityfieldsattrhidden;
+    if ((val == null) || (val == undefined)) {
+        val = fetchResults[0].dcrmeg_selectedfieldstodisplay;
+    }
+    var fields = (val) ? _thisHelpers.RetrieveEntityOutput(val, true).split(_thisGlobals._pSeperator) : '';
+
+    // All conditions
+    val = (fetchResults[0].dcrmeg_fieldcondition) ? fetchResults[0].dcrmeg_fieldcondition : undefined;
+    var consitions = (val) ? _thisHelpers.RetrieveEntityOutput(val, true).split(_thisGlobals._pSeperator) : '';
+    // All Formatting dcrmeg_entitiesinfo
+    val = (fetchResults[0].dcrmeg_entitiesinfo) ? fetchResults[0].dcrmeg_entitiesinfo : undefined;
+    var formattings = (val) ? val.split(_thisGlobals._pSeperator) : null;
+
+    ProcessLoadedGridConfiguration(entities, entitesInfo, fields, consitions, formattings);
+}
+function WebApiGetGridConfigurationErrorCallback(error) {
+    _thisHelpers.WaitDialog();
+    LogEx("WebApiGetGridConfigurationErrorCallback:\r\n" + error.message);
 }
 
 function SetDefaultTranslations() {
@@ -7828,14 +8917,14 @@ function CreateGridContainers(data, parentcontainer) {
     var $pagercontainer = $('<div class="floatright"></div').appendTo($section);
 
     containerIds.TableCaption = _thisHelpers.GenerateUUID();
-    $('<span></span>')
+    $('<div></div>')
         .text(data.GridTitle + ' -')
         .attr('id', containerIds.TableCaption)
         .addClass('TableCaption')
         .appendTo($captioncontainer);
 
     containerIds.TotalRecords = _thisHelpers.GenerateUUID();
-    $('<span></span>')
+    $('<div></div>')
         .addClass('pageTotal')
         .attr('id', containerIds.TotalRecords)
         .appendTo($captioncontainer);
@@ -7989,7 +9078,7 @@ function CreateGridContainers(data, parentcontainer) {
     // Pager
     containerIds.Pager = _thisHelpers.GenerateUUID();
     var $pager = $('<div></div>')
-        .addClass('pager') // colLeftBorder
+        .addClass('pager')
         .attr('id', containerIds.Pager)
         .appendTo($pagercontainer);
 
@@ -8006,105 +9095,28 @@ function CreateGridContainers(data, parentcontainer) {
         .appendTo($pager);
     $('<button></button>').attr('id', containerIds.PagerButtonPrev).attr(_thisGlobals.ToolTipAttrName, _thisGlobals.Translation_Labels.GoToPrevious).addClass('PagerButton ToolbarGoToPrev')
         .appendTo($pager);
-    $('<span></span>').attr('id', containerIds.PagerLabel).addClass('pagedisplay').appendTo($pager);
+    $('<div></div>').attr('id', containerIds.PagerLabel).addClass('pagedisplay').appendTo($pager);
     $('<button></button>').attr('id', containerIds.PagerButtonNext).attr(_thisGlobals.ToolTipAttrName, _thisGlobals.Translation_Labels.GoToNext).addClass('PagerButton ToolbarGoToNext')
         .appendTo($pager);
 
-    // Table - using configuration id as table id
-    containerIds.Table = data.ConfigID; // _thisHelpers.GenerateUUID();
-    var $Grid = $('<table class="pure-table tablesorter"><thead><tr></tr></thead><tbody></tbody><tfoot><tr></tr></tfoot></table>')
+    // Table
+    var cwidth = parentcontainer.innerWidth() + 'px';
+    var cheight = (_thisGlobals.FrameHeight - 160) + 'px';
+    if (parentcontainer.hasClass('subgridparentdiv')) {
+        cheight = '80px';
+    }
+
+    // Each table contains attr for id and config id
+    // A config may have more than one table
+    containerIds.Table = _thisHelpers.GenerateUUID();
+    var $Grid = $('<table class="pure-table tablesorter"><thead style="width:' + cwidth + ';"><tr></tr></thead><tbody style="width:' + cwidth + ';height:' + cheight + ';"></tbody><tfoot style="width:' + cwidth + ';"><tr></tr></tfoot></table>')
         .attr('id', containerIds.Table)
+        .attr('data-item-config-id', data.ConfigID)
         .attr('data-item-schema', data.Entity.SchemaName)
         .attr('data-item-entityname', data.Entity.Label)
         .appendTo(parentcontainer);
 
     return containerIds;
-}
-
-/* User Privilages */
-function RetrieveUserPrivileges(_PrivilegeName) {
-    try {
-        var _RequestMain = "";
-        _RequestMain += "      <request i:type=\"b:RetrieveUserPrivilegesRequest\" xmlns:a=\"http://schemas.microsoft.com/xrm/2011/Contracts\" xmlns:b=\"http://schemas.microsoft.com/crm/2011/Contracts\">";
-        _RequestMain += "        <a:Parameters xmlns:c=\"http://schemas.datacontract.org/2004/07/System.Collections.Generic\">";
-        _RequestMain += "          <a:KeyValuePairOfstringanyType>";
-        _RequestMain += "            <c:key>UserId</c:key>";
-        _RequestMain += "            <c:value i:type=\"d:guid\" xmlns:d=\"http://schemas.microsoft.com/2003/10/Serialization/\">" + _thisGlobals.LoggedInUserID + "</c:value>";
-        _RequestMain += "          </a:KeyValuePairOfstringanyType>";
-        _RequestMain += "        </a:Parameters>";
-        _RequestMain += "        <a:RequestId i:nil=\"true\" />";
-        _RequestMain += "        <a:RequestName>RetrieveUserPrivileges</a:RequestName>";
-        _RequestMain += "      </request>";
-
-        // Get privilegeid based on Name
-        var d = fncLookupValueFromEntity("privilege", "name", _PrivilegeName, "", "", "privilegeid");
-        var flag = false;
-        if (d != null) {
-
-            var _RestultXml = XrmServiceToolkit.Soap.Execute(_RequestMain);
-
-            if ($(_RestultXml).find("b\\:RolePrivilege").length > 0) {
-                d = d.toLowerCase();
-
-                $(_RestultXml).find("b\\:RolePrivilege").each(function () {
-                    //inner loop
-                    $(this).find("b\\:PrivilegeId").each(function () {
-
-                        var _PrivilegeId = $(this).text();
-
-                        if (_PrivilegeId.toString().toLowerCase() == d) {
-                            flag = true;
-                            //LogIt("privilage " + _PrivilegeName + " TRUE - Privilage ID " + _PrivilegeId.toString());
-                        }
-                    });
-                });
-            }
-            else if ($(_RestultXml).find("RolePrivilege").length > 0) {
-                d = d.toLowerCase();
-
-                $(_RestultXml).find("RolePrivilege").each(function () {
-                    //inner loop
-                    $(this).find("PrivilegeId").each(function () {
-
-                        var _PrivilegeId = $(this).text();
-
-                        if (_PrivilegeId.toString().toLowerCase() == d) {
-                            flag = true;
-                            //LogIt("privilage " + _PrivilegeName + " TRUE - Privilage ID " + _PrivilegeId.toString());
-                        }
-
-                    });
-                });
-            }
-        } else {
-            flag = true;
-        }
-        return flag;
-    }
-    catch (ex) {
-        LogIt("Exception retreiving privilages" + ex.message);
-    }
-
-}
-
-function fncLookupValueFromEntity(a, b, c, d, e, g) {
-    var m = "";
-    "" != d && (m = "<condition attribute='" + d + "' value='" + e + "' operator='eq'/>");
-    var fetchXml = "<fetch distinct='false' mapping='logical' output-format='xml-platform' version='1.0'>" +
-                      "<entity name='" + a + "'>" +
-                      "<attribute name='" + g + "'/>" +
-                      "<filter type='and'>" +
-                      "<condition attribute='" + b + "' value='" + c + "' operator='eq'/>" + m +
-                      "</filter></entity></fetch>";
-
-    a = XrmServiceToolkit.Soap.Fetch(fetchXml);
-
-    if (a.length > 0) {
-        if (a[0].attributes[g] != null) {
-            return a[0].attributes[g].value;
-        }
-    }
-    return null
 }
 
 /* Starting point */
@@ -8113,6 +9125,9 @@ function InitializeSetupRoutines() {
     if (window.frameElement) {
         $(window.frameElement).css('width', '100%');
     }
+
+    _thisGlobals.FrameWidth = $(window).width();
+    _thisGlobals.FrameHeight = $(window).height();
 
     xrmPage = window.parent.Xrm.Page;
 
@@ -8141,21 +9156,21 @@ function InitializeSetupRoutines() {
         e.stopPropagation();
         var parentdiv = $('#fieldfilter_content');
         var parentSchema = parentdiv.attr(_thisGlobals.DataAttr.Header.SchemaName);
-        var configid = parentdiv.attr('data-table-configid');
+        var configid = parentdiv.attr('data-table-config-id');
+        var tableid = parentdiv.attr('data-table-table-id');
         var schema = parentdiv.attr('data-field-schemaname');
-        var config = FindGridConfigByGridID(configid);
 
-        config.ClearInlineFilters(schema);
+        parentdiv[0].IndirectClearInlineFilters();
+
         var tmpDate = new Date();
         var todayDate = tmpDate.dateFormat(_thisGlobals.userDatetimeSettings.DateFormat);
         $("#fieldfilter_calendarinput").val(todayDate);
-        //$('#fieldfilter_calendarinput').datetimepicker('reset');
 
         var filterImgId = parentdiv.attr('data-filterimg-id');
         $('#' + filterImgId).removeClass('recfilterset').addClass('recfilternotset');
         parentdiv.hide();
 
-        config.ThisGrid.RefreshGridRows();
+        parentdiv[0].IndirectRefreshGrid();
         return false;
     });
 
@@ -8170,20 +9185,17 @@ function InitializeSetupRoutines() {
 
         var parentdiv = $('#fieldfilter_content');
         var parentSchema = parentdiv.attr(_thisGlobals.DataAttr.Header.SchemaName);
-        var configid = parentdiv.attr('data-table-configid');
+        var configid = parentdiv.attr('data-table-config-id');
+        var tableid = parentdiv.attr('data-table-table-id');
         var schema = parentdiv.attr('data-field-schemaname');
         var ed = parseInt(parentdiv.attr(_thisGlobals.DataAttr.Header.EditorType));
-
         var colIndex = parentdiv.attr('data-col-index');
         var filterImgId = parentdiv.attr('data-filterimg-id');
-
         var fetchOP = parentdiv.attr('data-fetchop');
         var fetchValue = parentdiv.attr('data-fetchval');
         var filter = parentdiv.attr('data-selected-filter');
         var inputVal = $(parentdiv.attr('data-input-id')).val();
-
         var uiTypes = parentdiv.attr('data-uitypes');
-        var config = FindGridConfigByGridID(configid);
 
         var lookupGuid = null;
         if (ed == DCrmEditableGrid.Editors.Lookup) {
@@ -8329,18 +9341,18 @@ uiTypes [account] lookupGuid [50bd5541-3133-e611-80e5-08002738aa19]
 
         condition += ' />';
 
-        config.SetFetchXmlFiltered(schema, condition, filter, inputVal,
+        parentdiv[0].IndirectSetFetchXmlFiltered(schema, condition, filter, inputVal,
             ((fetchOP) ? fetchOP : null), ((fetchValue) ? fetchValue : null), lookupGuid, uiTypes);
 
         parentdiv.hide();
-        config.ThisGrid.RefreshGridRows();
+
+        parentdiv[0].IndirectRefreshGrid();
         return false;
     });
 
     _thisGlobals.FilterLookupCtr = new $.fn.DCrmEditableGrid.FilterLookup();
-
     _thisHelpers.WaitDialog(true);
-    GetAllUserSettings();
+    SdkWebAPI.versionNumber(WebApiVersionCheckSuccessCallback, WebApiVersionCheckFailCallback);
 }
 
 /*
@@ -8950,7 +9962,8 @@ var SaveAsGridCallbackHelper = (function () {
                 var tmpLcase = '';
 
                 for (var i = 0; i < fieldsresult.length; i++) {
-                    var item = fieldsresult[i];
+                    var item = (_thisGlobals.UseWebApi) ? fieldsresult[i] : fieldsresult[i].attributes;
+
                     var trow = [];
                     for (var iinner = 0; iinner < self.SelectedFields.length; iinner++) {
                         var inneritem = self.SelectedFields[iinner];
@@ -8966,8 +9979,12 @@ var SaveAsGridCallbackHelper = (function () {
                             (tmpLcase == _thisGlobals.CrmFieldTypes.DoubleType) ||
                             (tmpLcase == _thisGlobals.CrmFieldTypes.IntegerType)) {
 
-                            if (item.attributes[inneritemSchemaName]) {
-                                trow.push(item.attributes[inneritemSchemaName].formattedValue);
+                            if (item[inneritemSchemaName] != undefined) {
+                                if (_thisGlobals.UseWebApi) {
+                                    trow.push(item[inneritemSchemaName + '@OData.Community.Display.V1.FormattedValue']);
+                                } else {
+                                    trow.push(item[inneritemSchemaName].formattedValue);
+                                }
                             } else {
                                 trow.push('');
                             }
@@ -8975,26 +9992,37 @@ var SaveAsGridCallbackHelper = (function () {
                             (tmpLcase == _thisGlobals.CrmFieldTypes.CustomerType) ||
                             (tmpLcase == _thisGlobals.CrmFieldTypes.OwnerType)) {
 
-                            if (item.attributes[inneritemSchemaName]) {
-                                trow.push(item.attributes[inneritemSchemaName].name || '');
+                            if (_thisGlobals.UseWebApi) {
+                                var tmpAttr = '_' + inneritemSchemaName + '_value';
+                                if (item[tmpAttr] != undefined) {
+                                    fval = item[tmpAttr + '@OData.Community.Display.V1.FormattedValue'] || '';
+                                    trow.push(fval);
+                                }
                             } else {
-                                trow.push('');
+                                if (item[inneritemSchemaName] != undefined) {
+                                    trow.push(item[inneritemSchemaName].name || '');
+                                } else {
+                                    trow.push('');
+                                }
                             }
 
                         } else if ((tmpLcase == _thisGlobals.CrmFieldTypes.TextType) || (tmpLcase == _thisGlobals.CrmFieldTypes.MemoType)) {
-                            if (item.attributes[inneritemSchemaName]) {
-                                trow.push(item.attributes[inneritemSchemaName].value);
+                            if (item[inneritemSchemaName] != undefined) {
+                                trow.push(item[inneritemSchemaName].value);
                             } else {
                                 trow.push('');
                             }
                         } else if (tmpLcase == _thisGlobals.CrmFieldTypes.DateTimeType) {
-                            if (item.attributes[inneritemSchemaName]) {
-                                trow.push(item.attributes[inneritemSchemaName].formattedValue);
+                            if (item[inneritemSchemaName] != undefined) {
+                                if (_thisGlobals.UseWebApi) {
+                                    trow.push(item[inneritemSchemaName + '@OData.Community.Display.V1.FormattedValue']);
+                                } else {
+                                    trow.push(item[inneritemSchemaName].formattedValue);
+                                }
                             } else {
                                 trow.push('');
                             }
                         }
-
                     }
 
                     if (trow.length > 0) {
@@ -9009,7 +10037,12 @@ var SaveAsGridCallbackHelper = (function () {
 
             if (hasMoreRecords) {
                 self.pageNumber += 1;
-                XrmServiceToolkit.Soap.Fetch(self.grid.GridConfiguration.GetFetchXml(self.pageNumber, pagingCookie, 5000), false, self.SaveAsGridCallback);
+                if (_thisGlobals.UseWebApi) {
+                    SdkWebAPI.getFetchXml(self.grid.activeOptions.ParentEntityInfo.LogicalCollectionName,
+                        self.grid.activeOptions.GridFetchHelper.GetFetchXml(self.pageNumber, pagingCookie, 5000), self.SaveAsGridCallback, null);
+                } else {
+                    XrmServiceToolkit.Soap.Fetch(self.grid.activeOptions.GridFetchHelper.GetFetchXml(self.pageNumber, pagingCookie, 5000), false, self.SaveAsGridCallback);
+                }
             } else {
                 var stype = 'Excel';
                 // Excel
@@ -9027,7 +10060,12 @@ var SaveAsGridCallbackHelper = (function () {
             }
         }
 
-        XrmServiceToolkit.Soap.Fetch(self.grid.GridConfiguration.GetFetchXml(self.pageNumber, null, 5000), false, self.SaveAsGridCallback);
+        if (_thisGlobals.UseWebApi) {
+            SdkWebAPI.getFetchXml(self.grid.activeOptions.ParentEntityInfo.LogicalCollectionName,
+                self.grid.activeOptions.GridFetchHelper.GetFetchXml(self.pageNumber, null, 5000), self.SaveAsGridCallback, null);
+        } else {
+            XrmServiceToolkit.Soap.Fetch(self.grid.activeOptions.GridFetchHelper.GetFetchXml(self.pageNumber, null, 5000), false, self.SaveAsGridCallback);
+        }
     }
 
     function addRow (row, isHeader) {
@@ -9153,8 +10191,7 @@ var MSProductGridHelper = (function () {
         self.SchemaName = schemaname;
         self.GridConfig = config;
 
-        self.CallbackErrorHandler = function (errorMsg) {
-            //DisplayCrmAlertDialog(self.DataLoadErrorMessage + errorMsg);
+        self.MSProductCallbackErrorHandler = function (errorMsg) {
             console.error("Exception " + errorMsg);
         };
 
@@ -9194,7 +10231,7 @@ var MSProductGridHelper = (function () {
         };
 
         self.DisplayExistingProducts = function () {
-            GetProductsForPriceList(self.PriceList.id, self.GetProductsForPriceListCallback, self.CallbackErrorHandler);
+            GetProductsForPriceList(self.PriceList.id, self.GetProductsForPriceListCallback, self.MSProductCallbackErrorHandler);
         };
 
         self.GetPriceList = function () {
@@ -9202,7 +10239,6 @@ var MSProductGridHelper = (function () {
             if (t) {
                 self.PriceList.name = t[0].name;
                 self.PriceList.id = t[0].id;
-                console.log("Pricelist [" + t[0].id + "] name [" + t[0].name + "]");
                 return true;
             }
             return false;
@@ -9220,7 +10256,6 @@ var MSProductGridHelper = (function () {
                     _thisGlobals.xrmPage.getAttribute('pricelevelid').setValue(object);
 
                     _thisGlobals.xrmPage.data.setFormDirty(true);
-                    console.log("Pricelist id [" + self.PriceList.id + "] name [" + self.PriceList.name + "] type [" + self.PriceList.typename + "]");
                 } catch (e) {
                     LogEx('Unable to set the price list.\r\n' + e.message, pl);
                     return false;
@@ -9246,7 +10281,7 @@ var MSProductGridHelper = (function () {
                 var selected = $('#products_table').find('input[type="checkbox"]:checked');
                 if ((selected) && (selected.length)) {
                     for (var i = 0; i < selected.length; i++) {
-                        console.log($(selected[i]).attr('data-product-id'));
+                        //console.log($(selected[i]).attr('data-product-id'));
                         // add product
                         // if bundle (family) 3, get the associated products and add them as well
                         // ensure that there are no duplicate products that exists in the bundle gets added twice
@@ -9387,20 +10422,12 @@ var FormattingOptions = (function () {
         for (var i = 0; i < arr.length; i++) {
             if (arr[i].SchemaName == schemaname) {
                 return arr[i];
-                break;
             }
         }
     }
 
     return FormattingOptions;
 })();
-
-function GetActualSchema(identity) {
-    if (identity.contains(_thisGlobals._sSeperator)) {
-        return identity.split(_thisGlobals._sSeperator)[0];
-    }
-    return identity;
-}
 
 var DCrmEGConfigurationManager = (function () {
 
@@ -9464,8 +10491,55 @@ var DCrmEGConfigurationManager = (function () {
         self.SelectedFields = undefined;
         self.Conditions = undefined;
         self.ChildConfigurations = [];
-        self.ThisGrid = undefined;
-        self.ParentDivContainer = undefined;
+        // Current grids using this configuration
+        self.ChildGrids = [];
+        self.FindChildGrid = function (tableid, wantindex) {
+            if (self.ChildConfigurations.length == 0) {
+                return null;
+            }
+            for (var index = 0; index < self.ChildConfigurations.length; index++) {
+                var co = self.ChildConfigurations[index];
+                if (co.ChildGrids.length == 0) {
+                    continue;
+                }
+                for (var i = 0; i < co.ChildGrids.length; i++) {
+                    if (co.ChildGrids[i].activeOptions.GridContainerIds.Table == tableid) {
+                        if (wantindex) {
+                            return { ChildConfigurationsIndex: index, ChildGridsIndex: i, TheGrid: co.ChildGrids[i] };
+                        } else {
+                            return co.ChildGrids[i];
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        self.RemoveChildGrid = function (childConfigIndex, childGridIndex) {
+            self.ChildConfigurations[childConfigIndex].ChildGrids.splice(childGridIndex, 1);
+        }
+
+        self.FindGrid = function (tableid, wantindex) {
+            if (self.ChildGrids.length == 0) {
+                return null;
+            }
+            for (var index = 0; index < self.ChildGrids.length; index++) {
+                if (self.ChildGrids[index].activeOptions.GridContainerIds.Table == tableid) {
+                    if (wantindex) {
+                        return { GridIndex: index, TheGrid: self.ChildGrids[index] };
+                    } else {
+                        return self.ChildGrids[index];
+                    }
+                }
+
+            }
+            return null;
+        }
+
+        self.RemoveGrid = function (GridIndex) {
+            self.ChildGrids.splice(GridIndex, 1);
+        }
+
         self.Formattings = undefined;
         self.GetFormattingOptions = function () {
             if (self.Formattings) {
@@ -9474,6 +10548,14 @@ var DCrmEGConfigurationManager = (function () {
             self.Formattings = new FormattingOptions(self.Entity.SchemaName);
             return self.Formattings;
         }
+    }
+    
+    return DCrmEGConfigurationManager;
+})();
+
+var GridFetchXmlHelper = (function () {
+    function GridFetchXmlHelper() {
+        var self = this;
 
         self.GridFetchXml = undefined;
         /*
@@ -9605,7 +10687,7 @@ Hasmore records [true] cookie [&lt;cookie page=&quot;1&quot;&gt;&lt;name last=&q
 
                         if (le.LinkEntityFields.length > 0) {
                             for (var ii = 0; ii < le.LinkEntityFields.length; ii++) {
-                                fetch += '<attribute name="' + le.LinkEntityFields[ii]  + '" />';
+                                fetch += '<attribute name="' + le.LinkEntityFields[ii] + '" />';
                             }
                         }
                         if (le.LinkEntityFilters.length > 0) {
@@ -9618,7 +10700,6 @@ Hasmore records [true] cookie [&lt;cookie page=&quot;1&quot;&gt;&lt;name last=&q
                     }
                     fetch += self.GridFetchXml.LinkEntityTail;
                 }
-
 
                 if ((additional) && (additional.LinkEntity)) {
                     fetch += additional.LinkEntity;
@@ -9705,7 +10786,7 @@ Hasmore records [true] cookie [&lt;cookie page=&quot;1&quot;&gt;&lt;name last=&q
                 }
             }
 
-            if(fields == null) {
+            if (fields == null) {
                 fields = [];
             }
             var tmpLink = {
@@ -9863,38 +10944,15 @@ Hasmore records [true] cookie [&lt;cookie page=&quot;1&quot;&gt;&lt;name last=&q
         };
 
     }
-    
-    return DCrmEGConfigurationManager;
+
+    return GridFetchXmlHelper;
 })();
 
 function AddToMainConfiguration(config) {
     _thisGlobals.DCrmEGConfiguration.push(config);
 }
 
-function LoadDCrmEGConfigurationCallback(fetchResults) {
-    if (fetchResults.length <= 0) {
-        LogEx("No D CRM Editable Grid records found matching this entity.");
-        _thisHelpers.WaitDialog();
-        return;
-    }
-
-    var val = fetchResults[0].attributes['dcrmeg_headerfieldnameshidden'].value;
-    // Display order
-    var entities = (val) ? RetrieveEntityOutput(val, true).split(_thisGlobals._SEPERATOR) : '';
-
-    // All Entities info
-    val = fetchResults[0].attributes['dcrmeg_displayfromentityhidden'].value;
-    var entitesInfo = (val) ? RetrieveEntityOutput(val, true).split(_thisGlobals._pSeperator) : '';
-    // All fields
-    val = fetchResults[0].attributes['dcrmeg_fromentityfieldsattrhidden'].value;
-    var fields = (val) ? RetrieveEntityOutput(val, true).split(_thisGlobals._pSeperator) : '';
-    // All conditions
-    val = (fetchResults[0].attributes['dcrmeg_fieldcondition']) ? fetchResults[0].attributes['dcrmeg_fieldcondition'].value : undefined;
-    var consitions = (val) ? RetrieveEntityOutput(val, true).split(_thisGlobals._pSeperator) : '';
-    // All Formatting dcrmeg_entitiesinfo
-    val = (fetchResults[0].attributes['dcrmeg_entitiesinfo']) ? fetchResults[0].attributes['dcrmeg_entitiesinfo'].value : undefined;
-    var formattings = (val) ? val.split(_thisGlobals._pSeperator) : null;
-
+function ProcessLoadedGridConfiguration(entities, entitesInfo, fields, consitions, formattings) {
     var parentconfig = undefined;
     var config = undefined;
 
@@ -10176,7 +11234,8 @@ function CreateAndPopulateGrid(data, parentcontainer, relationshipparentEntityGu
         }
     }
 
-    data.GridFetchXml = EntityFetchParts;
+    var gridfetchhelper = new GridFetchXmlHelper();
+    gridfetchhelper.GridFetchXml = EntityFetchParts;
 
     var $tr = $('#' + ContainerIds.Table).find('thead:first').find('tr:first');
 
@@ -10187,41 +11246,48 @@ function CreateAndPopulateGrid(data, parentcontainer, relationshipparentEntityGu
         HavePrecision: false
     };
 
-    var autoCellWidth = parseFloat(100 / data.SelectedFields.length).toFixed(2);
-
     var table = $('#' + ContainerIds.Table)[0];
+    var firstColClass = 'firstColCheckbox';
 
     if ((!_thisGlobals.FormIsReadOnly) && ((data.AllowDelete) || (data.DisplayCloneRecordButton))) {
         var $chk = $("<input type='checkbox' />")
             .attr(_thisGlobals.ToolTipAttrName, _thisGlobals.Translation_Labels.SelectAllRecords)
             .on('click', function (e) {
                 e.stopPropagation();
-                var schemaname = $(this).parent().parent().parent().parent().attr('id');
-                _thisHelpers.SelectAllRows(schemaname, ($(this).is(':checked')));
+                // th -> tr -> thead -> table
+                var t = $(this).parent().parent().parent().parent();
+                var gridConfigId = t.attr('data-item-config-id');
+                var tableid = t.attr('id');
+                _thisHelpers.SelectAllRows(gridConfigId, tableid, ($(this).is(':checked')));
             });
-        var $chkHeader = $("<th></th>").addClass('firstColCheckbox').append($chk);
+        var $chkHeader = $("<th></th>").addClass(firstColClass).append($chk);
         $chkHeader.appendTo($tr);
     } else {
-        var $chkHeader = $("<th></th>").addClass('firstColNoCheckbox');
+        firstColClass = 'firstColNoCheckbox';
+        var $chkHeader = $("<th></th>").addClass(firstColClass);
         $chkHeader.appendTo($tr);
     }
 
     var $footer = $(table).find('tfoot:first').find('tr:first');
     // Add footer
     var $footercell = $('<td></td>')
-        .addClass('tfooterdummy')
+        .addClass('tfooterdummy').addClass(firstColClass)
         .attr(_thisGlobals.DataAttr.Cell.FooterCell, _thisGlobals.DataAttr.NO)
         .appendTo($footer);
 
     var formatOptions = data.GetFormattingOptions();
 
+    var calculatedWidth = parseInt(parentcontainer.innerWidth() / (data.SelectedFields.length + 1)) - 1;
+    var AggregateFields = [];
+
     for (var headerIndex = 0; headerIndex < data.SelectedFields.length; headerIndex++) {
         var item = data.SelectedFields[headerIndex];
 
         $theader = $('<th></th>')
-            //.addClass('TextAutoEclipse')
             .attr(_thisGlobals.ToolTipAttrName, item.Name)
             .appendTo($tr);
+        // Header width controls the width of the column (body and footer cells)
+        _thisHelpers.SetHeaderWidth($theader, item.RealWidth, calculatedWidth);
 
         var headerFormatOptions = formatOptions.GetHeader(item.SchemaName);
         if (headerFormatOptions) {
@@ -10234,12 +11300,6 @@ function CreateAndPopulateGrid(data, parentcontainer, relationshipparentEntityGu
             if (headerFormatOptions.FontCss) {
                 DeccoupleCss(headerFormatOptions.FontCss, $theader);
             }
-        }
-
-        if (item.RealWidth != '0') {
-            $theader.width(item.RealWidth + '%');
-        } else {
-            $theader.width(autoCellWidth + '%');
         }
 
         var opSetData = [];
@@ -10320,6 +11380,12 @@ function CreateAndPopulateGrid(data, parentcontainer, relationshipparentEntityGu
 
             ed = DCrmEditableGrid.Editors.Lookup;
 
+            if (attrtype == _thisGlobals.CrmFieldTypes.CustomerType) {
+                ed = DCrmEditableGrid.Editors.Customer;
+            } else if (attrtype == _thisGlobals.CrmFieldTypes.OwnerType) {
+                ed = DCrmEditableGrid.Editors.Owner;
+            }
+
             lookupSetData = {
                 LookupId: '',
                 LookupLogicalName: '',
@@ -10366,14 +11432,14 @@ function CreateAndPopulateGrid(data, parentcontainer, relationshipparentEntityGu
 
         // Apply readonly fields icon to the header
         if (fieldIsReadOnly) {
-            $('<span></span>')
+            $('<div></div>')
                 .addClass('lockedfield')
                 .attr(_thisGlobals.ToolTipAttrName, _thisGlobals.Translation_Labels.ReadOnly)
                 .appendTo($theader);
         }
 
         if (requiered) {
-            $requireSpan = $('<span>*</span>')
+            $requireSpan = $('<div>*</div>')
                 .attr(_thisGlobals.ToolTipAttrName, _thisGlobals.Translation_Labels.LockedField)
                 .addClass('Requiered')
                 .appendTo($theader);
@@ -10387,7 +11453,7 @@ function CreateAndPopulateGrid(data, parentcontainer, relationshipparentEntityGu
             spanclass += ' wrapheadertitle';
         }
 
-        var $firstSpan = $('<span class="' + spanclass + '"></span>')
+        var $firstSpan = $('<div class="' + spanclass + '"></div>')
             .text(item.Name)
             .attr(_thisGlobals.ToolTipAttrName, item.Name)
             .appendTo($theader);
@@ -10435,7 +11501,7 @@ function CreateAndPopulateGrid(data, parentcontainer, relationshipparentEntityGu
                 filterclass += ' recfilternotset';
             }
 
-            var $recFilter = $('<span></span>')
+            var $recFilter = $('<div></div>')
                 .attr(_thisGlobals.ToolTipAttrName, "Filter")
                 .attr('id', _thisHelpers.GenerateUUID())
                 .addClass(filterclass)
@@ -10451,8 +11517,7 @@ function CreateAndPopulateGrid(data, parentcontainer, relationshipparentEntityGu
                 PrecisionSource: 0,
                 UserPrecision: _thisGlobals.userCurrencySettings.CurrencyDecimalPrecision,
                 CurrencyPrecision: undefined,
-                // TODO
-                // Changing to global
+
                 PricinPrecision: _thisGlobals.SystemCurrencyPrecision,
                 FieldPrecision: item.Precision,
                 EntitySchemaName: data.Entity.SchemaName,
@@ -10472,14 +11537,21 @@ function CreateAndPopulateGrid(data, parentcontainer, relationshipparentEntityGu
             .attr(_thisGlobals.DataAttr.Cell.FooterCell, _thisGlobals.DataAttr.NO)
             .attr(_thisGlobals.DataAttr.Header.SchemaName, item.SchemaName.toLowerCase())
             .appendTo($footer);
+
+        _thisHelpers.SetHeaderWidth($footercellInner, item.RealWidth, calculatedWidth);
+
         // Allow aggreagte button to be visible
         if ((data.DisplaySum) && ((ed == DCrmEditableGrid.Editors.Numeric) ||
             (ed == DCrmEditableGrid.Editors.Decimal) ||
             (ed == DCrmEditableGrid.Editors.Double) ||
             (ed == DCrmEditableGrid.Editors.Currency))) {
-            $("<img title='" + _thisGlobals.Translation_Labels.AggregateFunctions + "' class='aggregate'></img><span class='footercelltext'></span>").appendTo($footercellInner);
+
+            if (item.AggregateOp) {
+                AggregateFields.push({ SchemaName: item.SchemaName, AggregateOp: item.AggregateOp, CellIndex: headerIndex + 1 });
+            }
+            $("<img title='" + _thisGlobals.Translation_Labels.AggregateFunctions + "' class='aggregate'></img><div class='footercelltext wrapheadertitle'></div>").appendTo($footercellInner);
         } else {
-            $("<span class='footercelltext'></span>").appendTo($footercellInner);
+            $("<div class='footercelltext'></div>").appendTo($footercellInner);
         }
 
         ceditors.push({
@@ -10508,62 +11580,73 @@ function CreateAndPopulateGrid(data, parentcontainer, relationshipparentEntityGu
         });
     }
 
-    return new GridLoaderHelper(data, ContainerIds, ceditors, parentChildLookupInfo, NumericFields, parentcontainer);
+    return new GridLoaderHelper(data, ContainerIds, ceditors, parentChildLookupInfo, NumericFields, parentcontainer, AggregateFields, gridfetchhelper);
 }
 
-function ParentGridSelectedRecord(data, parentdiv, deleteSubgrid) {
+// When creating parentdivid is a JQ object and when deleting parentdivid is the id of the div container
+function ParentGridSelectedRecord(data, parentdivid, deleteSubgrid) {
     try {
-        var config = FindGridConfigByGridID(data.activeOptions.ConfigID);
-        var tt = undefined;
+        var config = data.GridConfiguration;
+        var tt, tg, childconfigindex, childgridindex = undefined;
 
         if (deleteSubgrid) {
-            var tableParentId = undefined;
-            for (var i = 0; i < config.ChildConfigurations.length; i++) {
-                tt = config.ChildConfigurations[i].ThisGrid;
-                if (tt) {
+
+            parentdivid = parentdivid || data.activeOptions.GridContainerIds.ParentGridDivContainer;
+            parentdiv = $('#' + parentdivid);
+
+            var targetTable = parentdiv.find('table');
+            if ((targetTable) && (targetTable.length)) {
+                var targetTableid = targetTable.attr('id');
+
+                tg = config.FindChildGrid(targetTableid, true);
+                if (tg) {
+                    childgridindex = tg.ChildGridsIndex;
+                    childconfigindex = tg.ChildConfigurationsIndex;
+                    tt = tg.TheGrid;
+                }
+
+                if ((tg) && (tt)) {
                     var ids = tt.activeOptions.GridContainerIds;
-                    tableParentId = parentdiv || tt.ParentDivContainer;
-                    // When called from parent, will have tableParentId value
-                    if (ids.ParentGridDivContainer == tableParentId) {
-                        // Has subgrids
-                        if (config.ChildConfigurations[i].length > 0) {
-                            LogIt("Grid has subgrid");
-                            ParentGridSelectedRecord(tt, undefined, true);
-                            config.ChildConfigurations[i].ThisGrid = undefined;
+
+                    //if (config.ChildConfigurations[childconfigindex].ChildGrids.length > 0) {
+                    //    console.log('child grid has child grids');
+                    //}
+
+                    $('#' + ids.TableCaptionContainer).empty().remove();
+                    $('#' + ids.Table).empty().remove();
+
+                    for (var inner = 0; inner < tt.GridEditors.length; inner++) {
+                        if (tt.GridEditors[inner] != null) {
+                            tt.GridEditors[inner].DestroyEditor();
                         }
-
-                        $('#' + ids.TableCaptionContainer).empty().remove();
-                        $('#' + ids.Table).empty().remove();
-
-                        for (var i = 0; i < tt.GridEditors.length; i++) {
-                            if (tt.GridEditors[i] != null) {
-                                tt.GridEditors[i].DestroyEditor();
-                            }
-                        }
-
-                        tt.DestroyGrid();
                     }
+
+                    tt.DestroyGrid();
+                    tt = null;
+                    config.RemoveChildGrid(childconfigindex, childgridindex);
                 }
             }
-
         } else {
-
-            var insertAfter = parentdiv || data.mainTable;
+            var insertAfter = parentdivid || data.mainTable;
             for (var i = 0; i < config.ChildConfigurations.length; i++) {
-                CreateAndPopulateGrid(config.ChildConfigurations[i], insertAfter,
-                    data.SelectedRecordGuid, null);
+
+                CreateAndPopulateGrid(config.ChildConfigurations[i], insertAfter, data.SelectedRecordGuid, null);
 
                 if (i > 0) {
                     $('<div></div>')
                         .addClass('gridSpacerDiv')
-                        .insertBefore($('#' + tt.activeOptions.GridContainerIds.TableCaptionContainer));
+                        .insertAfter($('#' + config.ChildConfigurations[i].activeOptions.GridContainerIds.TableCaptionContainer));
                 }
             }
 
         }
     } catch (e) {
-        LogEx("Creating a child grid failed. " + e.message);
-        //_thisHelpers.WaitDialog();
+        if (deleteSubgrid) {
+            LogEx("Deleting a child failed. " + e.message);
+        } else {
+            LogEx("Creating a child grid failed. " + e.message);
+        }
+        _thisHelpers.WaitDialog();
     }
 }
 
@@ -10672,27 +11755,6 @@ function FindDCrmEGConfiguration(config, schemaname) {
     }
 
     return foundit;
-}
-
-function GetLookupDisplayName(entitySchemaName, fieldSchemaName, uitype, guid) {
-    var val = undefined;
-
-    var fetch = '<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false">' +
-          '<entity name="' + entitySchemaName + '">' +
-          '<attribute name="' + fieldSchemaName + '" />' + 
-          '<filter type="and">' +
-                  '<condition attribute="' + fieldSchemaName + '" operator="eq" uitype="' + uitype + '" value="' + _thisHelpers.AddCurlyBrace(guid) + '" />' +
-                '</filter>' +
-                '</entity>' +
-          '</fetch>';
-
-    var result = XrmServiceToolkit.Soap.Fetch(fetch);
-
-    if (result.length > 0) {
-        val = result[0].attributes[fieldSchemaName].name;
-    }
-
-    return val;
 }
 
 function InlineFilterDataToStruct(schema, schemaindex, condition, operator, value, fetchop, fetchvalue, lookupguid, lookupuitype) {
@@ -10906,9 +11968,10 @@ function GetFilterUIStruc(fieldtype) {
             id = { div: '#fieldfilter_datetimecontainer', id: "#fieldfilter_datetimeconditions", input: '#fieldfilter_calendarinput', SelectedOptionValue: 'on', FetchOp: 'on', ShowDate: true };
             break;
         case DCrmEditableGrid.Editors.Lookup:
+        case DCrmEditableGrid.Editors.Customer:
             id = { div: '#fieldfilter_lookupcontainer', id: "#fieldfilter_lookupconditions", input: '#fieldfilter_lookupinput', SelectedOptionValue: 'eq', FetchOp: 'eq', ShowInput: true, ShowLookupBtn: true };
             break;
-        case DCrmEditableGrid.Editors.OwnerType:
+        case DCrmEditableGrid.Editors.Owner:
             id = { id: "#fieldfilter_systemuserlookup", input: '#fieldfilter_lookupinput', SelectedOptionValue: 'eq-userid' };
             break;
         //case DCrmEditableGrid.Editors.CustomerType:
@@ -10943,6 +12006,7 @@ function GetFilterContainer(fieldtype) {
             id = { div: '#fieldfilter_datetimecontainer', id: "#fieldfilter_datetimeconditions", input: '#fieldfilter_calendarinput', SelectedOptionValue: 'on', FetchOp: 'on', ShowDate: true };
             break;
         case _thisGlobals.CrmFieldTypes.LookupType:
+        case _thisGlobals.CrmFieldTypes.CustomerType:
             id = { div: '#fieldfilter_lookupcontainer', id: "#fieldfilter_lookupconditions", input: '#fieldfilter_lookupinput', SelectedOptionValue: 'eq', FetchOp: 'eq', ShowInput: true, ShowLookupBtn: true };
             break;
         case _thisGlobals.CrmFieldTypes.OwnerType:
@@ -10967,16 +12031,8 @@ function GetFilterContainer(fieldtype) {
     return id;
 }
 
-//function GetDcrmEgGrid(schemaname) {
-//    var config = FindDCrmEGConfigurationBySchema(schemaname);
-//    if (config) {
-//        return config.ThisGrid;
-//    }
-//    return null;
-//}
-
 var GridLoaderHelper = (function () {
-    function GridLoaderHelper(data, ContainerIds, ceditors, parentChildLookupInfo, NumericFields, parentcontainer) {
+    function GridLoaderHelper(data, ContainerIds, ceditors, parentChildLookupInfo, NumericFields, parentcontainer, AggregateFields, gridfetchhelper) {
         var self = this;
 
         self.data = data;
@@ -10987,30 +12043,41 @@ var GridLoaderHelper = (function () {
         self.Grid = undefined;
         self.PrimaryIdAttribute = null;
         self.PrimaryNameAttribute = null;
+        self.LogicalCollectionName = null;
         self.DataLoadErrorMessage = "Unable to load the grid data due to exceptions:\r\n";
         self.TableVisible = false;
-
+        self.AggregateFields = AggregateFields;
+        self.GridFetchHelper = gridfetchhelper;
+        self.IsSubGrid = (parentcontainer.hasClass('subgridparentdiv')) ? true : false;
         self.TotalRecordCount = -1;
 
         self.CallbackErrorHandler = function (errorMsg) {
-            DisplayCrmAlertDialog(self.DataLoadErrorMessage + errorMsg);
             _thisHelpers.WaitDialog();
-        };
+            if (_thisGlobals.UseWebApi) {
+                DisplayCrmAlertDialog(self.DataLoadErrorMessage + errorMsg.message);
+            } else {
+                DisplayCrmAlertDialog(self.DataLoadErrorMessage + errorMsg);
+            }            
+        }
 
         self.RecordCallback = function (fieldsresult, hasMoreRecords, pagingCookie) {
-
             try {
                 var EntityCurrencyid = undefined;
+
                 if ((pagingCookie == undefined) || (pagingCookie == "undefined")) {
                     pagingCookie = null;
                 }
 
                 if ((fieldsresult) && (fieldsresult.length) && (fieldsresult.length > 0)) {
 
-                    if ((fieldsresult[0].attributes['transactioncurrencyid']) &&
-                        (fieldsresult[0].attributes['transactioncurrencyid'].id) &&
-                        (fieldsresult[0].attributes['transactioncurrencyid'].id.length)) {
-                        EntityCurrencyid = fieldsresult[0].attributes['transactioncurrencyid'].id;
+                    if (_thisGlobals.UseWebApi) {
+                        EntityCurrencyid = fieldsresult[0]._transactioncurrencyid_value;
+                    } else {
+                        if ((fieldsresult[0].attributes['transactioncurrencyid']) &&
+                            (fieldsresult[0].attributes['transactioncurrencyid'].id) &&
+                            (fieldsresult[0].attributes['transactioncurrencyid'].id.length)) {
+                            EntityCurrencyid = fieldsresult[0].attributes['transactioncurrencyid'].id;
+                        } 
                     }
 
                     var extraRowHeight = '';
@@ -11019,21 +12086,28 @@ var GridLoaderHelper = (function () {
                     var fval = '';
                     var tmpLcase = '';
                     var selectedOptionsetValue = undefined;
-
                     try {
                         if (_thisGlobals.xrmPage.context.client.getClient() == "Mobile") {
                             extraRowHeight = ' style="height:30px;"';
                         }
                     } catch (e) {
                     }
-
                     var formatOptions = self.data.GetFormattingOptions();
                     var even = true;
+                    var $allHeaders = $('#' + self.ContainerIds.Table).find(_thisGlobals.DefaultGridOptions.selectorHeaders);
 
                     for (var i = 0; i < fieldsresult.length; i++) {
+
                         var item = fieldsresult[i];
 
-                        $tr = $('<tr' + extraRowHeight + '></tr>').attr(_thisGlobals.DataAttr.Cell.RecordGuid, item.id).appendTo($tbody);
+                        var recGuid = '';
+                        if (_thisGlobals.UseWebApi) {
+                            recGuid = item[self.PrimaryIdAttribute];
+                        } else {
+                            recGuid = item.id;
+                        }
+
+                        $tr = $('<tr' + extraRowHeight + '></tr>').attr(_thisGlobals.DataAttr.Cell.RecordGuid, recGuid).appendTo($tbody);
 
                         even = (i % 2 == 0);
                         if ((!even) && (formatOptions.EvenRows)) {
@@ -11042,7 +12116,7 @@ var GridLoaderHelper = (function () {
                             $tr.css('background-color', formatOptions.OddRows);
                         }
 
-                        var callbackRowData = { RecordGuid: item.id, Fields: [], RowIndex: i };
+                        var callbackRowData = { RecordGuid: recGuid, Fields: [], RowIndex: i };
 
                         for (var iinner = 0; iinner < self.data.SelectedFields.length; iinner++) {
                             var inneritem = self.data.SelectedFields[iinner];
@@ -11068,53 +12142,102 @@ var GridLoaderHelper = (function () {
                                 (tmpLcase == _thisGlobals.CrmFieldTypes.State) ||
                                 (tmpLcase == _thisGlobals.CrmFieldTypes.Status)) {
 
-                                if (item.attributes[inneritemSchemaName]) {
-                                    fval = item.attributes[inneritemSchemaName].formattedValue;
+                                if (_thisGlobals.UseWebApi) {
+                                    if (item[inneritemSchemaName] != undefined) {
+                                        fval = item[inneritemSchemaName + '@OData.Community.Display.V1.FormattedValue'];
 
-                                    callbackField.Value = item.attributes[inneritemSchemaName].value;
+                                        callbackField.Value = item[inneritemSchemaName];
 
-                                    if ((tmpLcase == _thisGlobals.CrmFieldTypes.OptionSetType) ||
-                                        (tmpLcase == _thisGlobals.CrmFieldTypes.State) ||
-                                        (tmpLcase == _thisGlobals.CrmFieldTypes.Status)) {
-                                        selectedOptionsetValue = item.attributes[inneritemSchemaName].value;
+                                        if ((tmpLcase == _thisGlobals.CrmFieldTypes.OptionSetType) ||
+                                            (tmpLcase == _thisGlobals.CrmFieldTypes.State) ||
+                                            (tmpLcase == _thisGlobals.CrmFieldTypes.Status)) {
 
-                                        callbackField.Value = selectedOptionsetValue;
+                                            selectedOptionsetValue = item[inneritemSchemaName];
+                                            callbackField.Value = selectedOptionsetValue;
+                                        }
+                                    }
+                                } else {
+                                    if (item.attributes[inneritemSchemaName] != undefined) {
+                                        fval = item.attributes[inneritemSchemaName].formattedValue;
+
+                                        callbackField.Value = item.attributes[inneritemSchemaName].value;
+
+                                        if ((tmpLcase == _thisGlobals.CrmFieldTypes.OptionSetType) ||
+                                            (tmpLcase == _thisGlobals.CrmFieldTypes.State) ||
+                                            (tmpLcase == _thisGlobals.CrmFieldTypes.Status)) {
+                                            selectedOptionsetValue = item.attributes[inneritemSchemaName].value;
+
+                                            callbackField.Value = selectedOptionsetValue;
+                                        }
                                     }
                                 }
                             } else if ((tmpLcase == _thisGlobals.CrmFieldTypes.LookupType) ||
                                 (tmpLcase == _thisGlobals.CrmFieldTypes.CustomerType) || (tmpLcase == _thisGlobals.CrmFieldTypes.OwnerType)) {
+                                if (_thisGlobals.UseWebApi) {
+                                    // navigation property
+                                    var tmpAttr = '_' + inneritemSchemaName + '_value';
+                                    if (item[tmpAttr] != undefined) {
+                                        fval = item[tmpAttr + '@OData.Community.Display.V1.FormattedValue'] || '';
+                                        self.ceditors[iinner].LookupData.LookupId = item[tmpAttr] || '';
+                                        self.ceditors[iinner].LookupData.LookupLogicalName = item[tmpAttr + '@Microsoft.Dynamics.CRM.lookuplogicalname'];
+                                        // "/contacts(DFE54660-37CD-E511-80DE-6C3BE5A831DC)" //Primary Contact
+                                        // LookupId = 'DFE54660-37CD-E511-80DE-6C3BE5A831DC'
+                                        // AssociatedNavigationProperty = 'primarycontactid'
+                                        // LookupLogicalName = 'contact' => plural 'contacts'
+                                        self.ceditors[iinner].LookupData.AssociatedNavigationProperty = item[tmpAttr + '@Microsoft.Dynamics.CRM.associatednavigationproperty'];
+                                        self.ceditors[iinner].LookupData.LookupName = fval;
 
-                                if (item.attributes[inneritemSchemaName]) {
-                                    fval = item.attributes[inneritemSchemaName].name || '';
-
-                                    self.ceditors[iinner].LookupData.LookupId = item.attributes[inneritemSchemaName].id || '';
-                                    self.ceditors[iinner].LookupData.LookupLogicalName = item.attributes[inneritemSchemaName].logicalName;
-                                    self.ceditors[iinner].LookupData.LookupName = fval;
-
-                                    callbackField.LookupGuid = self.ceditors[iinner].LookupData.LookupId;
-                                    callbackField.LookupLogicalName = self.ceditors[iinner].LookupData.LookupLogicalName;
-                                    callbackField.LookupName = fval;
-                                    callbackField.Value = fval;
+                                        callbackField.AssociatedNavigationProperty = self.ceditors[iinner].LookupData.AssociatedNavigationProperty;
+                                        callbackField.LookupGuid = self.ceditors[iinner].LookupData.LookupId;
+                                        callbackField.LookupLogicalName = self.ceditors[iinner].LookupData.LookupLogicalName;
+                                        callbackField.LookupName = fval;
+                                        callbackField.Value = fval;
+                                    }
+                                } else {
+                                    if (item.attributes[inneritemSchemaName] != undefined) {
+                                        fval = item.attributes[inneritemSchemaName].name || '';
+                                        self.ceditors[iinner].LookupData.LookupId = item.attributes[inneritemSchemaName].id || '';
+                                        self.ceditors[iinner].LookupData.LookupLogicalName = item.attributes[inneritemSchemaName].logicalName;
+                                        self.ceditors[iinner].LookupData.LookupName = fval;
+                                        callbackField.LookupGuid = self.ceditors[iinner].LookupData.LookupId;
+                                        callbackField.LookupLogicalName = self.ceditors[iinner].LookupData.LookupLogicalName;
+                                        callbackField.LookupName = fval;
+                                        callbackField.Value = fval;
+                                    }
                                 }
-
                             } else if ((tmpLcase == _thisGlobals.CrmFieldTypes.TextType) || (tmpLcase == _thisGlobals.CrmFieldTypes.MemoType)) {
-                                if (item.attributes[inneritemSchemaName]) {
-                                    fval = item.attributes[inneritemSchemaName].value;
-
-                                    callbackField.Value = fval;
-                                    callbackField.Format = self.ceditors[iinner].Format;
-
-                                    if (((self.ceditors[iinner].Format == 'Text') || (self.ceditors[iinner].Format == 'Phone'))
-                                        && (_thisHelpers.IsvalidPhoneNumber(fval + ''))) {
-
-                                        ceditors[iinner].Format = "Phone";
+                                if (_thisGlobals.UseWebApi) {
+                                    if (item[inneritemSchemaName] != undefined) {
+                                        fval = item[inneritemSchemaName];
+                                        callbackField.Value = fval;
+                                        callbackField.Format = self.ceditors[iinner].Format;
+                                        if (((self.ceditors[iinner].Format == 'Text') || (self.ceditors[iinner].Format == 'Phone'))
+                                            && (_thisHelpers.IsvalidPhoneNumber(fval + ''))) {
+                                            ceditors[iinner].Format = "Phone";
+                                        }
+                                    }
+                                } else {
+                                    if (item.attributes[inneritemSchemaName] != undefined) {
+                                        fval = item.attributes[inneritemSchemaName].value;
+                                        callbackField.Value = fval;
+                                        callbackField.Format = self.ceditors[iinner].Format;
+                                        if (((self.ceditors[iinner].Format == 'Text') || (self.ceditors[iinner].Format == 'Phone'))
+                                            && (_thisHelpers.IsvalidPhoneNumber(fval + ''))) {
+                                            ceditors[iinner].Format = "Phone";
+                                        }
                                     }
                                 }
                             } else if (tmpLcase == _thisGlobals.CrmFieldTypes.DateTimeType) {
-                                if (item.attributes[inneritemSchemaName]) {
-                                    fval = item.attributes[inneritemSchemaName].formattedValue;
-
-                                    callbackField.Value = fval;
+                                if (_thisGlobals.UseWebApi) {
+                                    if (item[inneritemSchemaName + '@OData.Community.Display.V1.FormattedValue'] != undefined) {
+                                        fval = item[inneritemSchemaName + '@OData.Community.Display.V1.FormattedValue'];
+                                        callbackField.Value = fval;
+                                    }
+                                } else {
+                                    if (item.attributes[inneritemSchemaName] != undefined) {
+                                        fval = item.attributes[inneritemSchemaName].formattedValue;
+                                        callbackField.Value = fval;
+                                    }
                                 }
                             }
 
@@ -11123,11 +12246,13 @@ var GridLoaderHelper = (function () {
                             }
                             // Add cell
                             $td = $('<td></td>')
-                                .attr(_thisGlobals.DataAttr.Cell.RecordGuid, item.id)
+                                .attr(_thisGlobals.DataAttr.Cell.RecordGuid, recGuid)
                                 .attr(_thisGlobals.ToolTipAttrName, fval)
                                 .html('<span class="fieldcelltext" '
                                     + _thisGlobals.ToolTipAttrName + '="' + fval + '">' + fval + '</span>')
                                 .appendTo($tr);
+
+                            _thisHelpers.SetCellWidth($td, _thisHelpers.GetCellWidth($($allHeaders[iinner + 1]), true), true);
 
                             var headerformatOptions = formatOptions.GetHeader(inneritemSchemaName);
                             var cellformatOptions = formatOptions.GetField(inneritemSchemaName);
@@ -11201,7 +12326,7 @@ var GridLoaderHelper = (function () {
                     $('#' + self.ContainerIds.TotalRecords).text(_thisGlobals.Translation_Labels.TotalRecords + ' 0');
                     $('#' + self.ContainerIds.Pager).hide();
                 }
-
+                
                 var options = {
                     ConfigID: self.data.ConfigID,
 
@@ -11219,7 +12344,8 @@ var GridLoaderHelper = (function () {
                         ParentEntityName: self.data.Entity.Label,
                         ParentEntitySchemaname: self.data.Entity.SchemaName,
                         PrimaryIdAttribute: self.PrimaryIdAttribute,
-                        PrimaryNameAttribute: self.PrimaryNameAttribute
+                        PrimaryNameAttribute: self.PrimaryNameAttribute,
+                        LogicalCollectionName: self.LogicalCollectionName
                     },
                     ParentChildLookupInfo: self.parentChildLookupInfo,
 
@@ -11239,6 +12365,9 @@ var GridLoaderHelper = (function () {
                     UserCanDelete: (self.data.AllowDelete && !_thisGlobals.FormIsReadOnly),
                     UserCanUpdate: (!_thisGlobals.FormIsReadOnly),
 
+                    AggregateFields: self.AggregateFields,
+                    GridFetchHelper: self.GridFetchHelper,
+
                     DisplayCloneRecordButton: self.data.DisplayCloneRecordButton,
                     DisplayCloneRecord: self.data.DisplayCloneRecord,
                     DisplaySetRecordState: self.data.DisplaySetRecordState,
@@ -11255,30 +12384,34 @@ var GridLoaderHelper = (function () {
                     DateTimeMinuteStep: self.data.DateTimeMinuteStep
                 };
 
-                self.Grid = new CrmEditableGrid($('#' + self.ContainerIds.Table), options);
-                var config = FindGridConfigByGridID(self.data.ConfigID);
+                var tgrid = new CrmEditableGrid($('#' + self.ContainerIds.Table), options);
+                tgrid.GridConfiguration.ChildGrids.push(tgrid);
 
-                config.ThisGrid = self.Grid;
-                config.ParentDivContainer = parentcontainer.attr('id');
             } catch (e) {
                 DisplayCrmAlertDialog(self.DataLoadErrorMessage + e.message);
             }
 
             _thisHelpers.WaitDialog();
-        };
+        }
         
         self.RecordCountCallback = function (result) {
             if ((result) && (result.length) && (result.length > 0)) {
-                self.TotalRecordCount = result[0].attributes["count"].value;
-
+                if (_thisGlobals.UseWebApi) {
+                    self.TotalRecordCount = result[0].count;
+                } else {
+                    self.TotalRecordCount = result[0].attributes["count"].value;
+                }
                 $('#' + self.ContainerIds.TotalRecords).text(_thisGlobals.Translation_Labels.TotalRecords + ' ' + self.TotalRecordCount);
             }
-
-            XrmServiceToolkit.Soap.Fetch(self.data.GetFetchXml(), false, self.RecordCallback, self.CallbackErrorHandler);
-        };
+            if (_thisGlobals.UseWebApi) {
+                SdkWebAPI.getFetchXml(SdkWebAPI.GetEntitySetName(self.data.Entity.SchemaName), self.GridFetchHelper.GetFetchXml(), self.RecordCallback, self.CallbackErrorHandler);
+            } else {
+                XrmServiceToolkit.Soap.Fetch(self.GridFetchHelper.GetFetchXml(), false, self.RecordCallback, self.CallbackErrorHandler);
+            }
+        }
 
         self.GetEntityCount = function () {
-            var filters = self.data.GetFetchXmlFilters();
+            var filters = self.GridFetchHelper.GetFetchXmlFilters();
             var distinctRecs = (self.data.DistinctValues ? ' distinct="true"' : '');
             var fetchXml =
                 '<fetch mapping="logical" aggregate="true">' +
@@ -11289,8 +12422,13 @@ var GridLoaderHelper = (function () {
             }
             fetchXml += "</entity>" +
                 "</fetch>";
-            XrmServiceToolkit.Soap.Fetch(fetchXml, false, self.RecordCountCallback, self.CallbackErrorHandler);
-        };
+
+            if (_thisGlobals.UseWebApi) {
+                SdkWebAPI.getFetchXml(SdkWebAPI.GetEntitySetName(self.data.Entity.SchemaName), fetchXml, self.RecordCountCallback, self.CallbackErrorHandler);
+            } else {
+                XrmServiceToolkit.Soap.Fetch(fetchXml, false, self.RecordCountCallback, self.CallbackErrorHandler);
+            }
+        }
 
         self.GetPrimaryAttributesCallback = function (entityMetaData) {
             if (entityMetaData && entityMetaData.length === 1) {
@@ -11298,7 +12436,7 @@ var GridLoaderHelper = (function () {
                 self.PrimaryNameAttribute = entityMetaData[0].PrimaryNameAttribute;
             }
             self.GetEntityCount();
-        };
+        }
 
         self.RetreiveEntityMetadateCallback = function (result) {
             if ((result) && (result.length) && (result.length > 0)) {
@@ -11340,20 +12478,72 @@ var GridLoaderHelper = (function () {
                     LogEx("unable to retreive entity metadata\r\n" + e.message);
                 }
             }
-        };
+        }
+
+        self.WebApiEntityAttributesCallback = function (result) {
+            if ((result) && (result.length) && (result.length > 0)) {
+                var $headers = $('#' + self.ContainerIds.Table).find(_thisGlobals.DefaultGridOptions.selectorHeaders);
+
+                try {
+
+                    self.PrimaryIdAttribute = result[0].PrimaryIdAttribute;
+                    self.PrimaryNameAttribute = result[0].PrimaryNameAttribute;
+                    self.LogicalCollectionName = result[0].LogicalCollectionName;
+
+                    var schName = '';
+                    var lbl = '';
+                    var SelectedFields = self.data.SelectedFields;
+
+                    for (index = 0, j = result[0].Attributes.length; index < j; index++) {
+                        ent = result[0].Attributes[index];
+
+                        if (ent.AttributeOf == null) {
+                            schName = ent.SchemaName.toLowerCase();
+
+                            for (var iinner = 0; iinner < SelectedFields.length; iinner++) {
+                                if (schName == SelectedFields[iinner].SchemaName.toLowerCase()) {
+                                    lbl = _thisHelpers.GetUserLocalizedLabel(ent.DisplayName, ent.LogicalName);
+                                    if ((lbl == null) || (lbl == 'null') || (lbl.length == 0)) {
+                                        lbl = schName.replace(/\b[a-z]/g, function (letter) {
+                                            return letter.toUpperCase();
+                                        });
+                                    }
+                                    _thisHelpers.SetHeaderCellText($($headers[iinner + 1]), lbl);
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    LogEx("unable to retreive entity metadata\r\n" + e.message);
+                }
+            }
+            self.GetEntityCount();
+        }
 
         // Get UserLocalized labels for headers, just in case language has changed
         // Get this primary id and name attribute names, normally (schemaname + id) and (name/subject/fullname)
         // There are exeptions. example: activitypointer -> activityid
-        XrmServiceToolkit.Soap.RetrieveEntityMetadata(['Attributes'],
-            self.data.Entity.SchemaName, true, self.RetreiveEntityMetadateCallback);
+        if (_thisGlobals.UseWebApi) {
+            SdkWebAPI.GetEntityAttributes(SdkWebAPI.GetEntitySetName(self.data.Entity.SchemaName), self.WebApiEntityAttributesCallback, self.CallbackErrorHandler);
+        } else {
+            XrmServiceToolkit.Soap.RetrieveEntityMetadata(['Attributes'],
+                self.data.Entity.SchemaName, true, self.RetreiveEntityMetadateCallback);
 
-        XrmServiceToolkit.Soap.RetrieveEntityMetadata("Entity",
-            self.data.Entity.SchemaName, true, self.GetPrimaryAttributesCallback);
+            XrmServiceToolkit.Soap.RetrieveEntityMetadata("Entity",
+                self.data.Entity.SchemaName, true, self.GetPrimaryAttributesCallback);
+        }
     }
 
     return GridLoaderHelper;
 })();
+
+function ValidateEditor(editorType, editorValue) {
+
+    if ((window.parent.ValidateDCrmEgGrid) && (typeof (window.parent.ValidateDCrmEgGrid) === 'function')) {
+        return window.parent.ValidateDCrmEgGrid(editorType, editorValue);
+    }
+    return true;
+}
 
 function FireGridRowOnload(tr, data, info) {
     if (window.parent.DCrmEgGridRowOnload) {
@@ -11383,6 +12573,15 @@ function FireGridRowOnload(tr, data, info) {
             //}
         }
     }
+}
+
+function GetActualSchema(identity) {
+    if (axis.isString(identity) && identity.length > 0) {
+        if (identity.contains(_thisGlobals._sSeperator)) {
+            return identity.split(_thisGlobals._sSeperator)[0];
+        }
+    }
+    return identity;
 }
 
 function DeccoupleCss(css, elem, remove) {

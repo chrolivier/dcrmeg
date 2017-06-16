@@ -28,6 +28,11 @@ Array.prototype.ExactMatchExists = function (str) {
     return false;
 };
 
+// TODO
+// Test this thoughroughly
+// test lookups, optionsets, relationships, fields, formatting, colors, conditions set/modiify/delete
+//
+
 /*Obsolete fileds to be deleted from configuration entity*/
 //var EntitiesAreRelatedBoolean = 'dcrmeg_entitiesarerelated';
 //var RelatedEntityLookupSchemaName = 'dcrmeg_relatedentitylookup';
@@ -48,14 +53,13 @@ Array.prototype.ExactMatchExists = function (str) {
                 "ToolTipClassSelector": '',
                 "PickListCheckboxListCtl": undefined,
                 "_DefaultLookupElemId": '',
-
                 "EntityNameField": 'dcrmeg_name',
                 "DisplayOnEntityFieldName": 'dcrmeg_displayonentityhidden',
                 "DisplayFromEntityFieldName": 'dcrmeg_displayfromentityhidden',
                 "FromEntityFieldsAttr": 'dcrmeg_fromentityfieldsattrhidden',
+                "SelectedFieldsToDisplay": 'dcrmeg_selectedfieldstodisplay',
                 "FieldConditionValues": 'dcrmeg_fieldcondition',
                 "HeaderFieldNames": 'dcrmeg_headerfieldnameshidden',
-
                 "AllFieldsMetadata": undefined,
                 "SelectFieldsCheckboxList": undefined,
                 "ReloadedSavedFields": [],
@@ -73,7 +77,6 @@ Array.prototype.ExactMatchExists = function (str) {
                 "_Entityinfo": '',
                 "_Fieldsinfo": '',
                 "_Conditioninfo": '',
-
                 "CrmFieldTypes": {
                     LookupType: "lookup",
                     CustomerType: 'customer', // account,contact
@@ -108,7 +111,6 @@ Array.prototype.ExactMatchExists = function (str) {
                 "_OuterSeperator": '[]',
                 "_pSeperator": '%%',
                 "_sSeperator": '$$',
-
                 "TargetOutputEncSeed": '5CD566B7B6D04BE19572',
                 "userDatetimeSettings": undefined,
                 "ToolTipAttrName": "data-tooltip",
@@ -374,7 +376,7 @@ Array.prototype.ExactMatchExists = function (str) {
                                         $(_thisGlobals.FieldIds.lookupsearchbtn).hide();
                                     }
                                     if ((select.ShowSelectBtn) && (showInputs)) {
-                                        $(_thisGlobals.FieldIds.picklistselect).show();
+                                        $(_thisGlobals.FieldIds.picklistselect).attr('data-item-picklistselect', attrtype).show();
                                     } else {
                                         $(_thisGlobals.FieldIds.fieldconditioninput).attr('readonly', 'readonly');
                                         $(_thisGlobals.FieldIds.picklistselect).hide();
@@ -397,7 +399,6 @@ Array.prototype.ExactMatchExists = function (str) {
                                 });
                         }
 
-                        // TODO
                         if (noCondition) {
                             $('<button></button>')
                                 .attr('data-tilename-id', id)
@@ -473,6 +474,8 @@ Array.prototype.ExactMatchExists = function (str) {
 var _thisGlobals = DCrmEditableGrid.Globals;
 _thisGlobals.xrmPage = window.parent.Xrm.Page;
 _thisGlobals.LoggedInUserID = _thisGlobals.xrmPage.context.getUserId();
+_thisGlobals.UserLcid = _thisGlobals.xrmPage.context.getUserLcid();
+_thisGlobals.UseWebApi = false;
 
 function LogIt(s) {
     if ((_thisGlobals.Debug) && (typeof console != "undefined") && (typeof console.debug != "undefined")) {
@@ -486,7 +489,11 @@ function LogEx(s) {
     }
 }
 
-Date.parseDate = function (input, format) {
+function DisplayCrmAlertDialog(msg) {
+    window.parent.Xrm.Utility.alertDialog(msg);
+}
+
+Date.parseDate = function (input, format) {  
     format = format || _thisGlobals.userDatetimeSettings.DateFormat;
 
     if (input.trim().length == 0) {
@@ -537,6 +544,36 @@ Date.parseDate = function (input, format) {
         day = d[2];
     }
 
+    //var havename = false;
+    //if (!isNaN(month)) {
+    //    if (month.length == 1) {
+    //        month = '0' + month;
+    //    }
+    //} else {
+    //    havename = true;
+    //}
+    //if (!isNaN(day)) {
+    //    if (day.length == 1) {
+    //        day = '0' + day;
+    //    }
+    //} else {
+    //    havename = true;
+    //}
+    //// ISO Date format
+    //// This works for all except the following format:
+    //// dd/MMM/yy - can not handle 2 digit dates
+    //// new Date().getFullYear().toString().substr(0,2);
+    ////var d = new Date("2015 Mar 25 12:00:00Z");
+    ////var d = new Date("2015-03-25T12:00:00Z");
+    //var dateStr = (havename) ? year + ' ' + month + ' ' + day : year + '-' + month + '-' + day;
+    //if (t) {
+    //    dateStr += ((havename) ? ' ' : 'T') + t[0].trim() + ':' + t[1].trim() + ':00Z';
+    //} else {
+    //    dateStr += ((havename) ? ' ' : 'T') + '12:00:00Z';
+    //}
+    //console.log(dateStr);
+    //return new Date(dateStr);
+
     var val;
     // new Date(year, month [, day [, hours[, minutes[, seconds[, ms]]]]])
     // Month is zero based
@@ -545,7 +582,6 @@ Date.parseDate = function (input, format) {
     } else {
         val = new Date(year, month - 1, day);
     }
-
     return val;
 }
 
@@ -669,14 +705,13 @@ var NumericTextbox = (function () {
         }).appendTo(parentElem);
 
         if (forWidth) {
-            self.$input.attr('data-tooltip', tooltipText).addClass(tooltipClass).prop('maxlength', 2);
+            self.$input.attr('data-tooltip', tooltipText).addClass(tooltipClass).prop('maxlength', 3);
         }
 
         self.GetInput = function () {
             return self.$input;
         }
     }
-
 
     return NumericTextbox;
 })();
@@ -764,9 +799,54 @@ var OptionSetSelect = (function () {
 })();
 
 /*Retreive list of entities*/
+function UnboundFunctionSuccessCallback(result) {
+    _thisGlobals.WaitDialog.hide();
+    if ((result) && (result.EntityMetadata) && (result.EntityMetadata.length) && (result.EntityMetadata.length > 0)) {
+        var options = [];
+        var lbl = '';
+        var ent = null;
+        for (var i = 0; i < result.EntityMetadata.length; i++) {
+            ent = result.EntityMetadata[i];
+            lbl = DCrmEditableGrid.Helper.GetUserLocalizedLabel(ent.DisplayName, ent.SchemaName);
+            if (lbl.length > 0) {
+                options.push({ SchemaName: ent.LogicalName, Name: lbl });
+            }
+        }
+        options.sort(function (a, b) {
+            var alabel = (a.Name);
+            var blabel = (b.Name);
+            if (alabel < blabel)
+            { return -1 }
+            if (alabel > blabel)
+            { return 1 }
+            return 0;
+        });
+        FillEntitiesSelect(options);
+    }
+}
+
+function GeneralFailCallback(error) {
+    _thisGlobals.WaitDialog.hide();
+    var msg = null;
+    if (typeof error == 'string') {
+        msg = error;
+    } else {
+        msg = (_thisGlobals.UseWebApi) ? error.message : error;
+    }
+
+    LogEx(msg);
+    DisplayCrmAlertDialog(msg);
+}
+
 function RetreiveEntityList() {
     _thisGlobals.WaitDialog.show();
-    XrmServiceToolkit.Soap.RetrieveAllEntitiesMetadata(['Entity'], true, RetreiveEntityListCallback);
+    if (_thisGlobals.UseWebApi) {
+        SdkWebAPI.invokeUnboundFunction('RetrieveAllEntities',
+            ["EntityFilters=Microsoft.Dynamics.CRM.EntityFilters'Entity'", "RetrieveAsIfPublished=true"],
+            UnboundFunctionSuccessCallback, GeneralFailCallback);
+    } else {
+        XrmServiceToolkit.Soap.RetrieveAllEntitiesMetadata(['Entity'], true, RetreiveEntityListCallback, GeneralFailCallback);
+    }
 }
 
 function RetreiveEntityListCallback(result) {
@@ -828,14 +908,64 @@ function FillEntitiesSelect(data) {
 }
 
 /*Retreive entity metadata*/
-function RetreiveLookupEntityMetadata(logicalName) {
-    _thisGlobals.EntityToGetMetadataFor = logicalName;
+function WebApiLookupEntityAttributesCallback(result) {
+    if ((result) && (result.length) && (result.length > 0)) {
+        var ent, schName, ename;
+        var AllLookupFieldsMetadata = [];
 
-    XrmServiceToolkit.Soap.RetrieveEntityMetadata(['Attributes'], logicalName, false, RetreiveLookupEntityMetadateCallback, RetreiveLookupEntityMetadataErrorCallback);
+        for (index = 0, j = result[0].Attributes.length; index < j; index++) {
+            ent = result[0].Attributes[index];
+            if (ent.AttributeOf == null) {
+                schName = ent.SchemaName.toLowerCase();
+
+                ename = DCrmEditableGrid.Helper.GetUserLocalizedLabel(ent.DisplayName, ent.LogicalName);
+                if ((ename == null) || (ename == 'null') || (ename.length == 0)) {
+                    ename = schName.replace(/\b[a-z]/g, function (letter) {
+                        return letter.toUpperCase();
+                    });
+                }
+
+                AllLookupFieldsMetadata.push({
+                    SchemaName: schName,
+                    Name: ename,
+                    AttrType: ent.AttributeType.toLowerCase(),
+                    ReadOnly: false,
+                    RequieredLevel: (((ent.RequiredLevel) && (ent.RequiredLevel.Value)) ? ent.RequiredLevel.Value : undefined) || 'None',
+                    MaxLength: ent.MaxLength || 'A',
+                    Format: ent.Format || 'A',
+                    MaxValue: ent.MaxValue || 'A',
+                    MinValue: ent.MinValue || 'A',
+                    Precision: ent.Precision || 'A',
+                    LookupTargetEntity: ((ent.Targets) && (ent.Targets.length)) ? ent.Targets.join(',').toLowerCase() : 'A',
+                    CustomAttribute: ent.IsCustomAttribute
+                });
+            }
+        }
+
+        AllLookupFieldsMetadata.sort(function (a, b) {
+            var alabel = (a.Name);
+            var blabel = (b.Name);
+            if (alabel < blabel)
+            { return -1 }
+            if (alabel > blabel)
+            { return 1 }
+            return 0;
+        });
+        DisplayLookupEntityFields(AllLookupFieldsMetadata);
+    } else {
+        GeneralFailCallback("Unable to retreive metadata for " + _thisGlobals.EntityToGetMetadataFor);
+    }
 }
 
-function RetreiveLookupEntityMetadataErrorCallback(msg) {
-    window.parent.Xrm.Utility.alertDialog(msg);
+function RetreiveLookupEntityMetadata(logicalName) {
+    _thisGlobals.WaitDialog.show();
+    _thisGlobals.EntityToGetMetadataFor = logicalName;
+
+    if (_thisGlobals.UseWebApi) {
+        SdkWebAPI.GetEntityAttributes(SdkWebAPI.GetEntitySetName(logicalName), WebApiLookupEntityAttributesCallback, GeneralFailCallback);
+    } else {
+        XrmServiceToolkit.Soap.RetrieveEntityMetadata(['Attributes'], logicalName, false, RetreiveLookupEntityMetadateCallback, GeneralFailCallback);
+    }
 }
 
 function RetreiveLookupEntityMetadateCallback(result) {
@@ -906,7 +1036,7 @@ function RetreiveLookupEntityMetadateCallback(result) {
         DisplayLookupEntityFields(AllLookupFieldsMetadata);
 
     } else {
-        RetreiveLookupEntityMetadataErrorCallback("Unable to retreive metadata for " + _thisGlobals.EntityToGetMetadataFor);
+        GeneralFailCallback("Unable to retreive metadata for " + _thisGlobals.EntityToGetMetadataFor);
     }
 }
 
@@ -926,13 +1056,67 @@ function DisplayLookupEntityFields(data) {
 function RetreiveEntityMetadata(logicalName) {
     _thisGlobals.WaitDialog.show();
     _thisGlobals.EntityToGetMetadataFor = logicalName;
-
-    XrmServiceToolkit.Soap.RetrieveEntityMetadata(['Attributes'], logicalName, false, RetreiveEntityMetadateCallback, RetreiveEntityMetadataErrorCallback);
+    if (_thisGlobals.UseWebApi) {
+        SdkWebAPI.GetEntityAttributes(SdkWebAPI.GetEntitySetName(logicalName), WebApiRetreiveEntityMetadateCallback, GeneralFailCallback);
+    } else {
+        XrmServiceToolkit.Soap.RetrieveEntityMetadata(['Attributes'], logicalName, false, RetreiveEntityMetadateCallback, GeneralFailCallback);
+    }
 }
 
-function RetreiveEntityMetadataErrorCallback(msg) {
+function WebApiRetreiveEntityMetadateCallback(result) {
     _thisGlobals.WaitDialog.hide();
-    window.parent.Xrm.Utility.alertDialog(msg);
+    _thisGlobals._CurConfiguration.HasStatusField = undefined;
+
+    if ((result) && (result.length) && (result.length > 0)) {
+        var ent, schName, ename;
+        _thisGlobals.AllFieldsMetadata = [];
+
+        for (index = 0, j = result[0].Attributes.length; index < j; index++) {
+            ent = result[0].Attributes[index];
+            if (ent.AttributeOf == null) {
+                schName = ent.SchemaName.toLowerCase();
+                if (schName == 'statecode') {
+                    _thisGlobals._CurConfiguration.HasStatusField = schName;
+                }
+
+                ename = DCrmEditableGrid.Helper.GetUserLocalizedLabel(ent.DisplayName, ent.LogicalName);
+                if ((ename == null) || (ename == 'null') || (ename.length == 0)) {
+                    ename = schName.replace(/\b[a-z]/g, function (letter) {
+                        return letter.toUpperCase();
+                    });
+                }
+
+                _thisGlobals.AllFieldsMetadata.push({
+                    SchemaName: schName,
+                    Name: ename,
+                    AttrType: ent.AttributeType.toLowerCase(),
+                    ReadOnly: false,
+                    RequieredLevel: (((ent.RequiredLevel) && (ent.RequiredLevel.Value)) ? ent.RequiredLevel.Value : undefined) || 'None',
+                    MaxLength: ent.MaxLength || 'A',
+                    Format: ent.Format || 'A',
+                    MaxValue: ent.MaxValue || 'A',
+                    MinValue: ent.MinValue || 'A',
+                    Precision: ent.Precision || 'A',
+                    LookupTargetEntity: ((ent.Targets) && (ent.Targets.length)) ? ent.Targets.join(',').toLowerCase() : 'A',
+                    CustomAttribute: ent.IsCustomAttribute
+                });
+            }
+        }
+
+        _thisGlobals.AllFieldsMetadata.sort(function (a, b) {
+            var alabel = (a.Name);
+            var blabel = (b.Name);
+            if (alabel < blabel)
+            { return -1 }
+            if (alabel > blabel)
+            { return 1 }
+            return 0;
+        });
+        SetupFieldsDisplayOption();
+    } else {
+        $('#listoffieldstoselectlabel').text('');
+        GeneralFailCallback("Unable to retreive metadata for " + _thisGlobals.EntityToGetMetadataFor + ". No metadata was returned.");
+    }
 }
 
 function RetreiveEntityMetadateCallback(result) {
@@ -960,18 +1144,12 @@ function RetreiveEntityMetadateCallback(result) {
 
     for (index = 0, j = result[0].Attributes.length; index < j; index++) {
         ent = result[0].Attributes[index];
-
         if (ent.AttributeOf == null) {
             attrType = ent.AttributeType.toLowerCase();
             schName = ent.SchemaName.toLowerCase();
-
-            //LogIt("SchemaName [" + ent.SchemaName + "] attrType [" + attrType + "]");
-
             if (schName == 'statecode') {
                 _thisGlobals._CurConfiguration.HasStatusField = schName;
-                LogIt("Found state " + _thisGlobals._CurConfiguration.HasStatusField);
             }
-
             if ((fieldexclusion.ExactMatchExists(schName) == false) && (attrTypeExclusion.ExactMatchExists(attrType) == true)) {
                 //LogIt("SchemaName [" + ent.SchemaName + "] LogicalName [" + ent.LogicalName + "] attrType [" + ent.AttributeType + "] isPrimaryId ["
                 //    + ent.IsPrimaryId + "] IsPrimaryName [" + ent.IsPrimaryName + "] Format [" + ent.Format +
@@ -998,14 +1176,9 @@ function RetreiveEntityMetadateCallback(result) {
                     CustomAttribute: ent.IsCustomAttribute
                 });
             }
-            //else {
-            //    // modifiedon createdon
-            //    LogIt("SchemaName [" + schName + "] attrType [" + attrType + "]");
-            //}
         }
     }
 
-    // Call back to iframe
     if (result.length > 0) {
         _thisGlobals.AllFieldsMetadata.sort(function (a, b) {
             var alabel = (a.Name);
@@ -1019,6 +1192,7 @@ function RetreiveEntityMetadateCallback(result) {
         SetupFieldsDisplayOption();
     } else {
         $('#listoffieldstoselectlabel').text('');
+        GeneralFailCallback("Unable to retreive metadata for " + _thisGlobals.EntityToGetMetadataFor + ". No metadata was returned.");
     }
 }
 
@@ -1040,22 +1214,6 @@ function SetupFieldsDisplayOption() {
         // Fields on the form
         _thisGlobals.WaitDialog.show();
         RetreiveSystemFormsForEntity(_thisGlobals.EntityToGetMetadataFor);
-        _thisGlobals.WaitDialog.hide();
-
-        if (_thisGlobals.CrmFormFieldsSchemas.length == 0) {
-            FillEntityMetadata(_thisGlobals.AllFieldsMetadata);
-        } else {
-            for (var i = 0; i < _thisGlobals.AllFieldsMetadata.length; i++) {
-                $.each(_thisGlobals.CrmFormFieldsSchemas, function (index, schemaname) {
-                    if (AllFieldsMetadata[i].SchemaName == schemaname) {
-                        finalArr.push(AllFieldsMetadata[i]);
-                        return;
-                    }
-                });
-            }
-            FillEntityMetadata(finalArr);
-        }
-
     } else if (displayOption == 100000001) {
         // Custom fields
         for (var i = 0; i < _thisGlobals.AllFieldsMetadata.length; i++) {
@@ -1064,7 +1222,6 @@ function SetupFieldsDisplayOption() {
             }
         }
         FillEntityMetadata(finalArr);
-
     } else if (displayOption == 100000002) {
         // System fields
         for (var i = 0; i < _thisGlobals.AllFieldsMetadata.length; i++) {
@@ -1073,7 +1230,6 @@ function SetupFieldsDisplayOption() {
             }
         }
         FillEntityMetadata(finalArr);
-
     } else if (displayOption == 100000003) {
         // All fields
         FillEntityMetadata(_thisGlobals.AllFieldsMetadata);
@@ -1170,7 +1326,11 @@ function FillEntityMetadata(data) {
             var LookupEntities = $('#cellformattingcontainer').attr('data-item-lookuptargetentity').split(',');
 
             for (var i = 0; i < LookupEntities.length; i++) {
-                EntityObjectTypeCode[i] = XrmServiceToolkit.Common.GetObjectTypeCode(LookupEntities[i]);
+                if (_thisGlobals.UseWebApi) {
+                    EntityObjectTypeCode[i] = SdkWebAPI.GetEntityObjectTypeCode(LookupEntities[i]);
+                } else {
+                    EntityObjectTypeCode[i] = XrmServiceToolkit.Common.GetObjectTypeCode(LookupEntities[i]);
+                }
             }
 
             var url = "/_controls/lookup/lookupinfo.aspx?LookupStyle=single&objecttypes=" + EntityObjectTypeCode.join(',');
@@ -1386,6 +1546,7 @@ function SetupSelectedFieldRow(tbody, item) {
 
     // Setup create default values 
     var dValue = item.DefaultValue;
+    var optionset = null;
 
     $td = $('<td></td>').appendTo(row);
 
@@ -1408,18 +1569,33 @@ function SetupSelectedFieldRow(tbody, item) {
             })
             .appendTo($td);
     } else if (item.AttrType == _thisGlobals.CrmFieldTypes.BooleanType) {
-        var optionset = XrmServiceToolkit.Soap.RetrieveAttributeMetadata(_thisGlobals._CurConfiguration.Entity.SchemaName, item.SchemaName, true);
+        if (_thisGlobals.UseWebApi) {
+            optionset = SdkWebAPI.retrieveMetadataByLogicalName(_thisGlobals._CurConfiguration.Entity.SchemaName, item.SchemaName, { isBoolean: true });
+        } else {
+            optionset = XrmServiceToolkit.Soap.RetrieveAttributeMetadata(_thisGlobals._CurConfiguration.Entity.SchemaName, item.SchemaName, true);
+        }
+
         var data = [];
-        if (optionset.length > 0) {
+        if (optionset) {
+            var result = null;
+            if (_thisGlobals.UseWebApi) {
+                result = (optionset.OptionSet) ? optionset.OptionSet : optionset.GlobalOptionSet;
+            } else {
+                result = (optionset.length && optionset.length > 0 && optionset[0].OptionSet) ? optionset[0].OptionSet : undefined;
+            }
+            if ((result == undefined) || (result == null)) {
+                LogEx('Unable to retreive optionset data.');
+                return;
+            }
             data.push(
             {
-                Label: DCrmEditableGrid.Helper.GetUserLocalizedLabel(optionset[0].OptionSet.FalseOption.Label),
-                value: optionset[0].OptionSet.FalseOption.Value + ""
+                Label: DCrmEditableGrid.Helper.GetUserLocalizedLabel(result.FalseOption.Label),
+                value: result.FalseOption.Value + ""
             });
             data.push(
             {
-                Label: DCrmEditableGrid.Helper.GetUserLocalizedLabel(optionset[0].OptionSet.TrueOption.Label),
-                value: optionset[0].OptionSet.TrueOption.Value + ""
+                Label: DCrmEditableGrid.Helper.GetUserLocalizedLabel(result.TrueOption.Label),
+                value: result.TrueOption.Value + ""
             });
         }
 
@@ -1481,7 +1657,11 @@ function SetupSelectedFieldRow(tbody, item) {
                 var LookupEntities = item.LookupTargetEntity.split(',');
 
                 for (var i = 0; i < LookupEntities.length; i++) {
-                    EntityObjectTypeCode[i] = XrmServiceToolkit.Common.GetObjectTypeCode(LookupEntities[i]);
+                    if (_thisGlobals.UseWebApi) {
+                        EntityObjectTypeCode[i] = SdkWebAPI.GetEntityObjectTypeCode(LookupEntities[i]);
+                    } else {
+                        EntityObjectTypeCode[i] = XrmServiceToolkit.Common.GetObjectTypeCode(LookupEntities[i]);
+                    }
                 }
 
                 // &search=Searchstring
@@ -1563,14 +1743,29 @@ function SetupSelectedFieldRow(tbody, item) {
     } else if (item.AttrType == _thisGlobals.CrmFieldTypes.OptionSetType) {
         //(item.AttrType == _thisGlobals.CrmFieldTypes.State) ||
         //(item.AttrType == _thisGlobals.CrmFieldTypes.Status)) {
-        var optionset = XrmServiceToolkit.Soap.RetrieveAttributeMetadata(_thisGlobals._CurConfiguration.Entity.SchemaName, item.SchemaName, true);
+        if (_thisGlobals.UseWebApi) {
+            optionset = SdkWebAPI.retrieveMetadataByLogicalName(_thisGlobals._CurConfiguration.Entity.SchemaName, item.SchemaName, { isPicklist: true });
+        } else {
+            optionset = XrmServiceToolkit.Soap.RetrieveAttributeMetadata(_thisGlobals._CurConfiguration.Entity.SchemaName, item.SchemaName, true);
+        }
         var data = [];
-        if (optionset.length > 0) {
-            for (var i = 0; i < optionset[0].OptionSet.Options.length; i++) {
+
+        if (optionset) {
+            var result = null;
+            if (_thisGlobals.UseWebApi) {
+                result = (optionset.OptionSet) ? optionset.OptionSet : optionset.GlobalOptionSet;
+            } else {
+                result = (optionset.length && optionset.length > 0 && optionset[0].OptionSet) ? optionset[0].OptionSet : undefined;
+            }
+            if ((result == undefined) || (result == null)) {
+                LogEx('Unable to retreive optionset data.');
+                return;
+            }
+            for (var i = 0; i < result.Options.length; i++) {
                 data.push(
                 {
-                    Label: DCrmEditableGrid.Helper.GetUserLocalizedLabel(optionset[0].OptionSet.Options[i].Label),
-                    value: optionset[0].OptionSet.Options[i].Value
+                    Label: DCrmEditableGrid.Helper.GetUserLocalizedLabel(result.Options[i].Label),
+                    value: result.Options[i].Value
                 });
             }
         }
@@ -1711,17 +1906,49 @@ function SetupSelectedFieldRow(tbody, item) {
                 optionsetSelect.empty();
                 optionsetSelect.append('<option value="-1">---</option>');
 
-                var optionset = XrmServiceToolkit.Soap.RetrieveAttributeMetadata(_thisGlobals._CurConfiguration.Entity.SchemaName, schema, true);
-                if (optionset.length > 0) {
-                    if (attrtype == _thisGlobals.CrmFieldTypes.BooleanType) {
-                        optionsetSelect.append('<option value="' + optionset[0].OptionSet.TrueOption.Value + '">' +
-                            DCrmEditableGrid.Helper.GetUserLocalizedLabel(optionset[0].OptionSet.TrueOption.Label) + '</option>');
-                        optionsetSelect.append('<option value="' + optionset[0].OptionSet.FalseOption.Value + '">' +
-                            DCrmEditableGrid.Helper.GetUserLocalizedLabel(optionset[0].OptionSet.FalseOption.Label) + '</option>');
+                var optionset = null;
+                var atype = {};
+                if (attrtype == _thisGlobals.CrmFieldTypes.BooleanType) {
+                    atype.isBoolean = true;
+                } else if (attrtype == _thisGlobals.CrmFieldTypes.OptionSetType) {
+                    atype.isPicklist = true;
+                } else if (attrtype == _thisGlobals.CrmFieldTypes.Status) {
+                    atype.isStatus = true;
+                } else if (attrtype == _thisGlobals.CrmFieldTypes.State) {
+                    atype.isState = true;
+                }
+
+                if (_thisGlobals.UseWebApi) {
+                    optionset = SdkWebAPI.retrieveMetadataByLogicalName(_thisGlobals._CurConfiguration.Entity.SchemaName, schema, atype);
+                } else {
+                    optionset = XrmServiceToolkit.Soap.RetrieveAttributeMetadata(_thisGlobals._CurConfiguration.Entity.SchemaName, schema, true);
+                }
+                if (optionset) {
+                    var result = null;
+                    if (_thisGlobals.UseWebApi) {
+                        result = (optionset.OptionSet) ? optionset.OptionSet : optionset.GlobalOptionSet;
+                        if ((result) && (result.error)) {
+                            LogEx('Unable to retreive optionset data.\r\n' + result.error.message);
+                            return;
+                        }
                     } else {
-                        for (var i = 0; i < optionset[0].OptionSet.Options.length; i++) {
-                            optionsetSelect.append('<option value="' + optionset[0].OptionSet.Options[i].Value + '">' +
-                                DCrmEditableGrid.Helper.GetUserLocalizedLabel(optionset[0].OptionSet.Options[i].Label) + '</option>');
+                        result = (optionset.length && optionset.length > 0 && optionset[0].OptionSet) ? optionset[0].OptionSet : undefined;
+                    }
+                    if ((result == undefined) || (result == null)) {
+                        // "Navigation property Attributes With Id = LogicalName='paymenttermscode' does not exist on Metadata Entity with ID = LogicalName='contact'"
+                        LogEx('Unable to retreive optionset data.');
+                        return;
+                    }
+
+                    if (attrtype == _thisGlobals.CrmFieldTypes.BooleanType) {
+                        optionsetSelect.append('<option value="' + result.TrueOption.Value + '">' +
+                            DCrmEditableGrid.Helper.GetUserLocalizedLabel(result.TrueOption.Label) + '</option>');
+                        optionsetSelect.append('<option value="' + result.FalseOption.Value + '">' +
+                            DCrmEditableGrid.Helper.GetUserLocalizedLabel(result.FalseOption.Label) + '</option>');
+                    } else {
+                        for (var i = 0; i < result.Options.length; i++) {
+                            optionsetSelect.append('<option value="' + result.Options[i].Value + '">' +
+                                DCrmEditableGrid.Helper.GetUserLocalizedLabel(result.Options[i].Label) + '</option>');
                         }
                     }
                 }
@@ -1774,6 +2001,40 @@ function SetupSelectedFieldRow(tbody, item) {
         return false;
     });
 
+    // Aggregate
+    $td = $('<td></td>').appendTo(row);
+    if ((item.AttrType == _thisGlobals.CrmFieldTypes.DecimalType) ||
+        (item.AttrType == _thisGlobals.CrmFieldTypes.DoubleType) ||
+        (item.AttrType == _thisGlobals.CrmFieldTypes.MoneyType) ||
+        (item.AttrType == _thisGlobals.CrmFieldTypes.IntegerType)) {
+        $td.attr('data-item-aggregate', 'y');
+
+        var data = [
+            {
+                Label: 'SUM',
+                value: 'sum'
+            },
+            {
+                Label: 'AVG',
+                value: 'avg'
+            },
+            {
+                Label: 'MAX',
+                value: 'max'
+            },
+            {
+                Label: 'MIN',
+                value: 'min'
+            }];
+
+        if ((item.AggregateOp != null) && (item.AggregateOp.length > 0)) {
+            dValue = item.AggregateOp.toUpperCase() + '{}' + item.AggregateOp;
+            $td.attr('data-item-default', dValue);
+        }
+
+        $numInput = new OptionSetSelect(id, 100, $td, data, dValue, SaveFields);
+    }
+
     // Delete
     $td = $('<td><button class="entitylistbuttons"></button></td>').appendTo(row);
 
@@ -1782,8 +2043,11 @@ function SetupSelectedFieldRow(tbody, item) {
         var row = $(this).parent().parent();
         var $inputs = $(".flyout-ContentContainer").find("input[type='checkbox'][data-item-schema=" + row.attr('data-item-schema') + "]");
         if (($inputs) && ($inputs.length)) {
-            //$inputs[0].scrollIntoView();
             $inputs.trigger('click');
+        } else {
+            // field already deleted
+            row.remove();
+            SaveFields();
         }
     });
 }
@@ -1970,7 +2234,8 @@ function PopulateSavedFields() {
                 LookupTargetEntity: items[11],
                 DefaultValue: ((items.length >= 13 && items[12].length > 0) ? items[12] : null),
                 DefaultView: ((items.length >= 14 && items[13].length > 0) ? items[13] : null),
-                DefaultViewObjectTypeCode: ((items.length == 15 && items[14].length > 0) ? items[14] : null),
+                DefaultViewObjectTypeCode: ((items.length >= 15 && items[14].length > 0) ? items[14] : null),
+                AggregateOp: ((items.length >= 16 && items[15].length > 0) ? items[15] : null),
                 RealIndex: ''
             });
         });
@@ -2056,6 +2321,15 @@ function SaveFields(reset) {
             viewentityname = $cell.attr('data-item-viewentityobjecttypecode');
         }
 
+        $cell = $($rows[i].cells[10]);
+        var aggregate = '';
+        if (($cell.attr('data-item-aggregate')) && ($cell.attr('data-item-default'))) {
+            var t = $cell.attr('data-item-default');
+            if ((t) && (t.length > 0)) {
+                aggregate = t.split('{}')[1];
+            }
+        }
+        
         if (i > 0) {
             headersinfo += _thisGlobals._OuterSeperator +
                 $div.attr('data-item-label') + _thisGlobals._SEPERATOR +
@@ -2072,7 +2346,8 @@ function SaveFields(reset) {
             $div.attr('data-item-lookuptargetentity') + _thisGlobals._SEPERATOR +
             val + _thisGlobals._SEPERATOR +
             viewid + _thisGlobals._SEPERATOR +
-            viewentityname;
+            viewentityname + _thisGlobals._SEPERATOR +
+            aggregate;
         } else {
             headersinfo =
                 $div.attr('data-item-label') + _thisGlobals._SEPERATOR +
@@ -2089,7 +2364,8 @@ function SaveFields(reset) {
             $div.attr('data-item-lookuptargetentity') + _thisGlobals._SEPERATOR + 
             val + _thisGlobals._SEPERATOR +
             viewid + _thisGlobals._SEPERATOR +
-            viewentityname;
+            viewentityname + _thisGlobals._SEPERATOR +
+            aggregate;
         }
     }
 
@@ -2163,12 +2439,8 @@ function GetHiddenFieldValue(which) {
         field = _thisGlobals.DisplayOnEntityFieldName;
     } else if (which == 2) {
         field = _thisGlobals.DisplayFromEntityFieldName;
-    } else if (which == 3) {
-        field = _thisGlobals.FromEntityFieldsAttr;
-        //} else if (which == 4) {
-        //    field = EntitiesAreRelatedBoolean;
-        //} else if (which == 5) {
-        //    field = RelatedEntityLookupSchemaName;
+    //} else if (which == 3) {
+    //    field = _thisGlobals.FromEntityFieldsAttr;
     } else if (which == 6) {
         field = _thisGlobals.FieldConditionValues;
     }
@@ -2654,49 +2926,101 @@ function moveAllItems(origin, dest) {
 }
 
 /* Get a list of active forms for a specific entity */
+function WebApiRetreiveSystemFormsForEntity(result) {
+    _thisGlobals.WaitDialog.hide();
+    if ((result) && (result.length) && (result.length > 0)) {
+        ProcessSystemFormXmlDoc(result[0]['formxml']);
+    } else {
+        GeneralFailCallback('Error: Unable to reterive system form XML document. Empty collection returned.');
+    }
+}
+
 function RetreiveSystemFormsForEntity(entity) {
-    //// entity = "incident"
-    //if ((entity == undefined) || (entity == null)) {
-    //    entity = "incident";
-    //}
+    if (_thisGlobals.UseWebApi) {
+        _thisGlobals.CrmFormFieldsSchemas = [];
+        SdkWebAPI.executeGet(SdkWebAPI.GetUri('systemforms', null), ['formid', 'formxml'], "type eq 2 and  objecttypecode eq 'account'", true,
+            WebApiRetreiveSystemFormsForEntity, GeneralFailCallback);
+    } else {
+        var requestMain = "";
+        requestMain += "      <request i:type=\"b:RetrieveFilteredFormsRequest\" xmlns:a=\"http://schemas.microsoft.com/xrm/2011/Contracts\" xmlns:b=\"http://schemas.microsoft.com/crm/2011/Contracts\">";
+        requestMain += "        <a:Parameters xmlns:c=\"http://schemas.datacontract.org/2004/07/System.Collections.Generic\">";
+        requestMain += "          <a:KeyValuePairOfstringanyType>";
+        requestMain += "            <c:key>EntityLogicalName</c:key>";
+        requestMain += "            <c:value i:type=\"d:string\" xmlns:d=\"http://www.w3.org/2001/XMLSchema\">" + entity.toLowerCase() + "</c:value>";
+        requestMain += "          </a:KeyValuePairOfstringanyType>";
+        requestMain += "          <a:KeyValuePairOfstringanyType>";
+        requestMain += "            <c:key>FormType</c:key>";
+        requestMain += "            <c:value i:type=\"a:OptionSetValue\">";
+        requestMain += "              <a:Value>2</a:Value>";
+        requestMain += "            </c:value>";
+        requestMain += "          </a:KeyValuePairOfstringanyType>";
+        requestMain += "          <a:KeyValuePairOfstringanyType>";
+        requestMain += "            <c:key>SystemUserId</c:key>";
+        requestMain += "            <c:value i:type=\"d:guid\" xmlns:d=\"http://schemas.microsoft.com/2003/10/Serialization/\">" + _thisGlobals.LoggedInUserID + "</c:value>";
+        requestMain += "          </a:KeyValuePairOfstringanyType>";
+        requestMain += "        </a:Parameters>";
+        requestMain += "        <a:RequestId i:nil=\"true\" />";
+        requestMain += "        <a:RequestName>RetrieveFilteredForms</a:RequestName>";
+        requestMain += "      </request>";
+        _thisGlobals.CrmFormFieldsSchemas = [];
+        XrmServiceToolkit.Soap.Execute(requestMain, RetreiveSystemFormsForEntityCallback, GeneralFailCallback);
+    }
+}
 
-    // Get the forms that this user is allowed to see
-    //var userId = _thisGlobals.LoggedInUserID;
+function ProcessSystemFormXmlDoc(xmlDoc) {
+    var xml = $.parseXML(xmlDoc),
+    $xml = $(xml),
+    $cells = $xml.find('cell');
 
-    var requestMain = "";
-    requestMain += "      <request i:type=\"b:RetrieveFilteredFormsRequest\" xmlns:a=\"http://schemas.microsoft.com/xrm/2011/Contracts\" xmlns:b=\"http://schemas.microsoft.com/crm/2011/Contracts\">";
-    requestMain += "        <a:Parameters xmlns:c=\"http://schemas.datacontract.org/2004/07/System.Collections.Generic\">";
+    $cells.each(function () {
+        // Get the control id
+        $ctl = $(this).find("control");
 
-    requestMain += "          <a:KeyValuePairOfstringanyType>";
-    requestMain += "            <c:key>EntityLogicalName</c:key>";
-    requestMain += "            <c:value i:type=\"d:string\" xmlns:d=\"http://www.w3.org/2001/XMLSchema\">" + entity.toLowerCase() + "</c:value>";
-    requestMain += "          </a:KeyValuePairOfstringanyType>";
+        if ($ctl.length != 0) {
+            // Do not bother with controls starting with "header_" as they are 
+            // hosted on the header
+            _thisGlobals.MandatoryFieldsOptionsId = $ctl.attr('id');
+            if ((_thisGlobals.MandatoryFieldsOptionsId != undefined) &&
+                (_thisGlobals.MandatoryFieldsOptionsId != "undefined") &&
+                (_thisGlobals.MandatoryFieldsOptionsId != null) &&
+                (_thisGlobals.MandatoryFieldsOptionsId.length > 0) &&
+                (!_thisGlobals.MandatoryFieldsOptionsId.startsWith('header_'))) {
 
-    requestMain += "          <a:KeyValuePairOfstringanyType>";
-    requestMain += "            <c:key>FormType</c:key>";
-    requestMain += "            <c:value i:type=\"a:OptionSetValue\">";
-    requestMain += "              <a:Value>2</a:Value>";
-    requestMain += "            </c:value>";
-    requestMain += "          </a:KeyValuePairOfstringanyType>";
+                ts = _thisGlobals.MandatoryFieldsOptionsId.toLowerCase();
+                foundDup = false;
 
-    requestMain += "          <a:KeyValuePairOfstringanyType>";
-    requestMain += "            <c:key>SystemUserId</c:key>";
-    requestMain += "            <c:value i:type=\"d:guid\" xmlns:d=\"http://schemas.microsoft.com/2003/10/Serialization/\">" + _thisGlobals.LoggedInUserID + "</c:value>";
-    requestMain += "          </a:KeyValuePairOfstringanyType>";
+                for (var i = 0; i < _thisGlobals.CrmFormFieldsSchemas.length; i++) {
+                    if (_thisGlobals.CrmFormFieldsSchemas[i] == ts) {
+                        foundDup = true;
+                        break;
+                    }
+                }
+                if (!foundDup) {
+                    _thisGlobals.CrmFormFieldsSchemas.push(ts);
+                }
+            }
+        }
+    });
 
-    requestMain += "        </a:Parameters>";
-    requestMain += "        <a:RequestId i:nil=\"true\" />";
-    requestMain += "        <a:RequestName>RetrieveFilteredForms</a:RequestName>";
-    requestMain += "      </request>";
-
-    _thisGlobals.CrmFormFieldsSchemas = [];
-    var xmlFormIds = XrmServiceToolkit.Soap.Execute(requestMain);
-    if (xmlFormIds) {
-        RetreiveSystemFormsForEntityCallback(xmlFormIds);
+    var finalArr = [];
+    if (_thisGlobals.CrmFormFieldsSchemas.length == 0) {
+        FillEntityMetadata(_thisGlobals.AllFieldsMetadata);
+    } else {
+        for (var i = 0; i < _thisGlobals.AllFieldsMetadata.length; i++) {
+            $.each(_thisGlobals.CrmFormFieldsSchemas, function (index, schemaname) {
+                if (_thisGlobals.AllFieldsMetadata[i].SchemaName == schemaname) {
+                    finalArr.push(_thisGlobals.AllFieldsMetadata[i]);
+                    return;
+                }
+            });
+        }
+        FillEntityMetadata(finalArr);
     }
 }
 
 function RetreiveSystemFormsForEntityCallback(xmlDoc) {
+    _thisGlobals.WaitDialog.hide();
+
     var child = undefined;
     if ((xmlDoc.childNodes) && (xmlDoc.childNodes.length)) {
         child = xmlDoc.childNodes[0].textContent;
@@ -2752,191 +3076,31 @@ function RetreiveSystemFormsForEntityCallback(xmlDoc) {
                 }
             });
 
-        }
-    } // No ID
-}
-
-function RetreiveFormNameFromFormId(formid) {
-
-    var query =
-    "    <a:ColumnSet>" +
-    "     <a:AllColumns>false</a:AllColumns>" +
-    "     <a:Columns xmlns:b='http://schemas.microsoft.com/2003/10/Serialization/Arrays'>" +
-    "      <b:string>name</b:string>" +
-    "     </a:Columns>" +
-    "    </a:ColumnSet>" +
-    "    <a:Criteria>" +
-    "     <a:Conditions>" +
-    "      <a:ConditionExpression>" +
-    "       <a:AttributeName>formid</a:AttributeName>" +
-    "       <a:Operator>Equal</a:Operator>" +
-    "       <a:Values xmlns:b='http://schemas.microsoft.com/2003/10/Serialization/Arrays'>" +
-    "        <b:anyType i:type='c:string' xmlns:c='http://www.w3.org/2001/XMLSchema'>" + formid + "</b:anyType>" +
-    "       </a:Values>" +
-    "      </a:ConditionExpression>" +
-    "     </a:Conditions>" +
-    "     <a:FilterOperator>And</a:FilterOperator>" +
-    "     <a:Filters />" +
-    "    </a:Criteria>" +
-    "    <a:Distinct>false</a:Distinct>" +
-    "    <a:EntityName>systemform</a:EntityName>" +
-    "    <a:LinkEntities />" +
-    "    <a:Orders />" +
-    "    <a:PageInfo>" +
-    "     <a:Count>0</a:Count>" +
-    "     <a:PageNumber>0</a:PageNumber>" +
-    "     <a:PagingCookie i:nil='true' />" +
-    "     <a:ReturnTotalRecordCount>true</a:ReturnTotalRecordCount>" +
-    "    </a:PageInfo>" +
-    "    <a:NoLock>false</a:NoLock>";
-
-    var formName = XrmServiceToolkit.Soap.RetrieveMultiple(query);
-    if (formName.length > 0) {
-        return formName[0].attributes['name'].value;
-    }
-
-    return '';
-}
-
-function RetreiveFormXml(systemFormId) {
-    XrmServiceToolkit.Soap.Retrieve('systemform', systemFormId, ['formxml'], RetreiveFormXmlCallback);
-}
-
-function RetreiveFormXmlCallback(xmlDoc) {
-    _thisGlobals.CrmFormFieldsSchemas = [];
-    var formxml = xmlDoc.attributes['formxml'].value;
-    var xml = $.parseXML(formxml),
-    $xml = $(xml),
-    $cells = $xml.find('cell');
-    var sortedList = new Array();
-
-    $cells.each(function () {
-        // Get the control id
-        $ctl = $(this).find("control");
-        /*
-        <cell id="{542e581d-cca1-5e40-e6d9-d67a9d1468b4}" showlabel="true" locklevel="0">
-            <labels>
-                <label description="Full Name" languagecode="1033"/>
-            </labels>
-            <control id="fullname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="fullname" disabled="false"/>
-        </cell>
-            
-        */
-
-        if ($ctl.length != 0) {
-            // Do not bother with controls starting with "header_" as they are 
-            // hosted on the header
-            _thisGlobals.MandatoryFieldsOptionsId = $ctl.attr('id');
-            if ((_thisGlobals.MandatoryFieldsOptionsId != undefined) &&
-                (_thisGlobals.MandatoryFieldsOptionsId != null) &&
-                (_thisGlobals.MandatoryFieldsOptionsId.length > 0) &&
-                (!_thisGlobals.MandatoryFieldsOptionsId.startsWith('header_'))) {
-
-                // Get the first label (E) Label
-                $labels = $(this).find('labels');
-                $label = $labels.find('label');
-
-                $label.each(function () {
-                    // If we could  not find a label then we use the schema name instead
-                    var desc = $(this).attr('description');
-                    if ((desc != undefined) && (desc != null) && (desc.length > 0)) {
-                        // key: parentcustomerid val: Company Name
-                        _thisGlobals.CrmFormFieldsSchemas.push(_thisGlobals.MandatoryFieldsOptionsId.toLowerCase());
-                        return;
-                    }
-                });
+            var finalArr = [];
+            if (_thisGlobals.CrmFormFieldsSchemas.length == 0) {
+                FillEntityMetadata(_thisGlobals.AllFieldsMetadata);
+            } else {
+                for (var i = 0; i < _thisGlobals.AllFieldsMetadata.length; i++) {
+                    $.each(_thisGlobals.CrmFormFieldsSchemas, function (index, schemaname) {
+                        if (_thisGlobals.AllFieldsMetadata[i].SchemaName == schemaname) {
+                            finalArr.push(_thisGlobals.AllFieldsMetadata[i]);
+                            return;
+                        }
+                    });
+                }
+                FillEntityMetadata(finalArr);
             }
+
+        } else {
+            GeneralFailCallback('Error: Unable to reterive system form XML document.');
         }
-    });
-}
 
-/*Translation related*/
-function GetTranslationsFor(lcid) {
-    var fetch = '<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false">' +
-      '<entity name="dcrmeg_dcrmegtranslation">' +
-        '<attribute name="dcrmeg_dcrmegtranslationid" />' +
-        '<attribute name="dcrmeg_name" />' +
-        '<attribute name="dcrmeg_lcid" />' +
-
-        '<attribute name="dcrmeg_widthisautocalculated" />' +
-        '<attribute name="dcrmeg_width" />' +
-        '<attribute name="dcrmeg_systemfields" />' +
-        '<attribute name="dcrmeg_selectedgridheaders" />' +
-        '<attribute name="dcrmeg_selectfields" />' +
-        '<attribute name="dcrmeg_relatedentitylookup" />' +
-        '<attribute name="dcrmeg_readonly" />' +
-        '<attribute name="dcrmeg_maxrecordsperpage" />' +
-        '<attribute name="dcrmeg_fieldsontheform" />' +
-        '<attribute name="dcrmeg_displaysumfornumericvalues" />' +
-        '<attribute name="dcrmeg_displayonlyrelatedrecords" />' +
-        '<attribute name="dcrmeg_displaygridonentity" />' +
-        '<attribute name="dcrmeg_displaydatafromentity" />' +
-        '<attribute name="dcrmeg_customfields" />' +
-        '<attribute name="dcrmeg_allfields" />' +
-        '<attribute name="dcrmeg_targetentityisrequiered" />' +
-        '<attribute name="dcrmeg_entitytodisplaythegridonisrequiered" />' +
-        '<attribute name="dcrmeg_atleasetonefieldmustbeselected" />' +
-
-        '<attribute name="dcrmeg_fieldcondition" />' +
-        '<attribute name="dcrmeg_fieldvalue" />' +
-        '<attribute name="dcrmeg_setcondition" />' +
-        '<attribute name="dcrmeg_configcancel" />' +
-        '<attribute name="dcrmeg_removecondition" />' +
-
-        '<order attribute="dcrmeg_name" descending="false" />' +
-        '<filter type="and">' +
-          '<condition attribute="dcrmeg_lcid" operator="eq" value="' + lcid + '" />' +
-        '</filter>' +
-    '</entity>' +
-  '</fetch>';
-    return XrmServiceToolkit.Soap.Fetch(fetch);
-}
-
-/*User settings currency and datetime*/
-function GetUserSettings(userId) {
-
-    var attributes = "";
-
-    for (var i = 1; i < arguments.length; i++) {
-        attributes += '<attribute name="' + arguments[i] + '" />';
+    } else {
+        GeneralFailCallback('Error: RetrieveFilteredForms returned an empty collection.');
     }
-
-    var fetchXml = [
-        '<fetch mapping="logical">',
-            '<entity name="usersettings">',
-                attributes,
-                '<filter>',
-                    '<condition attribute="systemuserid" operator="eq" value="', userId, '" />',
-                '</filter>',
-            '</entity>',
-        '</fetch>'].join('');
-
-    var result = XrmServiceToolkit.Soap.Fetch(fetchXml);
-
-    return result.length > 0 ? result[0] : null;
 }
 
-function GetCurrentUserDateTimeSettings() {
-
-    var result = GetUserSettings(
-                      _thisGlobals.LoggedInUserID,
-                      "dateformatstring",
-                      "dateseparator",
-                      "timeformatstring",
-                      "timeseparator");
-    return {
-        // /
-        DateSeparator: result.attributes.dateseparator.value,
-        // M/d/yyyy
-        DateFormat: result.attributes.dateformatstring.value,
-        // h:mm tt
-        TimeFormat: result.attributes.timeformatstring.value,
-        // :
-        TimeSeparator: result.attributes.timeseparator.value,
-        DateTimeFormat: result.attributes.dateformatstring.value + " " + result.attributes.timeformatstring.value
-    };
-}
-
+// Open dialog callback function
 function CallbackFunction(returnValue) {
     var isfirst = true;
     var index = 0;
@@ -2972,28 +3136,235 @@ function CallbackFunction(returnValue) {
     }
 }
 
-/*Initialization*/
-function InitializeSetupRoutines() {
+/*Translations*/
+function GetTranslationSuccessCallback(translation) {
+    if ((translation) && (translation.length > 0)) {
+        var dp = $("#displayentityfieldsoptions");
+        dp.empty();
 
+        if (_thisGlobals.UseWebApi) {
+            $('<option value="100000000"></option>')
+                .text((translation[0]["dcrmeg_fieldsontheform"] ? translation[0]["dcrmeg_fieldsontheform"] : ''))
+                .appendTo(dp);
+            $('<option value="100000001"></option>')
+                .text((translation[0]["dcrmeg_customfields"] ? translation[0]["dcrmeg_customfields"] : ''))
+                .appendTo(dp);
+            $('<option value="100000002"></option>')
+                .text((translation[0]["dcrmeg_systemfields"] ? translation[0]["dcrmeg_systemfields"] : ''))
+                .appendTo(dp);
+            $('<option selected="selected" value="100000003"></option>')
+                .text((translation[0]["dcrmeg_allfields"] ? translation[0]["dcrmeg_allfields"] : ''))
+                .appendTo(dp);
+            $("#dcrmeg_selectedgridheaders").text((translation[0]["dcrmeg_selectedgridheaders"] ? translation[0]["dcrmeg_selectedgridheaders"] : ''));
+            _thisGlobals.Translation_Labels.widthAutoCalculate = (translation[0]["dcrmeg_widthisautocalculated"] ? translation[0]["dcrmeg_widthisautocalculated"] : '');
+            _thisGlobals.Translation_Labels.width = (translation[0]["dcrmeg_width"] ? translation[0]["dcrmeg_width"] : '');
+            _thisGlobals.Translation_Labels.readonly = (translation[0]["dcrmeg_readonly"] ? translation[0]["dcrmeg_readonly"] : '');
+            $("#dcrmeg_relatedentitylookup").text((translation[0]["dcrmeg_relatedentitylookup"] ? translation[0]["dcrmeg_relatedentitylookup"] : ''));
+            $("#dcrmeg_maxrecordsperpage").text((translation[0]["dcrmeg_maxrecordsperpage"] ? translation[0]["dcrmeg_maxrecordsperpage"] : ''));
+            $("#dcrmeg_displaysumfornumericvalues").text((translation[0]["dcrmeg_displaysumfornumericvalues"] ? translation[0]["dcrmeg_displaysumfornumericvalues"] : ''));
+            $("#dcrmeg_displayonlyrelatedrecords").text((translation[0]["dcrmeg_displayonlyrelatedrecords"] ? translation[0]["dcrmeg_displayonlyrelatedrecords"] : ''));
+            $("#dcrmeg_displaygridonentity").text((translation[0]["dcrmeg_displaygridonentity"] ? translation[0]["dcrmeg_displaygridonentity"] : ''));
+            $("#dcrmeg_displaydatafromentity").text((translation[0]["dcrmeg_displaydatafromentity"] ? translation[0]["dcrmeg_displaydatafromentity"] : ''));
+            $("#dcrmeg_targetentityisrequiered").text((translation[0]["dcrmeg_targetentityisrequiered"] ? translation[0]["dcrmeg_targetentityisrequiered"] : ''));
+            $("#dcrmeg_entitytodisplaythegridonisrequiered").text((translation[0]["dcrmeg_entitytodisplaythegridonisrequiered"] ? translation[0]["dcrmeg_entitytodisplaythegridonisrequiered"] : ''));
+            $("#dcrmeg_atleasetonefieldmustbeselected").text((translation[0]["dcrmeg_atleasetonefieldmustbeselected"] ? translation[0]["dcrmeg_atleasetonefieldmustbeselected"] : ''));
+            _thisGlobals.Translation_Labels.FieldConditionBtn = (translation[0]["dcrmeg_fieldcondition"] ? translation[0]["dcrmeg_fieldcondition"] : '');
+            _thisGlobals.Translation_Labels.ConditionMissingError = (translation[0]["dcrmeg_pleaseenteravalueforthecondition"] ? translation[0]["dcrmeg_pleaseenteravalueforthecondition"] : '');
+            $("#fieldconditionslabel").text((translation[0]["dcrmeg_fieldvalue"] ? translation[0]["dcrmeg_fieldvalue"] : ''));
+            $("#deleteallfieldconditionsbtn").text((translation[0]["dcrmeg_deleteallfieldconditions"] ? translation[0]["dcrmeg_deleteallfieldconditions"] : ''));
+            $("#setfieldcondition").text((translation[0]["dcrmeg_setcondition"] ? translation[0]["dcrmeg_setcondition"] : ''));
+            $("#cancelfieldcondition").text((translation[0]["dcrmeg_configcancel"] ? translation[0]["dcrmeg_configcancel"] : ''));
+            $("#removefieldcondition").text((translation[0]["dcrmeg_removecondition"] ? translation[0]["dcrmeg_removecondition"] : ''));
+        } else {
+            $('<option value="100000000"></option>')
+                .text((translation[0].attributes["dcrmeg_fieldsontheform"] ? translation[0].attributes["dcrmeg_fieldsontheform"].value : ''))
+                .appendTo(dp);
+            $('<option value="100000001"></option>')
+                .text((translation[0].attributes["dcrmeg_customfields"] ? translation[0].attributes["dcrmeg_customfields"].value : ''))
+                .appendTo(dp);
+            $('<option value="100000002"></option>')
+                .text((translation[0].attributes["dcrmeg_systemfields"] ? translation[0].attributes["dcrmeg_systemfields"].value : ''))
+                .appendTo(dp);
+            $('<option selected="selected" value="100000003"></option>')
+                .text((translation[0].attributes["dcrmeg_allfields"] ? translation[0].attributes["dcrmeg_allfields"].value : ''))
+                .appendTo(dp);
+            $("#dcrmeg_selectedgridheaders").text((translation[0].attributes["dcrmeg_selectedgridheaders"] ? translation[0].attributes["dcrmeg_selectedgridheaders"].value : ''));
+            _thisGlobals.Translation_Labels.widthAutoCalculate = (translation[0].attributes["dcrmeg_widthisautocalculated"] ? translation[0].attributes["dcrmeg_widthisautocalculated"].value : '');
+            _thisGlobals.Translation_Labels.width = (translation[0].attributes["dcrmeg_width"] ? translation[0].attributes["dcrmeg_width"].value : '');
+            _thisGlobals.Translation_Labels.readonly = (translation[0].attributes["dcrmeg_readonly"] ? translation[0].attributes["dcrmeg_readonly"].value : '');
+            $("#dcrmeg_relatedentitylookup").text((translation[0].attributes["dcrmeg_relatedentitylookup"] ? translation[0].attributes["dcrmeg_relatedentitylookup"].value : ''));
+            $("#dcrmeg_maxrecordsperpage").text((translation[0].attributes["dcrmeg_maxrecordsperpage"] ? translation[0].attributes["dcrmeg_maxrecordsperpage"].value : ''));
+            $("#dcrmeg_displaysumfornumericvalues").text((translation[0].attributes["dcrmeg_displaysumfornumericvalues"] ? translation[0].attributes["dcrmeg_displaysumfornumericvalues"].value : ''));
+            $("#dcrmeg_displayonlyrelatedrecords").text((translation[0].attributes["dcrmeg_displayonlyrelatedrecords"] ? translation[0].attributes["dcrmeg_displayonlyrelatedrecords"].value : ''));
+            $("#dcrmeg_displaygridonentity").text((translation[0].attributes["dcrmeg_displaygridonentity"] ? translation[0].attributes["dcrmeg_displaygridonentity"].value : ''));
+            $("#dcrmeg_displaydatafromentity").text((translation[0].attributes["dcrmeg_displaydatafromentity"] ? translation[0].attributes["dcrmeg_displaydatafromentity"].value : ''));
+            $("#dcrmeg_targetentityisrequiered").text((translation[0].attributes["dcrmeg_targetentityisrequiered"] ? translation[0].attributes["dcrmeg_targetentityisrequiered"].value : ''));
+            $("#dcrmeg_entitytodisplaythegridonisrequiered").text((translation[0].attributes["dcrmeg_entitytodisplaythegridonisrequiered"] ? translation[0].attributes["dcrmeg_entitytodisplaythegridonisrequiered"].value : ''));
+            $("#dcrmeg_atleasetonefieldmustbeselected").text((translation[0].attributes["dcrmeg_atleasetonefieldmustbeselected"] ? translation[0].attributes["dcrmeg_atleasetonefieldmustbeselected"].value : ''));
+            _thisGlobals.Translation_Labels.FieldConditionBtn = (translation[0].attributes["dcrmeg_fieldcondition"] ? translation[0].attributes["dcrmeg_fieldcondition"].value : '');
+            _thisGlobals.Translation_Labels.ConditionMissingError = (translation[0].attributes["dcrmeg_pleaseenteravalueforthecondition"] ? translation[0].attributes["dcrmeg_pleaseenteravalueforthecondition"].value : '');
+            $("#fieldconditionslabel").text((translation[0].attributes["dcrmeg_fieldvalue"] ? translation[0].attributes["dcrmeg_fieldvalue"].value : ''));
+            $("#deleteallfieldconditionsbtn").text((translation[0].attributes["dcrmeg_deleteallfieldconditions"] ? translation[0].attributes["dcrmeg_deleteallfieldconditions"].value : ''));
+            $("#setfieldcondition").text((translation[0].attributes["dcrmeg_setcondition"] ? translation[0].attributes["dcrmeg_setcondition"].value : ''));
+            $("#cancelfieldcondition").text((translation[0].attributes["dcrmeg_configcancel"] ? translation[0].attributes["dcrmeg_configcancel"].value : ''));
+            $("#removefieldcondition").text((translation[0].attributes["dcrmeg_removecondition"] ? translation[0].attributes["dcrmeg_removecondition"].value : ''));
+        }
+    }
+
+    InitializeSetupRoutinesInternal();
+}
+
+function GetTranslationFailCallback(error) {
+    _thisGlobals.WaitDialog.hide();
+
+    if (_thisGlobals.UseWebApi) {
+        LogEx(error.message);
+    } else {
+        LogEx(error);
+    }
+}
+
+function GetTranslationsFor() {
+    var lcid = _thisGlobals.UserLcid; // _thisGlobals.xrmPage.context.getUserLcid();
+    var fetch = '<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false">' +
+      '<entity name="dcrmeg_dcrmegtranslation">' +
+        '<attribute name="dcrmeg_dcrmegtranslationid" />' +
+        '<attribute name="dcrmeg_name" />' +
+        '<attribute name="dcrmeg_lcid" />' +
+        '<attribute name="dcrmeg_widthisautocalculated" />' +
+        '<attribute name="dcrmeg_width" />' +
+        '<attribute name="dcrmeg_systemfields" />' +
+        '<attribute name="dcrmeg_selectedgridheaders" />' +
+        '<attribute name="dcrmeg_selectfields" />' +
+        '<attribute name="dcrmeg_relatedentitylookup" />' +
+        '<attribute name="dcrmeg_readonly" />' +
+        '<attribute name="dcrmeg_maxrecordsperpage" />' +
+        '<attribute name="dcrmeg_fieldsontheform" />' +
+        '<attribute name="dcrmeg_displaysumfornumericvalues" />' +
+        '<attribute name="dcrmeg_displayonlyrelatedrecords" />' +
+        '<attribute name="dcrmeg_displaygridonentity" />' +
+        '<attribute name="dcrmeg_displaydatafromentity" />' +
+        '<attribute name="dcrmeg_customfields" />' +
+        '<attribute name="dcrmeg_allfields" />' +
+        '<attribute name="dcrmeg_targetentityisrequiered" />' +
+        '<attribute name="dcrmeg_entitytodisplaythegridonisrequiered" />' +
+        '<attribute name="dcrmeg_atleasetonefieldmustbeselected" />' +
+        '<attribute name="dcrmeg_fieldcondition" />' +
+        '<attribute name="dcrmeg_fieldvalue" />' +
+        '<attribute name="dcrmeg_setcondition" />' +
+        '<attribute name="dcrmeg_configcancel" />' +
+        '<attribute name="dcrmeg_removecondition" />' +
+        '<order attribute="dcrmeg_name" descending="false" />' +
+        '<filter type="and">' +
+          '<condition attribute="dcrmeg_lcid" operator="eq" value="' + lcid + '" />' +
+        '</filter>' +
+    '</entity>' +
+  '</fetch>';
+
+    if (_thisGlobals.UseWebApi) {
+        SdkWebAPI.getFetchXml('dcrmeg_dcrmegtranslations', fetch, GetTranslationSuccessCallback, GetTranslationFailCallback);
+    } else {
+        return XrmServiceToolkit.Soap.Fetch(fetch, false, GetTranslationSuccessCallback, GetTranslationFailCallback);
+    }
+}
+
+/*User settings*/
+function GetUserSettingsSuccessCallback(result) {
+    if ((result) && (result.length > 0) && (result[0])) {
+        if (_thisGlobals.UseWebApi) {
+            _thisGlobals.userDatetimeSettings = {
+                // /
+                DateSeparator: result[0].dateseparator,
+                // M/d/yyyy
+                DateFormat: result[0].dateformatstring,
+                // h:mm tt
+                TimeFormat: result[0].timeformatstring,
+                // :
+                TimeSeparator: result[0].timeseparator,
+                DateTimeFormat: result[0].dateformatstring + " " + result[0].timeformatstring
+            };
+        } else {
+            _thisGlobals.userDatetimeSettings = {
+                // /
+                DateSeparator: result[0].attributes.dateseparator.value,
+                // M/d/yyyy
+                DateFormat: result[0].attributes.dateformatstring.value,
+                // h:mm tt
+                TimeFormat: result[0].attributes.timeformatstring.value,
+                // :
+                TimeSeparator: result[0].attributes.timeseparator.value,
+                DateTimeFormat: result[0].attributes.dateformatstring.value + " " + result[0].attributes.timeformatstring.value
+            };
+        }
+
+        GetTranslationsFor();
+    }
+}
+
+function GetUserSettingsFailCallback(error) {
+    _thisGlobals.WaitDialog.hide();
+
+    if (_thisGlobals.UseWebApi) {
+        LogEx(error.message);
+    } else {
+        LogEx(error);
+    }
+}
+
+function GetUserSettings() {
+    if (_thisGlobals.UseWebApi) {
+        SdkWebAPI.getUserSetttings(_thisGlobals.LoggedInUserID.replace('{', '').replace('}', ''), GetUserSettingsSuccessCallback, GetUserSettingsFailCallback);
+    } else {
+        var args = ["dateformatstring",
+                  "dateseparator",
+                  "timeformatstring",
+                  "timeseparator"];
+        var attributes = "";
+
+        for (var i = 0; i < args.length; i++) {
+            attributes += '<attribute name="' + args[i] + '" />';
+        }
+
+        var fetchXml = [
+            '<fetch mapping="logical">',
+                '<entity name="usersettings">',
+                    attributes,
+                    '<filter>',
+                        '<condition attribute="systemuserid" operator="eq" value="', _thisGlobals.LoggedInUserID, '" />',
+                    '</filter>',
+                '</entity>',
+            '</fetch>'].join('');
+        XrmServiceToolkit.Soap.Fetch(fetchXml, false, GetUserSettingsSuccessCallback, GetUserSettingsFailCallback);
+    }
+}
+
+/*Initialization*/
+function WebApiVersionCheckSuccessCallback(VersionResponse) {
+    _thisGlobals.UseWebApi = true;
+    GetUserSettings();
+}
+function WebApiVersionCheckFailCallback(error) {
+    LogEx(error.message);
+    GetUserSettings();
+}
+
+function InitializeSetupRoutines() {
     if (window.frameElement) {
         $(window.frameElement).css('width', '100%');
     }
-
+    if ((window.parent.OnFormSaveFunctionCallback != 'undefined') &&
+        (window.parent.OnFormSaveFunctionCallback != undefined) &&
+        (typeof window.parent.OnFormSaveFunctionCallback === 'function')) {
+        window.parent.OnFormSaveFunctionCallback(ParentFormSaving);
+    }
     _thisGlobals.xrmPage = window.parent.Xrm.Page;
     _thisGlobals.ParentFieldsFormType = _thisGlobals.xrmPage.ui.getFormType();
     _thisGlobals.FormIsReadOnly = ((_thisGlobals.ParentFieldsFormType == 3) || (_thisGlobals.ParentFieldsFormType == 4));
     _thisGlobals.WaitDialog = $('#dcrmegProcessingDialog');
-
     if (_thisGlobals.ParentFieldsFormType != 1) {
         $('#configguid').val(_thisGlobals.xrmPage.data.entity.getId());
     }
-
     _thisGlobals.ToolTipClassSelector = DCrmEditableGrid.Helper.GenerateRandomLetters(10);
-    _thisGlobals.userDatetimeSettings = GetCurrentUserDateTimeSettings();
-    //console.log("DateFormat [" + _thisGlobals.userDatetimeSettings.DateFormat +
-    //    "] DateTime Format [" + _thisGlobals.userDatetimeSettings.DateTimeFormat + "] Date Seperator [" +
-    //    _thisGlobals.userDatetimeSettings.DateSeparator + "]");
-
     _thisGlobals.Translation_Labels.widthAutoCalculate = "0, width is auto calculated";
     _thisGlobals.Translation_Labels.width = "Width";
     _thisGlobals.Translation_Labels.readonly = "Read-only";
@@ -3004,61 +3375,11 @@ function InitializeSetupRoutines() {
     _thisGlobals.Translation_Labels.ConditionMissingError = "Please enter a value for the condition";
     _thisGlobals.Translation_Labels.Aggregate = "Aggrgate";
 
-    var currUserLcid = _thisGlobals.xrmPage.context.getUserLcid();
-    var translation = GetTranslationsFor(currUserLcid);
-    if (translation.length > 0) {
-        var dp = $("#displayentityfieldsoptions");
-        dp.empty();
+    _thisGlobals.WaitDialog.show();
+    SdkWebAPI.versionNumber(WebApiVersionCheckSuccessCallback, WebApiVersionCheckFailCallback);
+}
 
-        $('<option value="100000000"></option>')
-            .text((translation[0].attributes["dcrmeg_fieldsontheform"] ? translation[0].attributes["dcrmeg_fieldsontheform"].value : ''))
-            .appendTo(dp);
-        $('<option value="100000001"></option>')
-            .text((translation[0].attributes["dcrmeg_customfields"] ? translation[0].attributes["dcrmeg_customfields"].value : ''))
-            .appendTo(dp);
-        $('<option value="100000002"></option>')
-            .text((translation[0].attributes["dcrmeg_systemfields"] ? translation[0].attributes["dcrmeg_systemfields"].value : ''))
-            .appendTo(dp);
-        $('<option selected="selected" value="100000003"></option>')
-            .text((translation[0].attributes["dcrmeg_allfields"] ? translation[0].attributes["dcrmeg_allfields"].value : ''))
-            .appendTo(dp);
-
-        //$("#dcrmeg_selectfields")
-        //    .text((translation[0].attributes["dcrmeg_selectfields"] ? translation[0].attributes["dcrmeg_selectfields"].value : ''));
-
-        $("#dcrmeg_selectedgridheaders")
-            .text((translation[0].attributes["dcrmeg_selectedgridheaders"] ? translation[0].attributes["dcrmeg_selectedgridheaders"].value : ''));
-
-        _thisGlobals.Translation_Labels.widthAutoCalculate = (translation[0].attributes["dcrmeg_widthisautocalculated"] ? translation[0].attributes["dcrmeg_widthisautocalculated"].value : '');
-        _thisGlobals.Translation_Labels.width = (translation[0].attributes["dcrmeg_width"] ? translation[0].attributes["dcrmeg_width"].value : '');
-        _thisGlobals.Translation_Labels.readonly = (translation[0].attributes["dcrmeg_readonly"] ? translation[0].attributes["dcrmeg_readonly"].value : '');
-
-        $("#dcrmeg_relatedentitylookup").text((translation[0].attributes["dcrmeg_relatedentitylookup"] ? translation[0].attributes["dcrmeg_relatedentitylookup"].value : ''));
-        $("#dcrmeg_maxrecordsperpage").text((translation[0].attributes["dcrmeg_maxrecordsperpage"] ? translation[0].attributes["dcrmeg_maxrecordsperpage"].value : ''));
-        $("#dcrmeg_displaysumfornumericvalues").text((translation[0].attributes["dcrmeg_displaysumfornumericvalues"] ? translation[0].attributes["dcrmeg_displaysumfornumericvalues"].value : ''));
-        $("#dcrmeg_displayonlyrelatedrecords").text((translation[0].attributes["dcrmeg_displayonlyrelatedrecords"] ? translation[0].attributes["dcrmeg_displayonlyrelatedrecords"].value : ''));
-        $("#dcrmeg_displaygridonentity").text((translation[0].attributes["dcrmeg_displaygridonentity"] ? translation[0].attributes["dcrmeg_displaygridonentity"].value : ''));
-        $("#dcrmeg_displaydatafromentity").text((translation[0].attributes["dcrmeg_displaydatafromentity"] ? translation[0].attributes["dcrmeg_displaydatafromentity"].value : ''));
-
-        $("#dcrmeg_targetentityisrequiered").text((translation[0].attributes["dcrmeg_targetentityisrequiered"] ? translation[0].attributes["dcrmeg_targetentityisrequiered"].value : ''));
-        $("#dcrmeg_entitytodisplaythegridonisrequiered").text((translation[0].attributes["dcrmeg_entitytodisplaythegridonisrequiered"] ? translation[0].attributes["dcrmeg_entitytodisplaythegridonisrequiered"].value : ''));
-        $("#dcrmeg_atleasetonefieldmustbeselected").text((translation[0].attributes["dcrmeg_atleasetonefieldmustbeselected"] ? translation[0].attributes["dcrmeg_atleasetonefieldmustbeselected"].value : ''));
-
-        _thisGlobals.Translation_Labels.FieldConditionBtn = (translation[0].attributes["dcrmeg_fieldcondition"] ? translation[0].attributes["dcrmeg_fieldcondition"].value : '');
-        _thisGlobals.Translation_Labels.ConditionMissingError = (translation[0].attributes["dcrmeg_pleaseenteravalueforthecondition"] ? translation[0].attributes["dcrmeg_pleaseenteravalueforthecondition"].value : '');
-
-        $("#fieldconditionslabel").text((translation[0].attributes["dcrmeg_fieldvalue"] ? translation[0].attributes["dcrmeg_fieldvalue"].value : ''));
-
-        $("#deleteallfieldconditionsbtn")
-            .text((translation[0].attributes["dcrmeg_deleteallfieldconditions"] ? translation[0].attributes["dcrmeg_deleteallfieldconditions"].value : ''));
-        $("#setfieldcondition")
-            .text((translation[0].attributes["dcrmeg_setcondition"] ? translation[0].attributes["dcrmeg_setcondition"].value : ''));
-        $("#cancelfieldcondition")
-            .text((translation[0].attributes["dcrmeg_configcancel"] ? translation[0].attributes["dcrmeg_configcancel"].value : ''));
-        $("#removefieldcondition")
-            .text((translation[0].attributes["dcrmeg_removecondition"] ? translation[0].attributes["dcrmeg_removecondition"].value : ''));
-    }
-
+function InitializeSetupRoutinesInternal() {
     $("#dcrmeg_displaygridonentity").addClass(_thisGlobals.ToolTipClassSelector).attr(_thisGlobals.ToolTipAttrName, $("#dcrmeg_displaygridonentity").text());
     $("#dcrmeg_displaydatafromentity").addClass(_thisGlobals.ToolTipClassSelector).attr(_thisGlobals.ToolTipAttrName, $("#dcrmeg_displaydatafromentity").text());
     $("#dcrmeg_displaydatafromentity_copy").addClass(_thisGlobals.ToolTipClassSelector).attr(_thisGlobals.ToolTipAttrName, $("#dcrmeg_displaydatafromentity_copy").text());
@@ -3067,21 +3388,17 @@ function InitializeSetupRoutines() {
     $("#dcrmeg_displayonlyrelatedrecords").addClass(_thisGlobals.ToolTipClassSelector).attr(_thisGlobals.ToolTipAttrName, $("#dcrmeg_displayonlyrelatedrecords").text());
     $("#dcrmeg_relatedentitylookup").addClass(_thisGlobals.ToolTipClassSelector).attr(_thisGlobals.ToolTipAttrName, $("#dcrmeg_relatedentitylookup").text());
     $("#deleteallfieldconditionsbtn").addClass(_thisGlobals.ToolTipClassSelector).attr(_thisGlobals.ToolTipAttrName, $("#deleteallfieldconditionsbtn").text());
-
     $("#autosavechanges_label").addClass(_thisGlobals.ToolTipClassSelector).attr(_thisGlobals.ToolTipAttrName, $("#autosavechanges_label").text());
     $("#hideautosave_label").addClass(_thisGlobals.ToolTipClassSelector).attr(_thisGlobals.ToolTipAttrName, $("#hideautosave_label").text());
     $("#allowcreate_label").addClass(_thisGlobals.ToolTipClassSelector).attr(_thisGlobals.ToolTipAttrName, $("#allowcreate_label").text());
     $("#allowdelete_label").addClass(_thisGlobals.ToolTipClassSelector).attr(_thisGlobals.ToolTipAttrName, $("#allowdelete_label").text());
-
     $("#distinctvalues_label").addClass(_thisGlobals.ToolTipClassSelector).attr(_thisGlobals.ToolTipAttrName, $("#distinctvalues_label").text());
-
     $("#refreshaftercreate_label").addClass(_thisGlobals.ToolTipClassSelector).attr(_thisGlobals.ToolTipAttrName, $("#refreshaftercreate_label").text());
     $("#refreshaftersave_label").addClass(_thisGlobals.ToolTipClassSelector).attr(_thisGlobals.ToolTipAttrName, $("#refreshaftersave_label").text());
     $("#createnewbtnclick_label").addClass(_thisGlobals.ToolTipClassSelector).attr(_thisGlobals.ToolTipAttrName, $("#createnewbtnclick_label").text());
     $("#booleaneditorbehaviour_label").addClass(_thisGlobals.ToolTipClassSelector).attr(_thisGlobals.ToolTipAttrName, $("#booleaneditorbehaviour_label").text());
     $("#gridtitlelabel").addClass(_thisGlobals.ToolTipClassSelector).attr(_thisGlobals.ToolTipAttrName, $("#gridtitlelabel").text());
     $("#pastefromexcellabel").addClass(_thisGlobals.ToolTipClassSelector).attr(_thisGlobals.ToolTipAttrName, $("#pastefromexcellabel").text());
-
     $("#displayclearfilterbuttonlabel").addClass(_thisGlobals.ToolTipClassSelector).attr(_thisGlobals.ToolTipAttrName, $("#displayclearfilterbuttonlabel").text());
     $("#displayheaderfilterlabel").addClass(_thisGlobals.ToolTipClassSelector).attr(_thisGlobals.ToolTipAttrName, $("#displayheaderfilterlabel").text());
     $("#displayexportbuttonlabel").addClass(_thisGlobals.ToolTipClassSelector).attr(_thisGlobals.ToolTipAttrName, $("#displayexportbuttonlabel").text());
@@ -3089,11 +3406,6 @@ function InitializeSetupRoutines() {
     $("#displayclonerecordlabel").addClass(_thisGlobals.ToolTipClassSelector).attr(_thisGlobals.ToolTipAttrName, $("#displayclonerecordlabel").text());
     $("#displayclonerecordbuttonlabel").addClass(_thisGlobals.ToolTipClassSelector).attr(_thisGlobals.ToolTipAttrName, $("#displayclonerecordbuttonlabel").text());
     $("#openrecordbehavoirlabel").addClass(_thisGlobals.ToolTipClassSelector).attr(_thisGlobals.ToolTipAttrName, $("#openrecordbehavoirlabel").text());
-
-    if ((window.parent.OnFormSaveFunctionCallback != 'undefined') && (window.parent.OnFormSaveFunctionCallback != undefined) &&
-        (typeof window.parent.OnFormSaveFunctionCallback === 'function')) {
-        window.parent.OnFormSaveFunctionCallback(ParentFormSaving);
-    }
 
     $("#displayonentity").on("change", function (e) {
         var realValue = $(this).val();
@@ -3155,13 +3467,11 @@ function InitializeSetupRoutines() {
 
         SetParentFormDirty();
     });
-
     $('#gridtitlewordwrap').on('click', function (e) {
         _thisGlobals._CurConfiguration.GridTitleWordWrap = $(this).prop('checked');
 
         SetParentFormDirty();
     });
-
     $('#displayclonerecordbutton').on('click', function (e) {
         _thisGlobals._CurConfiguration.DisplayCloneRecordButton = $(this).prop('checked');
 
@@ -3179,8 +3489,6 @@ function InitializeSetupRoutines() {
 
         SetParentFormDirty();
     });
-
-
     $('#autosavechanges_check').on('click', function (e) {
         _thisGlobals._CurConfiguration.AutoSaveChanges = $(this).prop('checked');
 
@@ -3244,7 +3552,6 @@ function InitializeSetupRoutines() {
 
         SetParentFormDirty();
     });
-
     $('#datetimeeditorminutestep').on('blur', function (e) {
         var val = $(this).val();
         if (val.length == 0) {
@@ -3266,28 +3573,55 @@ function InitializeSetupRoutines() {
     $("#picklistselect").on('click', function (e) {
         // If boolean type, use a different method
         var TargetEntitySchemaName = _thisGlobals._CurConfiguration.Entity.SchemaName;
+        var attr = $(this).attr('data-item-picklistselect');
+        var atype = {};
+        if (attr == _thisGlobals.CrmFieldTypes.BooleanType) {
+            atype.isBoolean = true;
+        } else if (attr == _thisGlobals.CrmFieldTypes.OptionSetType) {
+            atype.isPicklist = true;
+        } else if (attr == _thisGlobals.CrmFieldTypes.Status) {
+            atype.isStatus = true;
+        } else if (attr == _thisGlobals.CrmFieldTypes.State) {
+            atype.isState = true;
+        }
 
-        var optionset = XrmServiceToolkit.Soap.RetrieveAttributeMetadata(TargetEntitySchemaName, _thisGlobals.CurFieldCondition.ConditionAttributeOrg, true);
+        var optionset = null;
+        if (_thisGlobals.UseWebApi) {
+            optionset = SdkWebAPI.retrieveMetadataByLogicalName(TargetEntitySchemaName, _thisGlobals.CurFieldCondition.ConditionAttributeOrg, atype);
+        } else {
+            optionset = XrmServiceToolkit.Soap.RetrieveAttributeMetadata(TargetEntitySchemaName, _thisGlobals.CurFieldCondition.ConditionAttributeOrg, true);
+        }
+
         var data = [];
-        if (optionset.length > 0) {
+        if (optionset) {
+            var result = null;
+            if (_thisGlobals.UseWebApi) {
+                result = (optionset.OptionSet) ? optionset.OptionSet : optionset.GlobalOptionSet;
+            } else {
+                result = (optionset.length && optionset.length > 0 && optionset[0].OptionSet) ? optionset[0].OptionSet : undefined;
+            }
+            if ((result == undefined) || (result == null)) {
+                LogEx('Unable to retreive optionset data.');
+                return;
+            }
 
             if (_thisGlobals.CurFieldCondition.CrmFieldType == _thisGlobals.CrmFieldTypes.BooleanType) {
                 data.push(
                 {
-                    Label: DCrmEditableGrid.Helper.GetUserLocalizedLabel(optionset[0].OptionSet.TrueOption.Label),
-                    value: optionset[0].OptionSet.TrueOption.Value
+                    Label: DCrmEditableGrid.Helper.GetUserLocalizedLabel(result.TrueOption.Label),
+                    value: result.TrueOption.Value
                 });
                 data.push(
                 {
-                    Label: DCrmEditableGrid.Helper.GetUserLocalizedLabel(optionset[0].OptionSet.FalseOption.Label),
-                    value: optionset[0].OptionSet.FalseOption.Value
+                    Label: DCrmEditableGrid.Helper.GetUserLocalizedLabel(result.FalseOption.Label),
+                    value: result.FalseOption.Value
                 });
             } else {
-                for (var i = 0; i < optionset[0].OptionSet.Options.length; i++) {
+                for (var i = 0; i < result.Options.length; i++) {
                     data.push(
                     {
-                        Label: DCrmEditableGrid.Helper.GetUserLocalizedLabel(optionset[0].OptionSet.Options[i].Label),
-                        value: optionset[0].OptionSet.Options[i].Value
+                        Label: DCrmEditableGrid.Helper.GetUserLocalizedLabel(result.Options[i].Label),
+                        value: result.Options[i].Value
                     });
                 }
             }
@@ -3346,27 +3680,12 @@ function InitializeSetupRoutines() {
     $("#lookupsearchbtn").on('click', function (e) {
         // Get the entities object codes
         var EntityObjectTypeCode = [];
-        var EntityPrimaryName = [];
-        var EntitySchemaName = [];
-
         // ReLoad if anything we already have
         for (var i = 0; i < _thisGlobals.CurFieldCondition.LookupEntities.length; i++) {
-            // EntityTargets
-            EntityObjectTypeCode[i] = XrmServiceToolkit.Common.GetObjectTypeCode(_thisGlobals.CurFieldCondition.LookupEntities[i]);
-            EntityPrimaryName[i] = '';
-            EntitySchemaName[i] = _thisGlobals.CurFieldCondition.LookupEntities[i] + 'id';
-
-            // Needs to be a structure to hold more than one entity (Customer -> account, contact)
-            var result = XrmServiceToolkit.Soap.RetrieveEntityMetadata(['Attributes'], _thisGlobals.CurFieldCondition.LookupEntities[i], false);
-            if (result.length > 0) {
-                var ent = undefined;
-                for (var index = 0, j = result[0].Attributes.length; index < j; index++) {
-                    ent = result[0].Attributes[index];
-                    if ((ent) && (ent.IsPrimaryName)) {
-                        EntityPrimaryName[i] = ent.SchemaName.toLowerCase();
-                        break;
-                    }
-                }
+            if (_thisGlobals.UseWebApi) {
+                EntityObjectTypeCode[i] = SdkWebAPI.GetEntityObjectTypeCode(_thisGlobals.CurFieldCondition.LookupEntities[i]);
+            } else {
+                EntityObjectTypeCode[i] = XrmServiceToolkit.Common.GetObjectTypeCode(_thisGlobals.CurFieldCondition.LookupEntities[i]);
             }
         }
 
@@ -3478,7 +3797,6 @@ function InitializeSetupRoutines() {
 
         e.stopPropagation();
     });
-
     $("#cellformattingokbtn").on('click', function (e) {
         e.stopPropagation();
 
@@ -3489,7 +3807,6 @@ function InitializeSetupRoutines() {
         var frColor = $("#conditionforegroundcolor").spectrum("get").toHexString();
 
         var options = _thisGlobals._CurConfiguration.GetFormattingOptions();
-        console.log(options);
 
         var headeroption = options.GetField(schema);
 
@@ -3591,8 +3908,6 @@ function InitializeSetupRoutines() {
         e.stopPropagation();
         ResetCellFormattingElements();
     });
-
-
     $('#listoffieldstoselectfilter').on('keypress', function (e) {
         var tkey = e.which || e.keycode;
         e.stopPropagation();
@@ -3628,10 +3943,6 @@ function InitializeSetupRoutines() {
         if ((schemaName == undefined) || (schemaName == null) || (schemaName == '0')) {
             return;
         }
-
-        //if (EntityGridEntityExists(schemaName)) {
-        //    return;
-        //}
 
         var data = { SchemaName: schemaName, Label: entityLabel };
         var config = new DCrmEGConfigurationManager(data);
@@ -3706,17 +4017,14 @@ function InitializeSetupRoutines() {
     });
 
     if (_thisGlobals.FormIsReadOnly) {
-
         var realValue = GetHiddenFieldText(1);
         $('#displayonentity').html('<option value="0">' + realValue + '</option>');
         $('#displayfromentity').html('<option value="0">--</option>');
-
         $('#displayonentity').prop('disabled', 'disabled');
         $('#displayfromentity').prop('disabled', 'disabled');
         $('#maxrecordperpage').prop('disabled', 'disabled');
         $('#createnewbtnclick').prop('disabled', 'disabled');
         $('#booleaneditorbehaviour').prop('disabled', 'disabled');
-
         $('#autosavechanges_check').prop('disabled', 'disabled');
         $('#hideautosave_check').prop('disabled', 'disabled');
         $('#allowcreate_check').prop('disabled', 'disabled');
@@ -3724,13 +4032,11 @@ function InitializeSetupRoutines() {
         $('#refreshaftercreate_check').prop('disabled', 'disabled');
         $('#refreshaftersave_check').prop('disabled', 'disabled');
         $('#pastefromexcel_check').prop('disabled', 'disabled');
-
         $('#displayentityfieldsoptions').prop('disabled', 'disabled');
         $('#entitiesAreRelated').attr('disabled', 'disabled');
         $('#displaySum').attr('disabled', 'disabled');
         $('#gridtitle').attr('disabled', 'disabled');
         $('#datetimeeditorminutestep').attr('disabled', 'disabled');
-
         $('#displayclearfilterbutton').attr('disabled', 'disabled');
         $('#displayheaderfilter').attr('disabled', 'disabled');
         $('#displayexportbutton').attr('disabled', 'disabled');
@@ -3740,13 +4046,10 @@ function InitializeSetupRoutines() {
         $('#displayclonerecordbutton').attr('disabled', 'disabled');
         $('#openrecordbehavoir').prop('disabled', 'disabled');
         $('#systemcurrencyprecision').prop('disabled', 'disabled');
-        
         $('#deleteallfieldconditionsbtn').attr('disabled', 'disabled');
 
         LoadDCrmEGConfiguration();
-
         $('.entitylistbuttons').hide();
-
     } else {
         RetreiveEntityList();
 
@@ -3766,7 +4069,6 @@ function InitializeSetupRoutines() {
             formatTime: _thisGlobals.userDatetimeSettings.TimeFormat,
         });
         EntityGridMakeSortable();
-
     }
 
     CreateTooltip();
@@ -3821,7 +4123,6 @@ function InitializeSetupRoutines() {
             $tmpelem = $(tr[1].cells[index]);
             $tmpelem.find('div:first').css("background-color", tmp.BackgroundColor).css("color", tmp.TextColor);
         } else {
-            // TODO
             // if the cells have no formatting of their own then reset
             var index = header[0].cellIndex;
             var tr = $('#formattingcolors').find('tbody tr');
@@ -3835,22 +4136,18 @@ function InitializeSetupRoutines() {
         options.AddOrUpdateHeader(schema, tmp);
         SetParentFormDirty();
     });
-
     $('#headerformattingcancelbtn').on('click', function (e) {
         e.stopPropagation();
         $('#headerformattingcontainer').addClass('displaynone');
     });
-
     $('#headerformattingresetbtn').on('click', function (e) {
         e.stopPropagation();
         ResetHeaderFormattingElements();
     });
-
     $('#listoflookupfieldstoselectcancelbtn').on('click', function (e) {
         e.stopPropagation();
         $('#listoflookupentityfieldsflyout').hide();
     });
-
     $('#listoflookupfieldstoselectokbtn').on('click', function (e) {
         e.stopPropagation();
         var checkboxs = $('#listoflookupentityfieldstoselect').find('input[type=checkbox]');
@@ -3858,34 +4155,17 @@ function InitializeSetupRoutines() {
             $.each(checkboxs, function (index, item) {
                 var input = $(item);
                 if (input.is(':checked')) {
-                    console.log(input.attr('id'));
+                    //console.log(input.attr('id'));
                 }
             });
         }
 
         $('#listoflookupentityfieldsflyout').hide();
     });
-
-    //$('#testheadercssinput').on('blur', function (e) {
-    //    e.stopPropagation();
-    //    var _this = $(this);
-    //    var val = _this.val();
-    //    var target = _this.parent().prev().prev();
-    //    if (val != '') {
-    //        _this.attr('data-item-prev', val);
-    //        DeccoupleCss(val, _this.parent().prev().prev());
-    //    } else {
-    //        val = _this.attr('data-item-prev');
-    //        if (val) {
-    //            DeccoupleCss(val, _this.parent().prev().prev(), true);
-    //            _this.removeAttr('data-item-prev');
-    //        }
-    //    }
-    //});
 }
 
 function LookupEntityFieldsCheckboxListClickHandler(chk) {
-    console.log("Check clicked [" + chk.is(':checked') + "]");
+    //console.log("Check clicked [" + chk.is(':checked') + "]");
 }
 
 /* Make selected entities list items sortable */
@@ -3916,9 +4196,13 @@ function EntityGridMakeSortable() {
                 var parentspan = $(parent).find('span:first');
                 var parentschema = parentspan.attr('data-item-schemaname');
                 var parentliid = $(parent).attr('id');
-
-                var result = XrmServiceToolkit.Soap.RetrieveEntityMetadata(['Relationships'], schema, false);
-                if ((result) && (result.length > 0)) {
+                var result = null;
+                if (_thisGlobals.UseWebApi) {
+                    result = SdkWebAPI.getManyToOneRelationships(schema);
+                } else {
+                    result = XrmServiceToolkit.Soap.RetrieveEntityMetadata(['Relationships'], schema, false);
+                }
+                if ((result) && (result.length) && (result.length > 0)) {
 
                     // remove existing one if any
                     var label = $thisspan.next();
@@ -3928,7 +4212,6 @@ function EntityGridMakeSortable() {
 
                     var related = GetEntityRelationships(result[0].ManyToOneRelationships, parentschema);
                     if (related) {
-                        // TODO
                         $thisspan.text($thisspan.attr('data-item-orglabel') + ' '); // + ' - ' + related + ' = ' + parentspan.attr('data-item-orglabel'));
                         $('<label> <input data-item-schema="' + schema + '" data-item-liid="' + liid + '" onclick="InnerRelationshipHandler(event, this);" checked="checked" type="checkbox"></input>' + related
                             + ' = ' + parentspan.attr('data-item-orglabel') + '</label>').insertAfter($thisspan);
@@ -4054,22 +4337,6 @@ function ResetEntityGrid() {
     _thisGlobals._CurConfiguration = undefined;
 }
 
-// TODO
-// Obsolete - remove it
-function EntityGridEntityExists(schema) {
-    var li = $('#makesortable').find('li');
-    var tmp = '';
-
-    if ((li) && (li.length)) {
-        for (var i = 0; i < li.length; i++) {
-            if ($(li[i]).find('span:first').attr('data-item-schemaname') == schema) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
 function GetEntitesDispayOrder() {
     var li = $('#makesortable').find('li');
     var tmp = '';
@@ -4105,8 +4372,13 @@ function RetreiveEntityRelationShips(logicalName) {
     $('#relatedEntityLookupSelect').empty();
     $('#relatedEntityLookup').val('');
 
-    var result = XrmServiceToolkit.Soap.RetrieveEntityMetadata(['Relationships'], logicalName, false);
-    if ((result) && (result.length > 0)) {
+    var result = null;
+    if (_thisGlobals.UseWebApi) {
+        result = SdkWebAPI.getManyToOneRelationships(logicalName);
+    } else {
+        result = XrmServiceToolkit.Soap.RetrieveEntityMetadata(['Relationships'], logicalName, false);
+    }
+    if ((result) && (result.length) && (result.length > 0)) {
         var data = GetEntityRelationshipsMain(result[0].ManyToOneRelationships);
         if (data.length > 0) {
             $('#relatedEntityLookupSelect').find('option:eq(0)').prop('selected', true);
@@ -4188,37 +4460,24 @@ var LookupViewHelper = (function () {
 
         self.SavedViewsCallback = function (result) {
             var sys = $('<optgroup label="' + self.CurEntityProcessing.capitalizeFirstLetter() + '" id="-1"></optgroup>');
+            var name, savedqueryid;
+
             if ((result) && (result.length > 0)) {
                 for (var i = 0; i < result.length; i++) {
+                    if (_thisGlobals.UseWebApi) {
+                        name = result[i]['name'];
+                        savedqueryid = result[i]['savedqueryid'];
+                    } else {
+                        name = result[i].attributes['name'].value;
+                        savedqueryid = result[i].attributes['savedqueryid'].value;
+                    }
                     self.IdCounter++;
                     sys.append($('<option id="' + (i + self.IdCounter) +
                         '" data-item-viewentityobjecttypecode="' + self.EntityObjectTypeCode +
-                        '" value="' + result[i].attributes['savedqueryid'].value + '" savedqueryid="' + result[i].attributes['savedqueryid'].value + '">' +
-                        result[i].attributes['name'].value + '</option>'));
+                        '" value="' + savedqueryid + '" savedqueryid="' + savedqueryid + '">' + name + '</option>'));
                 }
             }
             self.Select2Views.append(sys);
-
-            //var fetch =
-            //    '<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false">' +
-            //      '<entity name="userquery">' +
-            //        '<attribute name="name" />' +
-            //        '<attribute name="userqueryid" />' +
-            //        '<attribute name="returnedtypecode" />' +
-            //        '<attribute name="fetchxml" />' +
-            //        '<attribute name="ownerid" />' +
-            //        '<order attribute="name" descending="false" />' +
-            //        '<filter>' +
-            //          '<condition attribute="statecode" operator="eq" value="0" />' +
-            //          '<condition attribute="querytype" operator="eq" value="0" />' +
-            //          '<condition attribute="fetchxml" operator="not-null" />' +
-            //          '<condition attribute="ownerid" operator="eq" value="' + _thisGlobals.LoggedInUserID + '" />' +
-            //          '<condition attribute="returnedtypecode" operator="eq" value="' + self.EntityObjectTypeCode + '" />' +
-            //        '</filter>' +
-            //      '</entity>' +
-            //    '</fetch>';
-            //var result = XrmServiceToolkit.Soap.Fetch(fetch);
-            //self.UserViewsCallback(result);
         }
 
         // Set up views
@@ -4248,7 +4507,13 @@ var LookupViewHelper = (function () {
 
         for (var i = 0; i < self.ViewEntitySchemaName.length; i++) {
             self.CurEntityProcessing = self.ViewEntitySchemaName[i];
-            self.EntityObjectTypeCode = XrmServiceToolkit.Common.GetObjectTypeCode(self.CurEntityProcessing);
+            var result = null;
+
+            if (_thisGlobals.UseWebApi) {
+                self.EntityObjectTypeCode = SdkWebAPI.GetEntityObjectTypeCode(self.CurEntityProcessing);
+            } else {
+                self.EntityObjectTypeCode = XrmServiceToolkit.Common.GetObjectTypeCode(self.CurEntityProcessing);
+            }
 
             var saveViewFetch =
                 '<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false">' +
@@ -4267,8 +4532,17 @@ var LookupViewHelper = (function () {
                     '</entity>' +
                 '</fetch>';
 
-            var result = XrmServiceToolkit.Soap.Fetch(saveViewFetch);
-            self.SavedViewsCallback(result);
+            if (_thisGlobals.UseWebApi) {
+                result = SdkWebAPI.getFetchXml('savedqueries', saveViewFetch);
+            } else {
+                result = XrmServiceToolkit.Soap.Fetch(saveViewFetch);
+            }
+
+            if (_thisGlobals.UseWebApi) {
+                self.SavedViewsCallback(result.Value);
+            } else {
+                self.SavedViewsCallback(result);
+            }
         }
 
         if (self.DefaultViewId) {
@@ -4570,12 +4844,6 @@ var DCrmEGConfigurationManager = (function () {
         self.SaveLinkEntityFields = function () {
             if ((self.LinkEntityFields) && (self.LinkEntityFields.length) && (self.LinkEntityFields.length > 0)) {
                 var playload = JSON.stringify(self.LinkEntityFields);
-
-                //if (playload) {
-                //    console.log(JSON.parse(playload));
-                //} else {
-                //    console.log('Nothing????');
-                //}
             }
         }
         self.GetLinkEntityFields = function (to) {
@@ -4598,7 +4866,6 @@ var DCrmEGConfigurationManager = (function () {
                 self.LinkEntityFields.splice(foundit, 1);
             }
         }
-
 
         self.Li = $('<li><div class="entitygridinfocontainer"><span class="EntityGridLabels" data-item-orglabel="' + self.Entity.Label
             + '" data-item-schemaname="' + self.Entity.SchemaName + '" data-item-liid="' + id + '">'
@@ -4812,6 +5079,9 @@ function LoadDCrmEGConfiguration() {
 
     // All fields
     val = _thisGlobals.xrmPage.data.entity.attributes.get(_thisGlobals.FromEntityFieldsAttr).getValue();
+    if ((val == null) || (val == undefined)) {
+        val = _thisGlobals.xrmPage.data.entity.attributes.get(_thisGlobals.SelectedFieldsToDisplay).getValue();
+    }
     var fields = (val) ? RetrieveEntityOutput(val, true).split(_thisGlobals._pSeperator) : '';
 
     // All conditions
@@ -4825,10 +5095,6 @@ function LoadDCrmEGConfiguration() {
     for (var i = 0; i < entities.length; i++) {
 
         parentconfig = undefined;
-        // TODO
-        // This is the problem
-        // when saving entity info and other (fileds,...) we need to have a distinct id fot each entity
-        // look for _thisGlobals._sSeperator in the schemaname (entities[i]
         var tmp = FindEntityGridInfo(entities[i], entitesInfo);
 
         var data = { SchemaName: tmp[0], Label: tmp[1] };
@@ -5047,12 +5313,6 @@ function SaveDCrmEGConfiguration() {
             _thisGlobals._Entityinfo += _thisGlobals._pSeperator;
         }
 
-        // TODO
-        // Add an id to Schemaname to ensure we grab the right one
-        // _thisGlobals.DCrmEGConfiguration[i].Entity.Identity
-        // if both entities are the same account account
-        // _thisGlobals._sSeperator  Identity
-
         _thisGlobals._Entityinfo += _thisGlobals.DCrmEGConfiguration[i].Entity.Identity + _thisGlobals._SEPERATOR
         + _thisGlobals.DCrmEGConfiguration[i].Entity.Label + _thisGlobals._SEPERATOR
 
@@ -5124,7 +5384,9 @@ function SaveDCrmEGConfiguration() {
     // All Entities info
     _thisGlobals.xrmPage.data.entity.attributes.get(_thisGlobals.DisplayFromEntityFieldName).setValue(RetrieveEntityOutput(_thisGlobals._Entityinfo, false));
     // All fields
-    _thisGlobals.xrmPage.data.entity.attributes.get(_thisGlobals.FromEntityFieldsAttr).setValue(RetrieveEntityOutput(_thisGlobals._Fieldsinfo, false));
+    _thisGlobals.xrmPage.data.entity.attributes.get(_thisGlobals.SelectedFieldsToDisplay).setValue(RetrieveEntityOutput(_thisGlobals._Fieldsinfo, false));
+    _thisGlobals.xrmPage.data.entity.attributes.get(_thisGlobals.FromEntityFieldsAttr).setValue(null);
+
     // All conditions
     _thisGlobals.xrmPage.data.entity.attributes.get(_thisGlobals.FieldConditionValues).setValue(RetrieveEntityOutput(_thisGlobals._Conditioninfo, false));
     // All formattings
@@ -5132,8 +5394,6 @@ function SaveDCrmEGConfiguration() {
 }
 
 function SaveDCrmEGConfigurationInternal(config) {
-    // TODO
-    // _thisGlobals._sSeperator
     _thisGlobals._Entityinfo += _thisGlobals._pSeperator + config.Entity.Identity + _thisGlobals._SEPERATOR
     + config.Entity.Label + _thisGlobals._SEPERATOR
 
