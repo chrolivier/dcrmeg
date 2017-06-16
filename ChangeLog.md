@@ -3,13 +3,13 @@ v1.0.6.0
 
 Bug Fix:
 
-DCrmEgGridOnBeforeFetchRecords JS callback was throwing "Unable to get property 'Label' of undefined or null reference".
-JS error "cas" is undefined or null
+1. DCrmEgGridOnBeforeFetchRecords JS callback was throwing "Unable to get property 'Label' of undefined or null reference".
+2. JS error "cas" is undefined or null
 
 v1.0.5.9
 ========
 
-Bug fixes:
+Bug Fixes:
 1. Unable to add more than 27 fields in the configuration.
 2. Opening more than one sub grid and refreshing one of them within the main grid was destroying the other sub grids. (V 1.0.5.8 Grid layout is being destroyed on refresh)
 3. Issue with window.parent.DCrmEgGridOnload. Unable to set the last option set to read-only.
