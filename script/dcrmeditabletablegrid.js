@@ -731,7 +731,7 @@ axis.isUndefined(); // true
                     }
 
                     if (tmp > 0) {
-                        tmp = (tmp < ca) ? cas : tmp;
+                        tmp = (tmp < ca) ? ca : tmp;
                         realwidth = tmp + realwidth;
                     } else {
                         realwidth = ca + realwidth;
@@ -10556,7 +10556,6 @@ var DCrmEGConfigurationManager = (function () {
 var GridFetchXmlHelper = (function () {
     function GridFetchXmlHelper(entity) {
         var self = this;
-        console.log(entity);
 
         self.Label = entity.Label;
         self.SchemaName = entity.SchemaName;

@@ -4,6 +4,7 @@ v1.0.6.0
 Bug Fix:
 
 DCrmEgGridOnBeforeFetchRecords JS callback was throwing "Unable to get property 'Label' of undefined or null reference".
+JS error "cas" is undefined or null
 
 v1.0.5.9
 ========
