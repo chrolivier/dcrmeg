@@ -10554,8 +10554,13 @@ var DCrmEGConfigurationManager = (function () {
 })();
 
 var GridFetchXmlHelper = (function () {
-    function GridFetchXmlHelper() {
+    function GridFetchXmlHelper(entity) {
         var self = this;
+        console.log(entity);
+
+        self.Label = entity.Label;
+        self.SchemaName = entity.SchemaName;
+
 
         self.GridFetchXml = undefined;
         /*
@@ -10617,7 +10622,7 @@ Hasmore records [true] cookie [&lt;cookie page=&quot;1&quot;&gt;&lt;name last=&q
             if (self.GridFetchXml) {
 
                 if (window.parent.DCrmEgGridOnBeforeFetchRecords) {
-                    additional = window.parent.DCrmEgGridOnBeforeFetchRecords({ ParentEntityLabel: self.Entity.Label, ParentEntitySchemaName: self.Entity.SchemaName });
+                    additional = window.parent.DCrmEgGridOnBeforeFetchRecords({ ParentEntityLabel: self.Label, ParentEntitySchemaName: self.SchemaName });
                 }
 
                 if (totalcount) {
@@ -10822,7 +10827,7 @@ Hasmore records [true] cookie [&lt;cookie page=&quot;1&quot;&gt;&lt;name last=&q
             if (self.GridFetchXml) {
 
                 if (window.parent.DCrmEgGridOnBeforeFetchRecords) {
-                    additional = window.parent.DCrmEgGridOnBeforeFetchRecords({ ParentEntityLabel: self.Entity.Label, ParentEntitySchemaName: self.Entity.SchemaName });
+                    additional = window.parent.DCrmEgGridOnBeforeFetchRecords({ ParentEntityLabel: self.Label, ParentEntitySchemaName: self.SchemaName });
                 }
 
                 if (self.GridFetchXml.Filters.length > 0) {
@@ -11234,7 +11239,7 @@ function CreateAndPopulateGrid(data, parentcontainer, relationshipparentEntityGu
         }
     }
 
-    var gridfetchhelper = new GridFetchXmlHelper();
+    var gridfetchhelper = new GridFetchXmlHelper(data.Entity);
     gridfetchhelper.GridFetchXml = EntityFetchParts;
 
     var $tr = $('#' + ContainerIds.Table).find('thead:first').find('tr:first');

@@ -1,4 +1,12 @@
+v1.0.6.0
+========
+
+Bug Fix:
+
+DCrmEgGridOnBeforeFetchRecords JS callback was throwing "Unable to get property 'Label' of undefined or null reference".
+
 v1.0.5.9
+========
 
 Bug fixes:
 1. Unable to add more than 27 fields in the configuration.

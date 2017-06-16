@@ -24,6 +24,29 @@ function FormOnloadHandler(context) {
     window.parent.DCrmEgGridRowOnload = DCrmEgGridRowOnload;
     window.parent.DCrmEgGridOnBeforeFetchRecords = DCrmEgGridOnBeforeFetchRecords;
 
+    //setTimeout(function () {
+    //    var IFrame = Xrm.Page.getControl("WebResource_AccountsContacts").getObject();
+    //    if (IFrame) {
+    //        var frameWindow = IFrame.contentWindow;
+    //        if (frameWindow) {
+    //            if (frameWindow.GetDcrmEgGrid) {
+    //                var grid = frameWindow.GetDcrmEgGrid('account');
+    //                if (grid) {
+    //                    console.log("Got the grid", grid);
+    //                } else {
+    //                    console.log("No Grid found");
+    //                }
+    //            } else {
+    //                console.log("No GetDcrmEgGrid method");
+    //            }
+    //        } else {
+    //            console.log("No Frame content window");
+    //        }
+    //    } else {
+    //        console.log("No IFRAME");
+    //    }
+    //}, 5000);
+
     //// Changing title in 2016
     //// Timer is needed as not all elements may have been added to the document.all collection
     //// may need to adjust the timer duration
@@ -48,6 +71,9 @@ function ValidateDCrmEgGrid(param, field) {
 
     Log("FieldSchemaName [" + field.FieldSchemaName + "] FieldLabel [" + field.FieldLabel + "] ParentEntitySchemaName [" + field.ParentEntitySchemaName + "] ParentEntityLabel [" + field.ParentEntityLabel + "]");
     Log("Record Guid [" + param.RecordGuid + "]");
+
+    return allow;
+
     switch (param.EditorType) {
         // Text
         case 0:
@@ -113,6 +139,7 @@ function ValidateDCrmEgGrid(param, field) {
 function DCrmEgGridSaving(data, entityinfo) {
     var allow = true;
     Log("ParentEntityName [" + entityinfo.ParentEntityName + "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "]");
+    return allow;
 
     var item;
     for (var i = 0; i < data.length; i++) {
@@ -199,14 +226,25 @@ function DCrmEgGridCreateNewRecord(data, entityinfo) {
     Log("Record Guid [" + data.NewRecordGuid + "]");
 }
 
+var _MyCounter = 1;
 function DCrmEgGridRowOnload(rowData, entityinfo) {
 
     Log("ParentEntityName [" + entityinfo.ParentEntityName + "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "]");
-    Log("Record Guid [" + rowData.RecordGuid + "]");
+    Log("Record Guid [" + rowData.RecordGuid + "] Row Index [" + rowData.RowIndex + "]");
 
     if (rowData.InlineCreate) {
         Log("Create inline record is used. One row is being added.");
     }
+
+    return;
+
+    if (_MyCounter > 5) {
+        _MyCounter = 0;
+    }
+    if (_MyCounter == 1) {
+        rowData.RowBackgroundColor = '#CCCCCC';
+    }
+    _MyCounter++;
 
     var CrmFieldTypes = {
         LookupType: "lookup",
