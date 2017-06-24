@@ -1,5 +1,5 @@
 <h2>Project Description</h2>
-<p>D CRM Editable Grid is a zero code (Html5 JavaScript) add on for Dynamics CRM 2013, 2015, and 2016 for easily implementing custom editable grids</p>
+<p>D CRM Editable Grid is a zero code (Html5 JavaScript) add on for Dynamics CRM 2013, 2015, 2016, and 365 for easily implementing custom editable grids</p>
 <h3-><a href="https://github.com/mehrgithub/dcrmeg/blob/master/docs/Documentation.md">Documentation</a></h3>
 <h2>Features</h2>
 <div><ul>
