@@ -28,11 +28,6 @@ Array.prototype.ExactMatchExists = function (str) {
     return false;
 };
 
-// TODO
-// Test this thoughroughly
-// test lookups, optionsets, relationships, fields, formatting, colors, conditions set/modiify/delete
-//
-
 /*Obsolete fileds to be deleted from configuration entity*/
 //var EntitiesAreRelatedBoolean = 'dcrmeg_entitiesarerelated';
 //var RelatedEntityLookupSchemaName = 'dcrmeg_relatedentitylookup';
@@ -471,6 +466,144 @@ Array.prototype.ExactMatchExists = function (str) {
     });
 })(jQuery);
 
+// $("#elementID").numericInput({ parentCallback: });
+(function ($) {
+    // Plugin defaults
+    var defaults = {
+        allowFloat: false,
+        allowNegative: false,
+        min: 0,
+        max: undefined,
+        parentCallback: undefined
+    };
+
+    // Plugin definition
+    //	allowFloat: (boolean) Allows floating point (real) numbers. If set to false only integers will be allowed. Default: false.
+    //	allowNegative: (boolean) Allows negative values. If set to false only positive number input will be allowed. Default: false.
+    //	min: (int/float) If set, when the user leaves the input if the entered value is too low it will be set to this value
+    //	max: (int/float) If set, when the user leaves the input if the entered value is too high it will be set to this value
+    $.fn.numericInput = function (options) {
+        var settings = $.extend({}, defaults, options);
+        var allowFloat = settings.allowFloat;
+        var allowNegative = settings.allowNegative;
+        var min = settings.min;
+        var max = settings.max;
+        var callback = settings.parentCallback;
+
+        if (min == max) {
+            throw ("The minimum value cannot be the same as the max value");
+        }
+        else if (min > max) //If the values are swapped we swap them back
+        {
+            var temp = min;
+            min = max;
+            max = temp;
+        }
+
+        this.keypress(function (e) {
+            var inputCode = e.which || e.keycode;
+            var currentValue = $(this).val();
+
+            if (inputCode > 0 && (inputCode < 48 || inputCode > 57)) {
+                // Checks the if the character code is not a digit
+                if (allowFloat == true && inputCode == 46) {
+                    // Conditions for a period (decimal point)
+
+                    //Disallows a period before a negative
+                    if (allowNegative == true && getCaret(this) == 0 && currentValue.charAt(0) == '-')
+                        return false;
+                    //Disallows more than one decimal point.
+                    if (currentValue.match(/[.]/))
+                        return false;
+                } else if (allowNegative == true && inputCode == 45) {
+                    // Conditions for a decimal point
+                    if (currentValue.charAt(0) == '-')
+                        return false;
+                    if (getCaret(this) != 0)
+                        return false;
+                } else if (inputCode == 8 || inputCode == 67 || inputCode == 86) {
+                    // Allows backspace , ctrl+c ,ctrl+v (copy & paste)
+                    return true;
+                } else {
+                    // Disallow non-numeric
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                }
+            }
+            else if (inputCode > 0 && (inputCode >= 48 && inputCode <= 57))	// Disallows numbers before a negative.
+            {
+                if (allowNegative == true && currentValue.charAt(0) == '-' && getCaret(this) == 0) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                }
+            }
+        });
+
+        this.blur(function (event) {
+            //Get and store the current value
+            var currentValue = $(this).val();
+            var update = false;
+
+            //If the value isn't empty
+            if (currentValue.length > 0) {
+                //Get the float value, even if we're not using floats this will be ok
+                var floatValue = parseFloat(currentValue);
+
+                if (min !== undefined && floatValue < min) {
+                    //If min is specified and the value is less set the value to min
+                    $(this).val(min);
+                    update = true;
+                } else if (max !== undefined && floatValue > max) {
+                    //If max is specified and the value is less set the value to max
+                    $(this).val(max);
+                    update = true;
+                } else {
+                    update = true;
+                }
+            } else if (min !== undefined) {
+                $(this).val(min);
+                update = true;
+            }
+
+            if (update) {
+                _thisGlobals._CurConfiguration.GridHeaderMinimumWidth = $(this).val();
+                if (callback) {
+                    callback();
+                }
+            }
+
+        });
+
+        return this;
+    };
+
+    // Private function for selecting cursor position. Makes IE play nice.
+    //	http://stackoverflow.com/questions/263743/how-to-get-caret-position-in-textarea
+    function getCaret(element) {
+        if (element.selectionStart)
+            return element.selectionStart;
+
+        else if (document.selection) //IE specific
+        {
+            element.focus();
+
+            var r = document.selection.createRange();
+            if (r == null)
+                return 0;
+
+            var re = element.createTextRange(),
+			rc = re.duplicate();
+            re.moveToBookmark(r.getBookmark());
+            rc.setEndPoint('EndToStart', re);
+            return rc.text.length;
+        }
+
+        return 0;
+    };
+}(jQuery));
+
 var _thisGlobals = DCrmEditableGrid.Globals;
 _thisGlobals.xrmPage = window.parent.Xrm.Page;
 _thisGlobals.LoggedInUserID = _thisGlobals.xrmPage.context.getUserId();
@@ -657,24 +790,30 @@ var NumericTextbox = (function () {
         self.SaveFuncPtr = saveFunction;
         self.InitialInputValue = initValue;
 
-        self.$input = $('<input style="width:' + elemWidth + 'px;" value="' + initValue + '" type="text" />')
-        .attr('data-tilename-id', id)
+        self.$input = $('<input style="width:' + elemWidth + 'px;" value="' + initValue + '" type="text" />');
+        if (forWidth) {
+            self.$input.attr('maxlength', '3');
+        }
+
+        self.$input.attr('data-tilename-id', id)
         .attr("data-item-forwidth", (forWidth ? "1" : "0"))
         .keydown(function (e) {
+            var inputCode = e.which || e.keycode;
+
             // Allow: backspace, delete, tab, escape, enter decimal
-            if ($.inArray(e.keyCode, [46, 8, 9, 27, 13, 110]) !== -1 ||
+            if ($.inArray(inputCode, [46, 8, 9, 27, 13, 110]) !== -1 ||
                 // Allow: Ctrl+A v c
-                (e.keyCode == 65 && e.ctrlKey === true) ||
-                (e.keyCode == 67 && e.ctrlKey === true) ||
-                (e.keyCode == 86 && e.ctrlKey === true) ||
-                (e.keyCode == 88 && e.ctrlKey === true) ||
+                (inputCode == 65 && e.ctrlKey === true) ||
+                (inputCode == 67 && e.ctrlKey === true) ||
+                (inputCode == 86 && e.ctrlKey === true) ||
+                (inputCode == 88 && e.ctrlKey === true) ||
                 // Allow: home, end, left, right
-                (e.keyCode >= 35 && e.keyCode <= 39)) {
+                (inputCode >= 35 && inputCode <= 39)) {
                 // let it happen, don't do anything
                 return;
             }
             // Ensure that it is a number and stop the keypress
-            if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+            if ((e.shiftKey || (inputCode < 48 || inputCode > 57)) && (inputCode < 96 || inputCode > 105)) {
                 e.preventDefault();
                 e.stopPropagation();
             }
@@ -1541,7 +1680,7 @@ function SetupSelectedFieldRow(tbody, item) {
     // Width
     var $numInput = undefined;
     $td = $('<td></td>').appendTo(row);
-    $numInput = new NumericTextbox(id, _thisGlobals.Translation_Labels.widthAutoCalculate, _thisGlobals.ToolTipClassSelector, item.RealWidth, 20, $td, SaveFields, true);
+    $numInput = new NumericTextbox(id, _thisGlobals.Translation_Labels.widthAutoCalculate, _thisGlobals.ToolTipClassSelector, item.RealWidth, 25, $td, SaveFields, true);
 
 
     // Setup create default values 
@@ -3438,9 +3577,11 @@ function InitializeSetupRoutinesInternal() {
         SetParentFormDirty();
     });
     $('#gridtitle').on('blur', function (e) {
-        _thisGlobals._CurConfiguration.GridTitle = $(this).val();
-
-        SetParentFormDirty();
+        var val = $(this).val();
+        if (val != _thisGlobals._CurConfiguration.GridTitle) {
+            _thisGlobals._CurConfiguration.GridTitle = $(this).val();
+            SetParentFormDirty();
+        }
     });
     $('#displayclearfilterbutton').on('click', function (e) {
         _thisGlobals._CurConfiguration.DisplayClearFilterButton = $(this).prop('checked');
@@ -3472,6 +3613,16 @@ function InitializeSetupRoutinesInternal() {
 
         SetParentFormDirty();
     });
+
+    $("#gridheaderminimumwidth").numericInput({ parentCallback: SetParentFormDirty });
+    $('#gridcustomidentifier').on('blur', function (e) {
+        var val = $(this).val();
+        if (val != _thisGlobals._CurConfiguration.GridCustomIdentifier) {
+            _thisGlobals._CurConfiguration.GridCustomIdentifier = $(this).val();
+            SetParentFormDirty();
+        }
+    });
+
     $('#displayclonerecordbutton').on('click', function (e) {
         _thisGlobals._CurConfiguration.DisplayCloneRecordButton = $(this).prop('checked');
 
@@ -4043,6 +4194,9 @@ function InitializeSetupRoutinesInternal() {
         $('#displaysetrecordstate').attr('disabled', 'disabled');
         $('#displayclonerecord').attr('disabled', 'disabled');
         $('#gridtitlewordwrap').attr('disabled', 'disabled');
+        $('#gridheaderminimumwidth').prop('disabled', 'disabled');
+        $('#gridcustomidentifier').prop('disabled', 'disabled');
+
         $('#displayclonerecordbutton').attr('disabled', 'disabled');
         $('#openrecordbehavoir').prop('disabled', 'disabled');
         $('#systemcurrencyprecision').prop('disabled', 'disabled');
@@ -4778,6 +4932,9 @@ var DCrmEGConfigurationManager = (function () {
         self.DisplaySetRecordState = ((data.DisplaySetRecordState) && (data.DisplaySetRecordState == 'false')) ? false : true;
         self.DisplayCloneRecord = ((data.DisplayCloneRecord) && (data.DisplayCloneRecord == 'false')) ? false : true;
         self.GridTitleWordWrap = ((data.GridTitleWordWrap) && (data.GridTitleWordWrap == 'true')) ? true : false;
+        self.GridHeaderMinimumWidth = (data.GridHeaderMinimumWidth) ? data.GridHeaderMinimumWidth : '15'; // Pixels
+        self.GridCustomIdentifier = (data.GridCustomIdentifier && data.GridCustomIdentifier.length) ? data.GridCustomIdentifier : '';
+
         self.DisplayCloneRecordButton = ((data.DisplayCloneRecordButton) && (data.DisplayCloneRecordButton == 'false')) ? false : true;
         self.OpenRecordBehavoir = ((data.OpenRecordBehavoir) && (data.OpenRecordBehavoir != 'undefined')) ? data.OpenRecordBehavoir : "10";
         
@@ -5021,6 +5178,9 @@ function DisplaySelectedEntityInfo(li, schema, liid) {
     $('#displaysetrecordstate').prop('checked', _thisGlobals._CurConfiguration.DisplaySetRecordState);
     $('#displayclonerecord').prop('checked', _thisGlobals._CurConfiguration.DisplayCloneRecord);
     $('#gridtitlewordwrap').prop('checked', _thisGlobals._CurConfiguration.GridTitleWordWrap);
+    $('#gridheaderminimumwidth').val(_thisGlobals._CurConfiguration.GridHeaderMinimumWidth);
+    $('#gridcustomidentifier').val(_thisGlobals._CurConfiguration.GridCustomIdentifier);
+    
     $('#displayclonerecordbutton').prop('checked', _thisGlobals._CurConfiguration.DisplayCloneRecordButton);
     
     $('#displaySum').prop('checked', _thisGlobals._CurConfiguration.DisplaySum);
@@ -5149,6 +5309,8 @@ function LoadDCrmEGConfiguration() {
             data.DistinctValues = ((tmp.length > 30) ? tmp[30] : false);
             data.SystemCurrencyPrecision = ((tmp.length > 31) ? tmp[31] : undefined);
             data.GridTitleWordWrap = ((tmp.length > 32) ? tmp[32] : false);
+            data.GridHeaderMinimumWidth = ((tmp.length > 33) ? tmp[33] : undefined);
+            data.GridCustomIdentifier = ((tmp.length > 34) ? tmp[34] : undefined);
         }
 
         config = new DCrmEGConfigurationManager(data);
@@ -5348,7 +5510,9 @@ function SaveDCrmEGConfiguration() {
         + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].DateTimeMinuteStep
         + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].DistinctValues
         + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].SystemCurrencyPrecision
-        + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].GridTitleWordWrap;
+        + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].GridTitleWordWrap
+        + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].GridHeaderMinimumWidth
+        + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].GridCustomIdentifier;
         
         if (_thisGlobals.DCrmEGConfiguration[i].Fields) {
             if (i > 0) {
@@ -5429,7 +5593,9 @@ function SaveDCrmEGConfigurationInternal(config) {
     + _thisGlobals._SEPERATOR + config.DateTimeMinuteStep
     + _thisGlobals._SEPERATOR + config.DistinctValues
     + _thisGlobals._SEPERATOR + config.SystemCurrencyPrecision
-    + _thisGlobals._SEPERATOR + config.GridTitleWordWrap;
+    + _thisGlobals._SEPERATOR + config.GridTitleWordWrap
+    + _thisGlobals._SEPERATOR + config.GridHeaderMinimumWidth
+    + _thisGlobals._SEPERATOR + config.GridCustomIdentifier;
 
     if (config.Fields) {
         _thisGlobals._Fieldsinfo += _thisGlobals._pSeperator + config.Fields + _thisGlobals._OuterSeperator + config.Entity.Identity;

@@ -240,7 +240,7 @@ axis.isUndefined(); // true
                     // Blink engine detection
                     "isBlink" : (((!!window.chrome && !!window.chrome.webstore) || ((!!window.opr && !!opr.addons) || !!window.opera || navigator.userAgent.indexOf(' OPR/') >= 0)) && !!window.CSS)
                 },
-                "MinCellWidth": 100
+                "MinCellWidth": 15
             }
         }
     });
@@ -694,7 +694,6 @@ axis.isUndefined(); // true
                     }
 
                     if (tmp > 0) {
-                        tmp = (tmp < DCrmEditableGrid.Globals.MinCellWidth) ? DCrmEditableGrid.Globals.MinCellWidth : tmp;
                         realwidth = (tmp + (addExtra ? 1: 0)) + realwidth;
                     } else {
                         realwidth = (DCrmEditableGrid.Globals.MinCellWidth + (addExtra ? 1 : 0)) + realwidth;
@@ -716,6 +715,7 @@ axis.isUndefined(); // true
                 "SetHeaderWidth": function ($el, width, calculated) {
                     var realwidth = 'px';
                     var tmp = 0;
+
                     try {
                         if (axis.isString(width)) {
                             tmp = parseInt(width);
@@ -725,17 +725,13 @@ axis.isUndefined(); // true
                     } catch (e) {
 
                     }
-                    var ca = calculated;
-                    if (ca < DCrmEditableGrid.Globals.MinCellWidth) {
-                        ca = DCrmEditableGrid.Globals.MinCellWidth;
-                    }
 
                     if (tmp > 0) {
-                        tmp = (tmp < ca) ? ca : tmp;
                         realwidth = tmp + realwidth;
                     } else {
-                        realwidth = ca + realwidth;
+                        realwidth = calculated + realwidth;
                     }
+
                     $el.css({
                         'width': realwidth,
                         'min-width': realwidth,
@@ -947,7 +943,7 @@ $.fn.DCrmEditableGrid = function () {
     return this;
 };
 
-$.fn.DCrmEditableGrid.TextBox = function (table, editorsArrayi, requiredErrorContainer, inputFormatErrorContainer) {
+$.fn.DCrmEditableGrid.TextBox = function (table, editorsArrayi, requiredErrorContainer, inputFormatErrorContainer, gridcustomidentifier) {
     'use strict';
 
     var $editor = $('<input id="' + _thisHelpers.GenerateUUID() + '" type=text />').addClass('TextEditors').hide().appendTo(table.parent());
@@ -970,7 +966,8 @@ $.fn.DCrmEditableGrid.TextBox = function (table, editorsArrayi, requiredErrorCon
         FieldSchemaName: editorsArrayi.FieldSchemaName,
         FieldLabel: editorsArrayi.FieldLabel,
         ParentEntitySchemaName: editorsArrayi.ParentEntitySchemaname,
-        ParentEntityLabel: editorsArrayi.ParentEntityName
+        ParentEntityLabel: editorsArrayi.ParentEntityName,
+        GridCustomIdentifier: gridcustomidentifier
     }
 
     $editor.theUpdater = undefined;
@@ -1418,7 +1415,7 @@ $.fn.DCrmEditableGrid.TextBox = function (table, editorsArrayi, requiredErrorCon
     return $editor;
 };
 
-$.fn.DCrmEditableGrid.DatePicker = function (table, editorsArrayi, requiredErrorContainer, minutestep) {
+$.fn.DCrmEditableGrid.DatePicker = function (table, editorsArrayi, requiredErrorContainer, minutestep, gridcustomidentifier) {
     'use strict';
 
     // 6/13/2014 10:51 AM
@@ -1428,7 +1425,8 @@ $.fn.DCrmEditableGrid.DatePicker = function (table, editorsArrayi, requiredError
         FieldSchemaName: editorsArrayi.FieldSchemaName,
         FieldLabel: editorsArrayi.FieldLabel,
         ParentEntitySchemaName: editorsArrayi.ParentEntitySchemaname,
-        ParentEntityLabel: editorsArrayi.ParentEntityName
+        ParentEntityLabel: editorsArrayi.ParentEntityName,
+        GridCustomIdentifier: gridcustomidentifier
     }
     var divid = _thisHelpers.GenerateUUID();
     var inputid = _thisHelpers.GenerateUUID();
@@ -1567,7 +1565,7 @@ $.fn.DCrmEditableGrid.DatePicker = function (table, editorsArrayi, requiredError
     return $editor;
 };
 
-$.fn.DCrmEditableGrid.CheckBox = function (table, editorsArrayi) {
+$.fn.DCrmEditableGrid.CheckBox = function (table, editorsArrayi, gridcustomidentifier) {
     'use strict';
 
     var Div_ID = _thisHelpers.GenerateUUID();
@@ -1581,7 +1579,8 @@ $.fn.DCrmEditableGrid.CheckBox = function (table, editorsArrayi) {
         FieldSchemaName: editorsArrayi.FieldSchemaName,
         FieldLabel: editorsArrayi.FieldLabel,
         ParentEntitySchemaName: editorsArrayi.ParentEntitySchemaname,
-        ParentEntityLabel: editorsArrayi.ParentEntityName
+        ParentEntityLabel: editorsArrayi.ParentEntityName,
+        GridCustomIdentifier: gridcustomidentifier
     }
 
     var $editor = $('<div></div>')
@@ -1967,7 +1966,7 @@ $.fn.DCrmEditableGrid.SetEntityState = function (entityState, RecId, statusValue
     return $editor;
 };
 
-$.fn.DCrmEditableGrid.EntityStatesBox = function (schemaName, editorsArrayi, table) {
+$.fn.DCrmEditableGrid.EntityStatesBox = function (schemaName, editorsArrayi, table, gridcustomidentifier) {
     'use strict';
 
     var validator = editorsArrayi.validator;
@@ -1976,7 +1975,8 @@ $.fn.DCrmEditableGrid.EntityStatesBox = function (schemaName, editorsArrayi, tab
         FieldSchemaName: editorsArrayi.FieldSchemaName,
         FieldLabel: editorsArrayi.FieldLabel,
         ParentEntitySchemaName: editorsArrayi.ParentEntitySchemaname,
-        ParentEntityLabel: editorsArrayi.ParentEntityName
+        ParentEntityLabel: editorsArrayi.ParentEntityName,
+        GridCustomIdentifier: gridcustomidentifier
     }
 
     var $editor = $('<div class="statusBox statusBoxControl"></div>')
@@ -2274,7 +2274,7 @@ $.fn.DCrmEditableGrid.EntityStatesBox = function (schemaName, editorsArrayi, tab
     return $editor;
 };
 
-$.fn.DCrmEditableGrid.Description = function (table, editorsArrayi, requiredErrorContainer) {
+$.fn.DCrmEditableGrid.Description = function (table, editorsArrayi, requiredErrorContainer, gridcustomidentifier) {
     'use strict';
 
     var active;
@@ -2285,7 +2285,8 @@ $.fn.DCrmEditableGrid.Description = function (table, editorsArrayi, requiredErro
         FieldSchemaName: editorsArrayi.FieldSchemaName,
         FieldLabel: editorsArrayi.FieldLabel,
         ParentEntitySchemaName: editorsArrayi.ParentEntitySchemaname,
-        ParentEntityLabel: editorsArrayi.ParentEntityName
+        ParentEntityLabel: editorsArrayi.ParentEntityName,
+        GridCustomIdentifier: gridcustomidentifier
     }
 
     var DivContainer_ID = _thisHelpers.GenerateUUID();
@@ -2450,7 +2451,7 @@ $.fn.DCrmEditableGrid.Description = function (table, editorsArrayi, requiredErro
     return $editor;
 };
 
-$.fn.DCrmEditableGrid.OptionSet = function (table, editorsArrayi, requiredErrorContainer) {
+$.fn.DCrmEditableGrid.OptionSet = function (table, editorsArrayi, requiredErrorContainer, gridcustomidentifier) {
     'use strict';
 
     var active;
@@ -2461,7 +2462,8 @@ $.fn.DCrmEditableGrid.OptionSet = function (table, editorsArrayi, requiredErrorC
         FieldSchemaName: editorsArrayi.FieldSchemaName,
         FieldLabel: editorsArrayi.FieldLabel,
         ParentEntitySchemaName: editorsArrayi.ParentEntitySchemaname,
-        ParentEntityLabel: editorsArrayi.ParentEntityName
+        ParentEntityLabel: editorsArrayi.ParentEntityName,
+        GridCustomIdentifier: gridcustomidentifier
     }
 
     var elemId = _thisHelpers.GenerateUUID();
@@ -2661,7 +2663,7 @@ $.fn.DCrmEditableGrid.OptionSet = function (table, editorsArrayi, requiredErrorC
     return $editor;
 };
 
-$.fn.DCrmEditableGrid.Lookup = function (table, editorsArrayi, requiredErrorContainer, inputFormatErrorContainer) {
+$.fn.DCrmEditableGrid.Lookup = function (table, editorsArrayi, requiredErrorContainer, inputFormatErrorContainer, gridcustomidentifier) {
     'use strict';
 
     var active;
@@ -2674,7 +2676,8 @@ $.fn.DCrmEditableGrid.Lookup = function (table, editorsArrayi, requiredErrorCont
         FieldSchemaName: editorsArrayi.FieldSchemaName,
         FieldLabel: editorsArrayi.FieldLabel,
         ParentEntitySchemaName: editorsArrayi.ParentEntitySchemaname,
-        ParentEntityLabel: editorsArrayi.ParentEntityName
+        ParentEntityLabel: editorsArrayi.ParentEntityName,
+        GridCustomIdentifier: gridcustomidentifier
     }
 
     /*
@@ -3437,6 +3440,7 @@ $.fn.DCrmEditableGrid.FilterLookup = function (parentdiv) {
             LogicalCollectionNames: [],
             ObjectTypeCodes: [],
             LocalizedLabels: [],
+            SchemaNameUnchanged: [],
 			
             EntityTargets: earr,
             EntityTargetsOriginal: lookupTargetEntities,
@@ -3992,7 +3996,8 @@ var CrmEditableGrid = (function () {
             self.mainTable, self.errorcontainer,
             self.inputFormatErrorContainer,
             self.activeOptions.ParentEntityInfo.ParentEntitySchemaname,
-            self.activeOptions.DateTimeMinuteStep);
+            self.activeOptions.DateTimeMinuteStep,
+            self.activeOptions.GridCustomIdentifier);
         
         self.showEditor = function (e) {
             self.mainTable.activeCell = undefined;
@@ -4031,6 +4036,9 @@ var CrmEditableGrid = (function () {
                     elemPosition = _thisHelpers.GetSubGridCellCoords(self.activeCell[0], self.mainTable.parent().parent().parent().parent()[0]);
                 }
 
+                var tw = self.activeCell.width();
+                var twh = 0;
+
                 if ((curEditor.EditorType == DCrmEditableGrid.Editors.Text) ||
                     (curEditor.EditorType == DCrmEditableGrid.Editors.Numeric) ||
                     (curEditor.EditorType == DCrmEditableGrid.Editors.Decimal) ||
@@ -4044,23 +4052,45 @@ var CrmEditableGrid = (function () {
                         curText = _thisHelpers.RemoveNumericFormat(curText);
                     }
 
+                    tw -= 3;
+                    twh = self.activeCell.height() - 2;
+                    if (_thisGlobals.IsBrowser.IE) {
+                        elemPosition.left -= 1;
+                        twh += 1;
+                    } else if (_thisGlobals.IsBrowser.Firefox) {
+                        elemPosition.left -= 1;
+                        elemPosition.top -= 1;
+                        tw -= 1;
+                    }
+
                     curEditor.val(curText)
                         .css({ 'left': elemPosition.left, 'top': elemPosition.top })
-                        .width(self.activeCell.width() - 5)
-                        .height(self.activeCell.height() - 2)
+                        .width(tw)
+                        .height(twh)
                         .show()
                         .focus()
                         .select();
 
                 } else if ((curEditor.EditorType == DCrmEditableGrid.Editors.DatePicker) ||
                     (curEditor.EditorType == DCrmEditableGrid.Editors.DateTimePicker)) {
+
+                    tw += 1;
+                    if (_thisGlobals.IsBrowser.IE) {
+                        elemPosition.top += 2;
+                    } else if (_thisGlobals.IsBrowser.Chrome) {
+                        elemPosition.left += 1;
+                        elemPosition.top += 1;
+                    } else if (_thisGlobals.IsBrowser.Firefox) {
+                        tw -= 1;
+                    }
+
                     curEditor.show()
-                        .offset(self.activeCell.offset())
-                        .width(self.activeCell.width())
+                        .css({ 'left': elemPosition.left, 'top': elemPosition.top })
+                        .width(tw)
                         .height(self.activeCell.height())
                         .SetInternals(curText);
                 } else if (curEditor.EditorType == DCrmEditableGrid.Editors.Description) {
-                    var left = elemPosition.left, top = elemPosition.top + 5;
+                    var left = elemPosition.left, top = elemPosition.top + 1;
                     if (top + curEditor.height() >= $(window).height()) {
                         top -= curEditor.height();
                     }
@@ -4074,10 +4104,18 @@ var CrmEditableGrid = (function () {
                         .SetInternals(curText);
                 } else if (curEditor.EditorType == DCrmEditableGrid.Editors.Checkbox) {
                     if (self.activeOptions.BooleanEditorBehavoir == "20") {
+
+                        tw += 2;
+                        if (_thisGlobals.IsBrowser.IE) {
+                            elemPosition.left -= 1;
+                        } else if (_thisGlobals.IsBrowser.Firefox) {
+                            elemPosition.left -= 1;
+                            elemPosition.top -= 1;
+                        }
+
                         curEditor
-                            .css('left', elemPosition.left)
-                            .css('top', elemPosition.top)
-                            .width(self.activeCell.width() + 1)
+                            .css({ 'left': elemPosition.left, 'top': elemPosition.top })
+                            .width(tw)
                             .height(self.activeCell.outerHeight() - 1)
                             .SetInternals(curText);
                     } else {
@@ -4087,21 +4125,35 @@ var CrmEditableGrid = (function () {
                     }
 
                 } else if (curEditor.EditorType == DCrmEditableGrid.Editors.OptionSet) {
+                    tw += 1;
+
+                    if (_thisGlobals.IsBrowser.Chrome) {
+                        elemPosition.top += 2;
+                        elemPosition.left += 1;
+                    } else if (_thisGlobals.IsBrowser.Firefox) {
+                        elemPosition.left -= 1;
+                        elemPosition.top -= 1;
+                        tw -= 1;
+                    }
+
                     curEditor
-                        .css('left', elemPosition.left)
-                        .css('top', elemPosition.top + 1)
-                        .width(self.activeCell.width() - 1)
+                        .css({ 'left': elemPosition.left, 'top': elemPosition.top })
+                        .width(tw)
                         .show();
                     curEditor.SetInternals(curText);
                 } else if ((curEditor.EditorType == DCrmEditableGrid.Editors.Lookup) ||
                     (curEditor.EditorType == DCrmEditableGrid.Editors.Customer) ||
                     (curEditor.EditorType == DCrmEditableGrid.Editors.Owner)) {
+
+                    twh = self.activeCell.height() - 3;
+                    if (_thisGlobals.IsBrowser.IE) {
+                        twh += 1;
+                    }
+
                     curEditor
-                        //.show()
-                        .css('left', elemPosition.left)
-                        .css('top', elemPosition.top + 1)
-                        .width(self.activeCell.width())
-                        .height(self.activeCell.height() - 2)
+                        .css({ 'left': elemPosition.left, 'top': elemPosition.top })
+                        .width(tw)
+                        .height(twh)
                         .SetInternals(curText, self.activeCell.attr(_thisGlobals.DataAttr.Cell.Lookup.Guid), self.activeCell.attr(_thisGlobals.DataAttr.Cell.Lookup.LogicalName));
                 } else if (curEditor.EditorType == DCrmEditableGrid.Editors.Status) {
                     curEditor.SetInternals(curText, self.activeCell.attr(_thisGlobals.DataAttr.Cell.RecordGuid));
@@ -4484,6 +4536,7 @@ var CrmEditableGrid = (function () {
                 self.clearTableBody();
 
                 self.activeOptions.Page--;
+                _thisHelpers.WaitDialog(true);
                 if (_thisGlobals.UseWebApi) {
                     SdkWebAPI.getFetchXml(self.activeOptions.ParentEntityInfo.LogicalCollectionName,
                         self.activeOptions.GridFetchHelper.GetFetchXml(self.activeOptions.Page,
@@ -4517,7 +4570,7 @@ var CrmEditableGrid = (function () {
                 }
 
                 self.activeOptions.Page++;
-
+                _thisHelpers.WaitDialog(true);
                 if (_thisGlobals.UseWebApi) {
                     SdkWebAPI.getFetchXml(self.activeOptions.ParentEntityInfo.LogicalCollectionName,
                         self.activeOptions.GridFetchHelper.GetFetchXml(self.activeOptions.Page,
@@ -4814,12 +4867,12 @@ list of translated languages
                                             NewValue: ''
                                         };
 
-
                                         var CrmFieldInfo = {
                                             FieldSchemaName: self.activeOptions.columneditors[index - 1].FieldSchemaName,
                                             FieldLabel: self.activeOptions.columneditors[index - 1].FieldLabel,
                                             ParentEntitySchemaName: self.activeOptions.columneditors[index - 1].ParentEntitySchemaname,
-                                            ParentEntityLabel: self.activeOptions.columneditors[index - 1].ParentEntityName
+                                            ParentEntityLabel: self.activeOptions.columneditors[index - 1].ParentEntityName,
+                                            GridCustomIdentifier: self.activeOptions.GridCustomIdentifier
                                         }
                                         if (validator(param, CrmFieldInfo)) {
                                             _thisHelpers.SetActiveCellText(self.contextMenuTarget, '');
@@ -4973,7 +5026,7 @@ list of translated languages
                 }
 
                 e.stopPropagation();
-                if (prevent) {
+                if (prevent) {    
                     e.preventDefault();
                     return false;
                 }
@@ -5099,10 +5152,15 @@ list of translated languages
                                 var subgridrowid = _thisHelpers.GenerateUUID();
                                 // Call parent passing only the subgrid div id
                                 var tableHeaders = self.GetHeaderCells();
-                                var $tr = $('<tr><td style="opacity:0;">&nbsp;</td><td class="subgridtargetcell" colspan="' + (tableHeaders.length - 1) + '"></td></tr>')
+
+                                var xtraclass = ((!self.activeOptions.ParentFormIsReadOnly) &&
+                                    ((self.activeOptions.UserCanDelete) || (self.activeOptions.DisplayCloneRecordButton)))
+                                    ? 'class="firstColCheckbox"' : 'class="firstColNoCheckbox"';
+
+                                var $tr = $('<tr><td ' + xtraclass + ' style="opacity:0;">&nbsp;</td><td class="subgridtargetcell" colspan="' + (tableHeaders.length - 1) + '"></td></tr>')
                                     .attr('id', subgridrowid)
                                     .attr(_thisGlobals.DataAttr.Row.SubGrid.Id, subgridid)
-                                    .insertAfter($this.parent().parent());
+                                    .insertAfter($parentrow);
 
                                 $parentrow.attr(_thisGlobals.DataAttr.Row.SubGrid.Row.Id, subgridrowid);
                                 $parentrow[0].DSubGridRow = $tr;
@@ -5893,7 +5951,7 @@ list of translated languages
                         $tr.css('background-color', formatOptions.OddRows);
                     }
 
-                    var callbackRowData = { RecordGuid: recGuid, Fields: [], RowIndex: i };
+                    var callbackRowData = { RecordGuid: recGuid, Fields: [], RowIndex: i, GridCustomIdentifier: self.activeOptions.GridCustomIdentifier };
 
                     for (var iinner = 0; iinner < SelectedFields.length; iinner++) {
                         var inneritem = SelectedFields[iinner];
@@ -6029,7 +6087,7 @@ list of translated languages
                             .html('<span class="fieldcelltext" ' + _thisGlobals.ToolTipAttrName + '="' + fval + '">' + fval + '</span>')
                             .appendTo($tr);
 
-                        _thisHelpers.SetCellWidth($thistr, _thisHelpers.GetCellWidth($(allHeaders[iinner + 1]), true), true);
+                        _thisHelpers.SetCellWidth($thistr, _thisHelpers.GetCellWidth($(allHeaders[iinner + 1]), true), false);
 
                         var headerformatOptions = formatOptions.GetHeader(inneritemSchemaName);
                         var cellformatOptions = formatOptions.GetField(inneritemSchemaName);
@@ -6180,8 +6238,8 @@ list of translated languages
         if ((self.activeOptions.DisplayFieldsSum) && (self.activeOptions.HaveNumericFields.HaveNumeric)) {
         } else {
             self.mainTable.find('tfoot').empty().remove();
-            var tb = parseInt(self.GridTbody.css('height'));
-            tb += 50;
+            //var tb = parseInt(self.GridTbody.css('height'));
+            var tb = _thisGlobals.FrameHeight - 70; // 50;
             self.GridTbody.css('height', tb + 'px');
             self.GridTfoot = null;
         }
@@ -6336,6 +6394,17 @@ list of translated languages
         }
 
         $(window).on('resize', function () {
+            var parentdiv = $('#' + self.activeOptions.GridContainerIds.ParentGridDivContainer);
+            var w = $(window).width() - 35; 
+            if (self.IsSubGrid) {
+                w = parentdiv.innerWidth();
+            }
+            //var h = $(window).height();
+            self.GridThead.css('width', w + 'px');
+            self.GridTbody.css('width', w + 'px');
+            if (self.GridTfoot) {
+                self.GridTfoot.css('width', w + 'px');
+            }
             if ((self.activeCell) && (self.activeCell.length)) {
                 var curEditor = self.GridEditors[self.activeCell[0].cellIndex];
 
@@ -6388,7 +6457,8 @@ list of translated languages
         self.ColumnResizer = new colResizable({
             ParentControlClass: self,
             onDrag: self.HeaderOnDragHandler,
-            minWidth: _thisGlobals.MinCellWidth
+            minWidth: _thisGlobals.MinCellWidth,
+            Subgrid: self.IsSubGrid
         });
 
         self.UpdateCrmField = function (toSave, refreshGrid) {
@@ -6538,7 +6608,7 @@ list of translated languages
                                 if (isSingleUpdate) {
                                     SdkWebAPI.addReference(updateEntity.Uri, navProp, uri2, self.UpdateCrmFieldSucessCallback, self.ApiCallbackErrorHandler, toSave, refreshGrid);
                                 } else {
-                                    SdkWebAPI.addReference(updateEntity.Uri, navProp);
+                                    SdkWebAPI.addReference(updateEntity.Uri, navProp, uri2);
                                 }
                                 updateEntity = null;
 
@@ -6738,7 +6808,7 @@ http://localhost/Demo/main.aspx?etc=112&extraqs=?_CreateFromId=%7b5B6DFA60-6456-
 
     }
 
-    function CreateEditors(editorsArray, parent, requiredContainer, inputFormatErrorContainer, parentEntitySchemaname, datetimeeditorstep) {
+    function CreateEditors(editorsArray, parent, requiredContainer, inputFormatErrorContainer, parentEntitySchemaname, datetimeeditorstep, gridcustomidentifier) {
         var alleditors = [];
         alleditors[0] = null;
         var index = 0;
@@ -6750,28 +6820,28 @@ http://localhost/Demo/main.aspx?etc=112&extraqs=?_CreateFromId=%7b5B6DFA60-6456-
                 case DCrmEditableGrid.Editors.Decimal:
                 case DCrmEditableGrid.Editors.Double:
                 case DCrmEditableGrid.Editors.Currency:
-                    alleditors[index] = new $.fn.DCrmEditableGrid.TextBox(parent, editorsArray[i], requiredContainer, inputFormatErrorContainer);
+                    alleditors[index] = new $.fn.DCrmEditableGrid.TextBox(parent, editorsArray[i], requiredContainer, inputFormatErrorContainer, gridcustomidentifier);
                     break;
                 case DCrmEditableGrid.Editors.DatePicker:
                 case DCrmEditableGrid.Editors.DateTimePicker:
-                    alleditors[index] = new $.fn.DCrmEditableGrid.DatePicker(parent, editorsArray[i], requiredContainer, datetimeeditorstep);
+                    alleditors[index] = new $.fn.DCrmEditableGrid.DatePicker(parent, editorsArray[i], requiredContainer, datetimeeditorstep, gridcustomidentifier);
                     break;
                 case DCrmEditableGrid.Editors.Checkbox:
-                    alleditors[index] = new $.fn.DCrmEditableGrid.CheckBox(parent, editorsArray[i], requiredContainer);
+                    alleditors[index] = new $.fn.DCrmEditableGrid.CheckBox(parent, editorsArray[i], requiredContainer, gridcustomidentifier);
                     break;
                 case DCrmEditableGrid.Editors.Description:
-                    alleditors[index] = new $.fn.DCrmEditableGrid.Description(parent, editorsArray[i], requiredContainer);
+                    alleditors[index] = new $.fn.DCrmEditableGrid.Description(parent, editorsArray[i], requiredContainer, gridcustomidentifier);
                     break;
                 case DCrmEditableGrid.Editors.OptionSet:
-                    alleditors[index] = new $.fn.DCrmEditableGrid.OptionSet(parent, editorsArray[i], requiredContainer);
+                    alleditors[index] = new $.fn.DCrmEditableGrid.OptionSet(parent, editorsArray[i], requiredContainer, gridcustomidentifier);
                     break;
                 case DCrmEditableGrid.Editors.Lookup:
                 case DCrmEditableGrid.Editors.Customer:
                 case DCrmEditableGrid.Editors.Owner:
-                    alleditors[index] = new $.fn.DCrmEditableGrid.Lookup(parent, editorsArray[i], requiredContainer, inputFormatErrorContainer);
+                    alleditors[index] = new $.fn.DCrmEditableGrid.Lookup(parent, editorsArray[i], requiredContainer, inputFormatErrorContainer, gridcustomidentifier);
                     break;
                 case DCrmEditableGrid.Editors.Status:
-                    alleditors[index] = new $.fn.DCrmEditableGrid.EntityStatesBox(parentEntitySchemaname, editorsArray[i], parent);
+                    alleditors[index] = new $.fn.DCrmEditableGrid.EntityStatesBox(parentEntitySchemaname, editorsArray[i], parent, gridcustomidentifier);
                     break;
                 default:
                     alleditors[index] = null;
@@ -6837,7 +6907,7 @@ var colResizable = (function () {
             liveDrag: true,				//enables table-layout updating while dragging	
 
             fixed: false,                    //table width does not change if columns are resized
-            minWidth: 100, 					//minimum width value in pixels allowed for a column 
+            minWidth: 15, 					//minimum width value in pixels allowed for a column 
 
             headerOnly: false,				//specifies that the size of the the column resizing anchors will be bounded to the size of the first row 
             hoverCursor: "e-resize",  		//cursor to be used on grip hover
@@ -6880,7 +6950,6 @@ var colResizable = (function () {
             return $e1.css('width');
         };
 
-
         //short-cuts
         //self.I = parseInt;
         //self.M = Math;
@@ -6897,8 +6966,8 @@ var colResizable = (function () {
         if (self.options.marginLeft) self.tmpMainTable.gc.css("marginLeft", self.options.marginLeft);  	//if the table contains margins, it must be specified
         if (self.options.marginRight) self.tmpMainTable.gc.css("marginRight", self.options.marginRight);  	//since there is no (direct) way to obtain margin values in its original units (%, em, ...)
 
-        self.tmpMainTable.cs = parseInt(self.IE ? self.tmpMainTable[0].cellSpacing || self.tmpMainTable[0].currentStyle.borderSpacing : self.tmpMainTable.css('border-spacing')) || 2;	//table cellspacing (not even jQuery is fully cross-browser)
-        self.tmpMainTable.b = parseInt(self.IE ? [0].border || self.tmpMainTable[0].currentStyle.borderLeftWidth : self.tmpMainTable.css('border-left-width')) || 1;	//outer border width (again cross-browser issues)
+        self.tmpMainTable.cs = 0; // parseInt(self.IE ? self.tmpMainTable[0].cellSpacing || self.tmpMainTable[0].currentStyle.borderSpacing : self.tmpMainTable.css('border-spacing')) || 2;	//table cellspacing (not even jQuery is fully cross-browser)
+        self.tmpMainTable.b = 0; // parseInt(self.IE ? [0].border || self.tmpMainTable[0].currentStyle.borderLeftWidth : self.tmpMainTable.css('border-left-width')) || 1;	//outer border width (again cross-browser issues)
 
         self.tfootRow = null;
         var footrow = self.tmpMainTable.find('tfoot tr');
@@ -6989,22 +7058,30 @@ var colResizable = (function () {
             // is last column
             var last = i == t.ln - 1;
 
-            var inc = self.drag.x - self.drag.l, c = t.c[i];
+            var inc = (self.drag) ? self.drag.x - self.drag.l : 0;
+            var c = t.c[i];
             var c2 = null;
             if (!last) {
                 c2 = t.c[i + 1];
             } else {
                 c2 = t.c[i];
             }
-
-            var w = parseInt(c.w) + inc; var w2 = parseInt(c2.w) - inc;	//their new width is obtained
+            //their new width is obtained
+            var w = parseInt(c.w) + inc; var w2 = parseInt(c2.w) - inc;	
             self.SetElemWidth($(c), w + self.PX);
 
             var bodyfirstrow = self.tmpMainTable.find('tbody tr');
             if ((bodyfirstrow) && (bodyfirstrow.length)) {
                 for (var ii = 0; ii < bodyfirstrow.length; ii++) {
                     var row = bodyfirstrow[ii];
-                    self.SetElemWidth($(row.cells[i]), w + self.PX);
+                    var $row = $(row);
+                    var p = $row.parent().parent().parent();
+                    // account for subgrid rows
+                    if (options.Subgrid) {
+                        self.SetElemWidth($(row.cells[i]), w + self.PX);
+                    } else if (($row.attr('data-row-subgrid-id') == undefined) && (!p.hasClass('subgridparentdiv'))) {
+                        self.SetElemWidth($(row.cells[i]), w + self.PX);
+                    }
                 }
             }
 
@@ -7158,6 +7235,11 @@ var colResizable = (function () {
         //$(window).bind('resize.' + self.SIGNATURE, self.onResize);
 
         self.createGrips(self.tmpMainTable);		//grips are created
+
+        if (self.IE) {
+            // retarded IE
+            self.syncCols(self.tmpMainTable, 1, false);
+        }
 
     }
 
@@ -7570,9 +7652,9 @@ function CreateInlineRecord(self, excelCells, lastRec) {
                 .html('<span class="fieldcelltext"></span>')
                 .appendTo($cloneRow);
 
-                _thisHelpers.SetCellWidth($thistr, _thisHelpers.GetCellWidth($($theadcells[i]), true), true);
+                _thisHelpers.SetCellWidth($thistr, _thisHelpers.GetCellWidth($($theadcells[i]), true), false);
             } else {
-                var $tmpCell = $('<td></td>').appendTo($cloneRow);
+                var $tmpCell = $('<td style="opacity:0;"></td>').appendTo($cloneRow);
 
                 if ((!self.activeOptions.ParentFormIsReadOnly)
                     && (self.activeOptions.UserCanDelete)
@@ -7716,7 +7798,7 @@ function CreateInlineRecord(self, excelCells, lastRec) {
 
         var val = undefined;
         var formattedVal = '';
-        var callbackRowData = { RecordGuid: undefined, Fields: [], RowIndex: -1, InlineCreate: true };
+        var callbackRowData = { RecordGuid: undefined, Fields: [], RowIndex: -1, InlineCreate: true, GridCustomIdentifier: self.activeOptions.GridCustomIdentifier };
 
         for (var i = 1; i < $theadcells.length; i++) {
             $cell = $(cells[i]);
@@ -8089,7 +8171,7 @@ function CreateInlineRecord(self, excelCells, lastRec) {
 
         // JS callback
         if (window.parent.DCrmEgGridCreateNewRecord) {
-            var callbackData = { NewRecordGuid: newRecGuid };
+            var callbackData = { NewRecordGuid: newRecGuid, GridCustomIdentifier: self.activeOptions.GridCustomIdentifier };
             window.parent.DCrmEgGridCreateNewRecord(callbackData, self.activeOptions.ParentEntityInfo);
         }
 
@@ -8229,14 +8311,15 @@ function getWebresourceParameter() {
 
     try {
         var vals = null;
-        if (_thisGlobals.IsBrowser.Chrome) {
+        if ((location) && (location.search) && (location.search.length > 0)) {
+            vals = location.search.substr(1).split("&");
+        } else if ((location) && (location.href)) {
+            // fallback. Not all browsers are compliant
             var href = decodeURIComponent(location.href);
             if (href.contains('?')) {
                 var tmp = href.split('?');
                 vals = tmp[1].split('&');
             }
-        } else if ((location) && (location.search) && (location.search.length > 0)) {
-            vals = location.search.substr(1).split("&");
         }
 
         if (vals) {
@@ -8592,8 +8675,7 @@ function GetTranslationsFor(lcid) {
   '</fetch>';
 
     if (_thisGlobals.UseWebApi) {
-        SdkWebAPI.getFetchXml(
-            SdkWebAPI.GetEntitySetName('dcrmeg_dcrmegtranslation'),
+        SdkWebAPI.getFetchXml('dcrmeg_dcrmegtranslations',
             fetch, WebApiGetTranslationsSuccessCallback, WebApiGetTranslationsFailCallback);
     } else {
         XrmServiceToolkit.Soap.Fetch(fetch, false, GetTranslationsForCallback);
@@ -9101,7 +9183,7 @@ function CreateGridContainers(data, parentcontainer) {
 
     // Table
     var cwidth = parentcontainer.innerWidth() + 'px';
-    var cheight = (_thisGlobals.FrameHeight - 160) + 'px';
+    var cheight = (_thisGlobals.FrameHeight - 100) + 'px';
     if (parentcontainer.hasClass('subgridparentdiv')) {
         cheight = '80px';
     }
@@ -9125,7 +9207,7 @@ function InitializeSetupRoutines() {
     if (window.frameElement) {
         $(window.frameElement).css('width', '100%');
     }
-
+    // In non-IE browsers, you use contentWindow.document or simply contentDocument
     _thisGlobals.FrameWidth = $(window).width();
     _thisGlobals.FrameHeight = $(window).height();
 
@@ -10485,6 +10567,11 @@ var DCrmEGConfigurationManager = (function () {
         self.DateTimeMinuteStep = ((data.DateTimeMinuteStep) && (data.DateTimeMinuteStep != 'undefined')) ? parseInt(data.DateTimeMinuteStep) : 5;
         self.SystemCurrencyPrecision = (data.SystemCurrencyPrecision) ? parseInt(data.SystemCurrencyPrecision) : 2;
         self.GridTitleWordWrap = ((data.GridTitleWordWrap) && (data.GridTitleWordWrap == 'true')) ? true : false;
+        self.GridHeaderMinimumWidth = parseInt((data.GridHeaderMinimumWidth) ? data.GridHeaderMinimumWidth : '15'); // Pixels
+
+        self.GridCustomIdentifier = (data.GridCustomIdentifier && data.GridCustomIdentifier.length) ? data.GridCustomIdentifier : '';
+
+        DCrmEditableGrid.Globals.MinCellWidth = self.GridHeaderMinimumWidth;
 
         _thisGlobals.SystemCurrencyPrecision = self.SystemCurrencyPrecision;
 
@@ -10554,11 +10641,12 @@ var DCrmEGConfigurationManager = (function () {
 })();
 
 var GridFetchXmlHelper = (function () {
-    function GridFetchXmlHelper(entity) {
+    function GridFetchXmlHelper(entity, gridcustomidentifier) {
         var self = this;
 
         self.Label = entity.Label;
         self.SchemaName = entity.SchemaName;
+        self.GridCustomIdentifier = gridcustomidentifier;
 
 
         self.GridFetchXml = undefined;
@@ -10621,7 +10709,11 @@ Hasmore records [true] cookie [&lt;cookie page=&quot;1&quot;&gt;&lt;name last=&q
             if (self.GridFetchXml) {
 
                 if (window.parent.DCrmEgGridOnBeforeFetchRecords) {
-                    additional = window.parent.DCrmEgGridOnBeforeFetchRecords({ ParentEntityLabel: self.Label, ParentEntitySchemaName: self.SchemaName });
+                    additional = window.parent.DCrmEgGridOnBeforeFetchRecords({
+                        ParentEntityLabel: self.Label,
+                        ParentEntitySchemaName: self.SchemaName,
+                        GridCustomIdentifier: self.GridCustomIdentifier
+                    });
                 }
 
                 if (totalcount) {
@@ -10826,7 +10918,11 @@ Hasmore records [true] cookie [&lt;cookie page=&quot;1&quot;&gt;&lt;name last=&q
             if (self.GridFetchXml) {
 
                 if (window.parent.DCrmEgGridOnBeforeFetchRecords) {
-                    additional = window.parent.DCrmEgGridOnBeforeFetchRecords({ ParentEntityLabel: self.Label, ParentEntitySchemaName: self.SchemaName });
+                    additional = window.parent.DCrmEgGridOnBeforeFetchRecords({
+                        ParentEntityLabel: self.Label,
+                        ParentEntitySchemaName: self.SchemaName,
+                        GridCustomIdentifier: self.GridCustomIdentifier
+                    });
                 }
 
                 if (self.GridFetchXml.Filters.length > 0) {
@@ -11034,6 +11130,8 @@ Related [false] RelatedEntityLookup [undefined]
             data.DistinctValues = ((tmp.length > 30) ? tmp[30] : false);
             data.SystemCurrencyPrecision = ((tmp.length > 31) ? tmp[31] : undefined);
             data.GridTitleWordWrap = ((tmp.length > 32) ? tmp[32] : false);
+            data.GridHeaderMinimumWidth = ((tmp.length > 33) ? tmp[33] : undefined);
+            data.GridCustomIdentifier = ((tmp.length > 34) ? tmp[34] : undefined);
         }
 
         config = new DCrmEGConfigurationManager(data);
@@ -11094,6 +11192,9 @@ Related [false] RelatedEntityLookup [undefined]
     // Display root grids
     var $parentContainer = $('#parentcontainer');
     try {
+        if (_thisGlobals.DCrmEGConfiguration.length > 1) {
+            _thisGlobals.FrameHeight = (_thisGlobals.FrameHeight / _thisGlobals.DCrmEGConfiguration.length) - 10;
+        }
         for (var i = 0; i < _thisGlobals.DCrmEGConfiguration.length; i++) {
             if (i > 0) {
                 $('<div></div>')
@@ -11238,7 +11339,7 @@ function CreateAndPopulateGrid(data, parentcontainer, relationshipparentEntityGu
         }
     }
 
-    var gridfetchhelper = new GridFetchXmlHelper(data.Entity);
+    var gridfetchhelper = new GridFetchXmlHelper(data.Entity, data.GridCustomIdentifier);
     gridfetchhelper.GridFetchXml = EntityFetchParts;
 
     var $tr = $('#' + ContainerIds.Table).find('thead:first').find('tr:first');
@@ -11282,6 +11383,10 @@ function CreateAndPopulateGrid(data, parentcontainer, relationshipparentEntityGu
     var formatOptions = data.GetFormattingOptions();
 
     var calculatedWidth = parseInt(parentcontainer.innerWidth() / (data.SelectedFields.length + 1)) - 1;
+    if (calculatedWidth < data.GridHeaderMinimumWidth) {
+        calculatedWidth = data.GridHeaderMinimumWidth;
+    }
+
     var AggregateFields = [];
 
     for (var headerIndex = 0; headerIndex < data.SelectedFields.length; headerIndex++) {
@@ -12120,7 +12225,7 @@ var GridLoaderHelper = (function () {
                             $tr.css('background-color', formatOptions.OddRows);
                         }
 
-                        var callbackRowData = { RecordGuid: recGuid, Fields: [], RowIndex: i };
+                        var callbackRowData = { RecordGuid: recGuid, Fields: [], RowIndex: i, GridCustomIdentifier: self.data.GridCustomIdentifier };
 
                         for (var iinner = 0; iinner < self.data.SelectedFields.length; iinner++) {
                             var inneritem = self.data.SelectedFields[iinner];
@@ -12256,7 +12361,7 @@ var GridLoaderHelper = (function () {
                                     + _thisGlobals.ToolTipAttrName + '="' + fval + '">' + fval + '</span>')
                                 .appendTo($tr);
 
-                            _thisHelpers.SetCellWidth($td, _thisHelpers.GetCellWidth($($allHeaders[iinner + 1]), true), true);
+                            _thisHelpers.SetCellWidth($td, _thisHelpers.GetCellWidth($($allHeaders[iinner + 1]), true), false);
 
                             var headerformatOptions = formatOptions.GetHeader(inneritemSchemaName);
                             var cellformatOptions = formatOptions.GetField(inneritemSchemaName);
@@ -12317,7 +12422,11 @@ var GridLoaderHelper = (function () {
                         }
 
                         FireGridRowOnload($tr, callbackRowData,
-                            { ParentEntityName: self.data.Entity.Label, ParentEntitySchemaname: self.data.Entity.SchemaName });
+                            {
+                                ParentEntityName: self.data.Entity.Label,
+                                ParentEntitySchemaname: self.data.Entity.SchemaName,
+                                GridCustomIdentifier: self.data.GridCustomIdentifier
+                            });
 
                     }
 
@@ -12333,6 +12442,7 @@ var GridLoaderHelper = (function () {
                 
                 var options = {
                     ConfigID: self.data.ConfigID,
+                    GridCustomIdentifier: self.data.GridCustomIdentifier,
 
                     HasChildGrids: (self.data.ChildConfigurations.length > 0) ? true : false,
                     Country: _thisGlobals.DefaultCountry,
@@ -12349,7 +12459,8 @@ var GridLoaderHelper = (function () {
                         ParentEntitySchemaname: self.data.Entity.SchemaName,
                         PrimaryIdAttribute: self.PrimaryIdAttribute,
                         PrimaryNameAttribute: self.PrimaryNameAttribute,
-                        LogicalCollectionName: self.LogicalCollectionName
+                        LogicalCollectionName: self.LogicalCollectionName,
+                        GridCustomIdentifier: self.data.GridCustomIdentifier
                     },
                     ParentChildLookupInfo: self.parentChildLookupInfo,
 
@@ -12542,7 +12653,6 @@ var GridLoaderHelper = (function () {
 })();
 
 function ValidateEditor(editorType, editorValue) {
-
     if ((window.parent.ValidateDCrmEgGrid) && (typeof (window.parent.ValidateDCrmEgGrid) === 'function')) {
         return window.parent.ValidateDCrmEgGrid(editorType, editorValue);
     }
@@ -12553,28 +12663,24 @@ function FireGridRowOnload(tr, data, info) {
     if (window.parent.DCrmEgGridRowOnload) {
         data.RowBackgroundColor = null;
         window.parent.DCrmEgGridRowOnload(data, info);
-
         if (data.RowBackgroundColor) {
             tr.css('background-color', data.RowBackgroundColor);
         }
-
         // disable any readonly fields
         for (var fIndex = 0; fIndex < data.Fields.length; fIndex++) {
-            //if (data.Fields[fIndex].ReadOnly) {
-                var ff = tr.find('td:eq(' + data.Fields[fIndex].FieldIndex + ')');
-                if (ff) {
-                    if (data.Fields[fIndex].ReadOnly) {
-                        ff.attr('data-user-disabledfield', _thisGlobals.DataAttr.YES);
-                    }
-
-                    if (data.Fields[fIndex].BackgroundColor) {
-                        ff.css('background-color', data.Fields[fIndex].BackgroundColor);
-                    }
-                    if (data.Fields[fIndex].ForgroundColor) {
-                        ff.css('color', data.Fields[fIndex].ForgroundColor);
-                    }
+            var ff = tr.find('td:eq(' + data.Fields[fIndex].FieldIndex + ')');
+            if (ff) {
+                if (data.Fields[fIndex].ReadOnly) {
+                    ff.attr('data-user-disabledfield', _thisGlobals.DataAttr.YES);
                 }
-            //}
+
+                if (data.Fields[fIndex].BackgroundColor) {
+                    ff.css('background-color', data.Fields[fIndex].BackgroundColor);
+                }
+                if (data.Fields[fIndex].ForgroundColor) {
+                    ff.css('color', data.Fields[fIndex].ForgroundColor);
+                }
+            }
         }
     }
 }

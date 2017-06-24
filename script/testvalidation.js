@@ -11,7 +11,7 @@ function Log(s, a) {
     }
 }
 
-// Only for CRM 2015 and 2016
+// Only for CRM 2015, 2016, and 365
 // Add the FormOnloadHandler function to form (where grid is to be displayed) onload using form editor
 function FormOnloadHandler(context) {
     window.parent.ValidateDCrmEgGrid = ValidateDCrmEgGrid;
@@ -65,13 +65,11 @@ function FormOnloadHandler(context) {
     //}, 1000);
 }
 
-
 function ValidateDCrmEgGrid(param, field) {
     var allow = true;
-
+    Log('GridCustomIdentifier [' + field.GridCustomIdentifier + ']');
     Log("FieldSchemaName [" + field.FieldSchemaName + "] FieldLabel [" + field.FieldLabel + "] ParentEntitySchemaName [" + field.ParentEntitySchemaName + "] ParentEntityLabel [" + field.ParentEntityLabel + "]");
-    Log("Record Guid [" + param.RecordGuid + "]");
-
+    Log("Record Guid [" + param.RecordGuid + "]\r\n\r\n");
     return allow;
 
     switch (param.EditorType) {
@@ -138,13 +136,13 @@ function ValidateDCrmEgGrid(param, field) {
 
 function DCrmEgGridSaving(data, entityinfo) {
     var allow = true;
-    Log("ParentEntityName [" + entityinfo.ParentEntityName + "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "]");
+    Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
+    Log("ParentEntityName [" + entityinfo.ParentEntityName + "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "]\r\n\r\n");
     return allow;
 
     var item;
     for (var i = 0; i < data.length; i++) {
         item = data[i];
-
         switch (item.InternalEditorType) {
             // Text
             case 0:
@@ -202,40 +200,37 @@ function DCrmEgGridSaving(data, entityinfo) {
 
 function DCrmEgGridDeleting(data, entityinfo) {
     var allow = true;
-    Log("ParentEntityName [" + entityinfo.ParentEntityName + "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "]");
-
+    Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
+    Log("ParentEntityName [" + entityinfo.ParentEntityName + "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "]\r\n\r\n");
     for (var i = 0; i < data.length; i++) {
         Log("Record Guid [" + data[i] + "]");
     }
-
     return allow;
 }
 
 function DCrmEgGridBeforeCreateNewRecord(newRecStruct, entityinfo) {
     var allow = true;
-    Log("ParentEntityName [" + entityinfo.ParentEntityName + "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "]");
-
+    Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
+    Log("ParentEntityName [" + entityinfo.ParentEntityName + "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "]\r\n\r\n");
     Log("New Record Struct", newRecStruct);
 
     return allow;
 }
 
 function DCrmEgGridCreateNewRecord(data, entityinfo) {
+    Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
     Log("ParentEntityName [" + entityinfo.ParentEntityName + "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "]");
-
-    Log("Record Guid [" + data.NewRecordGuid + "]");
+    Log("Record Guid [" + data.NewRecordGuid + "]\r\n\r\n");
 }
 
 var _MyCounter = 1;
 function DCrmEgGridRowOnload(rowData, entityinfo) {
-
+    Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
     Log("ParentEntityName [" + entityinfo.ParentEntityName + "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "]");
     Log("Record Guid [" + rowData.RecordGuid + "] Row Index [" + rowData.RowIndex + "]");
-
     if (rowData.InlineCreate) {
         Log("Create inline record is used. One row is being added.");
     }
-
     return;
 
     if (_MyCounter > 5) {
@@ -325,17 +320,16 @@ function DCrmEgGridRowOnload(rowData, entityinfo) {
 }
 
 function DCrmEgGridOnload(data, entityinfo) {
+    Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
     Log("Onload - ParentEntityName [" + entityinfo.ParentEntityLabel + "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaName + "]");
-
     //data.Option.readonly = (data.Option.text == "Accounting") || (data.Option.text == "Consulting") || (data.Option.text == "Friday");
-
-    Log("Option set - text [" + data.Option.text + "] value [" + data.Option.value + "] ReadOnly [" + data.Option.readonly + "]");
+    Log("Option set - text [" + data.Option.text + "] value [" + data.Option.value + "] ReadOnly [" + data.Option.readonly + "]\r\n\r\n");
 }
 
 function DCrmEgGridOnBeforeFetchRecords(entityinfo) {
     var additions = null;
-
-    Log("DCrmEgGridOnBeforeFetchRecords - ParentEntityName [" + entityinfo.ParentEntityLabel + "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaName + "]");
+    Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
+    Log("DCrmEgGridOnBeforeFetchRecords - ParentEntityName [" + entityinfo.ParentEntityLabel + "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaName + "]\r\n\r\n");
 
     //// Add additional conditions
     //if (entityinfo.ParentEntitySchemaName == 'account') {

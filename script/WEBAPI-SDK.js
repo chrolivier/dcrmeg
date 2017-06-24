@@ -1619,8 +1619,7 @@ OData-Version: 4.0
         var async = !!successCallback;
 
         fetchXml = fetchXml.replace(/\"/g, "'");
-
-        var url = getWebAPIPath() + entitySetName + "?fetchXml=" + encodeURI(fetchXml);
+        var url = getWebAPIPath() + entitySetName + "?fetchXml=" + fetchXml;
 
         var req = new XMLHttpRequest();
         req.open("GET", encodeURI(url), async);
@@ -1736,6 +1735,8 @@ OData-Version: 4.0
     }
 
     SdkWebAPI.RetrieveGlobalOptionSetMetaDataId = function (optionSetSchemaName, successCallback, errorCallback) {
+        // get all global optionsets
+        // "https://contoso.crm.dynamics.com/api/data/v8.2/$metadata#GlobalOptionSetDefinitions/$entity","@odata.type":"#Microsoft.Dynamics.CRM.OptionSetMetadata"
         var globalOptionSetMetaDataId = null;
         var uri = getWebAPIPath() + "GlobalOptionSetDefinitions?$select=Name";
 

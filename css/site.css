@@ -65,6 +65,9 @@
 .NumericTextbox {
     text-align:right !important;
 }
+    .NumericTextbox span {
+        padding-right: 5px;
+    }
 
 .flyout-ButtonContainer {
     text-align:right;
@@ -107,7 +110,7 @@
     height: 19px;
     border: none;
     margin: 0;
-    background-color: transparent; 
+    background-color: white; 
     outline: none;
     padding: 0 0 2px 0;
     vertical-align: middle;
@@ -521,7 +524,7 @@ Processing dialog
 .subgridparentdiv {
     display:block;
     min-height:100px;
-    padding:10px;
+    padding:0;
     margin:0;
     overflow-x:hidden;
     overflow-y:auto;
@@ -530,14 +533,14 @@ Processing dialog
 
 /*Grid*/
 .pure-table {
-    border-spacing: 0;
-    empty-cells: show;
-    border: none;
+    empty-cells: show;    
     cursor: pointer;
     background-color: white;
-
     position: relative;
+
+    border-spacing: 0;
     border-collapse: collapse;
+    border: none;
     overflow: hidden;
 }
 
@@ -565,7 +568,8 @@ Processing dialog
         cursor: pointer; 
         text-align: left;
 
-        min-height: 24px;
+        min-height: 28px;
+        height: 28px;
     }
     .pure-table thead th:nth-child(1) {
         text-align:center !important;
@@ -573,14 +577,13 @@ Processing dialog
 
 .pure-table td {
     border-top: 1px solid #cbcbcb;
-    border-width: 1px 0 0 0;
+    border-left: 1px solid #cbcbcb;
+    border-width: 1px 0 0 1px;
 
     font-size: 12px;
     margin: 0;
     vertical-align: middle;
 
-    outline:none;
-    outline-style: none;
     min-height: 24px;
 }
 
@@ -606,7 +609,8 @@ Processing dialog
         padding-left: 5px;
     }
     .pure-table tbody td:focus {
-	    outline: 0;
+        outline:none;
+        outline-style: none;
         border: solid 1px rgb(91, 157, 217);
     }
 
@@ -619,30 +623,18 @@ Processing dialog
 }
     .pure-table tfoot tr td {
         cursor: default!important;
-        border-bottom: none;
-        border-right: 1px solid lightgray;
-        border-left: none;
-        border-top: 1px solid lightgray;
-        outline: 0;
+        outline:none;
+        outline-style: none;
     }
-    .pure-table tfoot tr td:focus {
-        border-bottom: none;
-        /*border-right: none;*/
-        border-left: none;
-        border-top: 1px solid lightgray;
-    }
-    /*.pure-table tfoot tr td span {
-        padding-right: 5px;
-    }*/
-/* Consider removing this next declaration block, as it causes problems when
-there's a rowspan on the first cell. Case added to the tests. issue#432 */
+
 .pure-table td:first-child,
 .pure-table th:first-child {
-    border-left-width: 0;
+    border-left-width: 0!important;
 }
 
-.pure-table th:nth-child(2) {
-    border-left-width: 0;
+.pure-table td:nth-child(2), .pure-table td:nth-child(2):focus,
+.pure-table th:nth-child(2), .pure-table th:nth-child(2):focus {
+    border-left-width: 0!important;
 }
 
 /*Grid header, sort up/down images, selected row*/
@@ -668,6 +660,10 @@ there's a rowspan on the first cell. Case added to the tests. issue#432 */
     min-width: 55px !important;
     max-width: 55px !important;
     width: 55px !important;
+
+    outline:none!important;
+    outline-style: none!important;
+    border: none!important;
 }
 
 .firstColNoCheckbox {
@@ -677,6 +673,9 @@ there's a rowspan on the first cell. Case added to the tests. issue#432 */
     min-width: 35px !important;
     max-width: 35px !important;
     width: 35px !important;
+    outline:none!important;
+    outline-style: none!important;
+    border: none!important;
 }
 
 .firstColOpenImg {
@@ -687,11 +686,9 @@ there's a rowspan on the first cell. Case added to the tests. issue#432 */
     padding: 0;
     background-color: transparent;
     cursor:pointer !important;
+    outline:none!important;
+    outline-style: none!important;
 }
-
-    .firstColOpenImg:focus {
-        outline: none!important;
-    }
 
 .footercelltext {
     display:inline-block;
@@ -773,15 +770,17 @@ there's a rowspan on the first cell. Case added to the tests. issue#432 */
 }
 
 .fieldvaluechanged {
-    border-left: solid 2px red!important;
+    border-right: solid 1px red!important;
+    /*border-right-color: red!important;*/
 }
 
 .fieldvaluesaved {
-    border-left: solid 2px green!important;
+    border-right: solid 1px green!important;
+    /*border-right-color: green!important;*/
 }
 
 .TextEditors {
-    outline: 0;
+    outline: none;
     outline-style:none;
     border: solid 1px lightgray;
     padding: 2px 0 2px 5px;

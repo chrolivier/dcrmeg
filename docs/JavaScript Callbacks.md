@@ -52,6 +52,7 @@ Code Blocks
 	}
 	function ValidateDCrmEgGrid(param, field) {
 		var allow = true;
+		Log('GridCustomIdentifier [' + field.GridCustomIdentifier + ']');
 		Log("FieldSchemaName [" + field.FieldSchemaName + "](_-+-field.FieldSchemaName-+-_) FieldLabel [" + field.FieldLabel + "](_-+-field.FieldLabel-+-_) ParentEntitySchemaName [" + field.ParentEntitySchemaName + "](_-+-field.ParentEntitySchemaName-+-_) ParentEntityLabel [" + field.ParentEntityLabel + "](_-+-field.ParentEntityLabel-+-_) record guid [" + param.RecordGuid + "](_-+-param.RecordGuid-+-_)" );
 		switch (param.EditorType) {
 			// Text
@@ -101,6 +102,7 @@ Code Blocks
 	}
 	function DCrmEgGridSaving(data, entityinfo) {
 		var allow = true;
+		Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
 		Log("ParentEntityName [" + entityinfo.ParentEntityName + "](_-+-entityinfo.ParentEntityName-+-_) ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "](_-+-entityinfo.ParentEntitySchemaname-+-_)");
 		var item;
 		for (var i = 0; i < data.length; i++) {
@@ -156,6 +158,7 @@ Code Blocks
 	}
 	function DCrmEgGridDeleting(data, entityinfo) {
 		var allow = true;
+		Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
 		Log("ParentEntityName [" + entityinfo.ParentEntityName + "](_-+-entityinfo.ParentEntityName-+-_) ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "](_-+-entityinfo.ParentEntitySchemaname-+-_)");
 		for (var i = 0; i < data.length; i++) {
 			Log("Record Guid [" + data[i](_-+-data[i) + "]");
@@ -164,20 +167,24 @@ Code Blocks
 	}
 	function DCrmEgGridBeforeCreateNewRecord(newRecStruct, entityinfo) {
 		var allow = true;
+		Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
 		Log("ParentEntityName [" + entityinfo.ParentEntityName + "](_-+-entityinfo.ParentEntityName-+-_) ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "](_-+-entityinfo.ParentEntitySchemaname-+-_)");
 		Log("New Record Struct", newRecStruct);
 		return allow;
 	}
 	function DCrmEgGridCreateNewRecord(data, entityinfo) {
+		Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
 		Log("ParentEntityName [" + entityinfo.ParentEntityName + "](_-+-entityinfo.ParentEntityName-+-_) ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "](_-+-entityinfo.ParentEntitySchemaname-+-_)");
 		Log("Record Guid [" + data.NewRecordGuid + "](_-+-data.NewRecordGuid-+-_)");
 	}
 	function DCrmEgGridOnload(data, entityinfo) {
+		Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
 		Log("ParentEntityName [" + entityinfo.ParentEntityName + "](_-+-entityinfo.ParentEntityName-+-_) ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "](_-+-entityinfo.ParentEntitySchemaname-+-_)");
 		//data.Option.readonly = (data.Option.text == "Web");
 		Log("Option set - text [" + data.Option.text + "](_-+-data.Option.text-+-_) value [" + data.Option.value + "](_-+-data.Option.value-+-_) ReadOnly [" + data.Option.readonly + "](_-+-data.Option.readonly-+-_)");
 	}
 	function DCrmEgGridRowOnload(rowData, entityinfo) {
+		Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
 		Log("ParentEntityName [" + entityinfo.ParentEntityName + "](_-+-entityinfo.ParentEntityName-+-_) ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "](_-+-entityinfo.ParentEntitySchemaname-+-_)");
 		Log("Record Guid [" + rowData.RecordGuid + "](_-+-rowData.RecordGuid-+-_)");
 		if (rowData.InlineCreate) {
@@ -252,6 +259,7 @@ Code Blocks
 		}
 	}
 	function DCrmEgGridOnBeforeFetchRecords(entityinfo) {
+		Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
 		var additions = null;
 		Log("DCrmEgGridOnBeforeFetchRecords - ParentEntityName [" + entityinfo.ParentEntityLabel + "](_-+-entityinfo.ParentEntityLabel-+-_) ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaName + "](_-+-entityinfo.ParentEntitySchemaName-+-_)");
 		//// Add additional conditions

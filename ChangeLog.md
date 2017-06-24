@@ -1,3 +1,15 @@
+v1.0.6.1
+========
+
+Bug Fixes:
+1. Configuration Record does not display list of entities. Dynamics 365 Online version 1612 (8.2.1.207)
+2. Synchronuoos Associating records Web API call was missing a parameter
+
+Additions:
+1. Added an option to the configuration to set the minimum width of the columns. Default 15 px. The grid will attempt to display all columns within the viewable area. If a column width is specified in the configuration, it will be used as long as it is not less than the minimum column width specified in the configuration. Better browser horizontal resize handling.
+2. Added an option to the configuration to allow using a custom identifier for each grid. The custom identifier is passed to all the JS call backs. This is for cases where multiple grids exist on the same form and a need to identify originating grid for the JS call backs.
+3. Added borders to grid cells and teawked CSS based on the browser.
+
 v1.0.6.0
 ========
 
