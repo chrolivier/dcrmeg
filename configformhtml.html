@@ -247,6 +247,17 @@
                         <input type="checkbox" id="refreshaftersave_check" />
                     </div>
                 </div>
+
+                <div class="group">
+                    <div class="col span_2_of_3">
+                        <label title="How long to wait before performing auto refresh. Default 0, immediately." id="autorefreshdelaylabel" class="ElipseText" for="autorefreshdelay">Auto refresh delay (milli seconds)</label>
+                    </div>
+                    <div class="col span_1_of_4">
+                        <input style="width:45px;" type="text" id="autorefreshdelay" maxlength="4" />
+                    </div>
+                </div>
+
+
                 <div class="group">
                     <div class="col span_2_of_3">
                         <label id="dcrmeg_displaysumfornumericvalues" class="ElipseText" for="displaySum">Allow aggregates</label>
@@ -324,7 +335,7 @@
 
                 <div class="group">
                     <div class="col span_2_of_3">
-                        <label title="" id="gridheaderminimumwidthlabel" class="ElipseText" for="gridheaderminimumwidth">Grid header minimum width</label>
+                        <label title="The grid will attempt to display all columns within the viewable area. If a column width is specified in the configuration, it will be used as long as it is not less than the minimum column width" id="gridheaderminimumwidthlabel" class="ElipseText" for="gridheaderminimumwidth">Grid header minimum width</label>
                     </div>
                     <div class="col span_1_of_4">
                         <input style="width:45px;" type="text" id="gridheaderminimumwidth" maxlength="3" />
@@ -333,7 +344,7 @@
 
                 <div class="group">
                     <div class="col span_2_of_3">
-                        <label title="" id="gridcustomidentifierlabel" class="ElipseText" for="gridcustomidentifier">Grid custom identifier</label>
+                        <label title="The custom identifier is passed to all the JS call backs. This is for cases where multiple grids exist on the same form and a need to identify originating grid for the JS call backs." id="gridcustomidentifierlabel" class="ElipseText" for="gridcustomidentifier">Grid custom identifier</label>
                     </div>
                     <div class="col span_1_of_4">
                         <input style="width:93%;" type="text" id="gridcustomidentifier" />

@@ -1,3 +1,24 @@
+v1.0.6.2
+========
+
+Bug Fixes:
+1. When using nested records, for every record that is expanded the grid ads a lot of extra white space. (with no aggregates present)
+2. After a refresh, the grid doesn't navigate to the same page and the selected field. Doesn't keep focus.
+3. Scenario: read only column with picklist field (column filter enabled). Issue: when click on column filter, there is js error because self.GridEditors property has null elements
+4. Dynamics 365, Create inline record. An undeclared property new_primaryincident which only has property annotations in the payload but no property value was found in the payload. In OData, only declared navigation properties and declared named streams can be represented as properties without values.
+5. While editing in grid, Shift+Tab keys used usually on standard forms/grids to focus on previous field not working. Instead it acts as a simple Tab.
+6. Keyboard friendly selection from option set. It would be nice if we could select one of the presented options by using arrows keys (up, down), but without triggering the filter as we still need to see available options.
+7. Pressing Tab Key is changing the boolean values. (tabbing + with one click checkbox option enabled.)
+8. After an auto save and auto refresh, the data wasn't reflecting the changes that was to be made in a workflow triggered by saving a field. Please see the Additions for Auto refresh delay option.
+9. Saving to Excel and CSV wasn't adding values from the textual fields.
+
+Additions:
+1. "DCrmEgGridOnBeforeLookupFetchRecords" JavaScript callback. Allow additional conditions to be added to the fetch XML prior to fetching data for the Lookup editors.
+2. "DCrmEgGridRowOnload" JavaScript callback. Added the means to set the display of the cells via two new attributes. Please see the [JS callbacks documentation](https://github.com/mehrgithub/dcrmeg/blob/master/docs/JavaScript%20Callbacks.md). I am looking for feedback as whether to save the new value or use other means. Please provide feedback.
+3. Grid configuration, Auto refresh delay mechanism for Refresh after create and save options. Auto refresh delay (milli seconds) is for scenerios where a workflow is triggered after the grid saves changes to a field. Since the grid immediately fetches data, in most likelihood, the workflow hasn't finished/started. The return data doesn't reflect the changes from workflow. This option allows you to delay the auto refresh till the workflow has finished. Depending on the load, this could be 1000 milli seconds (1 second) or more.
+4. If a cell has focus, pressing F5 refreshs the grid.
+
+
 v1.0.6.1
 ========
 

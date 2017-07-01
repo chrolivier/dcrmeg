@@ -24,6 +24,9 @@ Fires for every row to be rendered. Allows setting a field (cell) to readonly an
 **DCrmEgGridOnBeforeFetchRecords**
 Allow additional conditions to be added to the fetch XML prior to fetching data for the grid.
 
+**DCrmEgGridOnBeforeLookupFetchRecords**
+Allow additional conditions to be added to the fetch XML prior to fetching data for the Lookup editors.
+
 **Set up**
 
 1. Create a new JavaScript resource and add the following code to the it
@@ -49,6 +52,7 @@ Code Blocks
 		window.parent.DCrmEgGridOnload = DCrmEgGridOnload;
 		window.parent.DCrmEgGridRowOnload = DCrmEgGridRowOnload;
 		window.parent.DCrmEgGridOnBeforeFetchRecords = DCrmEgGridOnBeforeFetchRecords;
+		window.parent.DCrmEgGridOnBeforeLookupFetchRecords = DCrmEgGridOnBeforeLookupFetchRecords;
 	}
 	function ValidateDCrmEgGrid(param, field) {
 		var allow = true;
@@ -183,13 +187,21 @@ Code Blocks
 		//data.Option.readonly = (data.Option.text == "Web");
 		Log("Option set - text [" + data.Option.text + "](_-+-data.Option.text-+-_) value [" + data.Option.value + "](_-+-data.Option.value-+-_) ReadOnly [" + data.Option.readonly + "](_-+-data.Option.readonly-+-_)");
 	}
+	var _MyCounter = 1;
 	function DCrmEgGridRowOnload(rowData, entityinfo) {
 		Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
-		Log("ParentEntityName [" + entityinfo.ParentEntityName + "](_-+-entityinfo.ParentEntityName-+-_) ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "](_-+-entityinfo.ParentEntitySchemaname-+-_)");
-		Log("Record Guid [" + rowData.RecordGuid + "](_-+-rowData.RecordGuid-+-_)");
+		Log("ParentEntityName [" + entityinfo.ParentEntityName + "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "]");
+		Log("Record Guid [" + rowData.RecordGuid + "] Row Index [" + rowData.RowIndex + "]");
 		if (rowData.InlineCreate) {
 			Log("Create inline record is used. One row is being added.");
 		}
+		if (_MyCounter > 5) {
+			_MyCounter = 0;
+		}
+		if (_MyCounter == 1) {
+			rowData.RowBackgroundColor = '#CCCCCC';
+		}
+		_MyCounter++;
 		var CrmFieldTypes = {
 			LookupType: "lookup",
 			CustomerType: 'customer',
@@ -207,14 +219,18 @@ Code Blocks
 			Status: 'status' // Status Reason statuscode
 		};
 		for (var i = 0; i < rowData.Fields.length; i++) {
-			var field = rowData.Fields[i](i);
-			Log("Field schema name [" + field.SchemaName + "](_-+-field.SchemaName-+-_) field.FieldType [" + field.FieldType + "](_-+-field.FieldType-+-_)");
+			var field = rowData.Fields[i];
+			Log("Field schema name [" + field.SchemaName + "] field.FieldType [" + field.FieldType + "]");
 			switch (field.FieldType) {
 				case CrmFieldTypes.TextType:
+					Log("Field [" + field.Value + "] Format [" + field.Format + "]");
+					//// To set a different display value
+					//field.NewFormattedValue = 'Custom value';
+					break;
 				case CrmFieldTypes.MemoType:
-					Log("Field ["
-						+ field.Value + "] Format ["
-						+ field.Format + "]");
+					Log("Field [" + field.Value + "] Format [" + field.Format + "]");
+					//// To set a different display value
+					//field.NewFormattedValue = 'Custom value';
 					break;
 				case CrmFieldTypes.LookupType:
 				case CrmFieldTypes.CustomerType:
@@ -226,33 +242,52 @@ Code Blocks
 						+ field.Value + "]");
 					break;
 				case CrmFieldTypes.IntegerType:
+					Log("Field FormattedValue [" + field.FormattedValue + "] Value [" + field.Value + "]");
+					// To set a different display value
+					//field.NewFormattedValue = 55;
+					break;
 				case CrmFieldTypes.DoubleType:
 				case CrmFieldTypes.DecimalType:
+					Log("Field FormattedValue [" + field.FormattedValue + "] Value [" + field.Value + "]");
+					//// To set a different display value
+					//field.NewFormattedValue = 65.90;
+					break;
 				case CrmFieldTypes.MoneyType:
-					Log("Field FormattedValue ["
-						+ field.FormattedValue + "] Value ["
-						+ field.Value + "]");
+					Log("Field FormattedValue [" + field.FormattedValue + "] Value [" + field.Value + "]");
+					//// To set a different display value
+					//field.NewFormattedValue = $65.900;
+					//field.NewValue = 65.90;
 					break;
 				case CrmFieldTypes.DateTimeType:
-					Log("Field FormattedValue ["
-						+ field.FormattedValue + "]");
-					field.ReadOnly = true;
-					// Optional, set field (cell) background and forground colors
-					field.BackgroundColor = 'lightyellow';
-					field.ForgroundColor = 'black';
+					Log("Field FormattedValue [" + field.FormattedValue + "]");
+					//field.ReadOnly = true;
+					//// Optional, set field (cell) background and forground colors
+					//field.BackgroundColor = 'lightyellow';
+					//field.ForgroundColor = 'black';
+					//// To set a different display value
+					//field.NewFormattedValue = '03/25/2017';
 					break;
 				case CrmFieldTypes.OptionSetType:
+					Log("Field FormattedValue [" + field.FormattedValue + "] Value [" + field.Value + "]");
+					//// To set a different display value
+					//field.NewFormattedValue = 'option three';
+					//field.NewValue = 4;
+					break;
 				case CrmFieldTypes.BooleanType:
-					Log("Field FormattedValue ["
-						+ field.FormattedValue + "] Value [" + field.Value + "](_-+-field.Value-+-_)");
-					field.ReadOnly = true;
-					field.BackgroundColor = '#CCCCCC';
-					field.ForgroundColor = 'blue';
+					Log("Field FormattedValue [" + field.FormattedValue + "] Value [" + field.Value + "]");
+					//field.ReadOnly = true;
+					//field.BackgroundColor = '#CCCCCC';
+					//field.ForgroundColor = 'blue';
+					//// To set a different display value
+					//field.NewFormattedValue = 'Yes';
+					//field.NewValue = true;
+					//// OR
+					//field.NewFormattedValue = 'InActive';
+					//field.NewValue = false;
 					break;
 				case CrmFieldTypes.State:
 				case CrmFieldTypes.Status:
-					Log("Field FormattedValue ["
-						+ field.FormattedValue + "] Value [" + field.Value + "](_-+-field.Value-+-_)");
+					Log("Field FormattedValue [" + field.FormattedValue + "] Value [" + field.Value + "]");
 				default:
 					break;
 			}
@@ -280,4 +315,24 @@ Code Blocks
 			//'</link-entity>';
 		//}
 		return additions;
+	}
+	function DCrmEgGridOnBeforeLookupFetchRecords(entityinfo) {
+		var additions = null;
+		Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
+		Log("DCrmEgGridOnBeforeLookupFetchRecords - Field Schemname [" + entityinfo.FieldSchemaName + "] ParentEntityName [" + entityinfo.ParentEntityLabel + "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaName + "]\r\n\r\n");
+		//additions = {};
+		//// Example for a sinle value condition
+		//additional.Condition = '<condition attribute="primarycontactid" operator="eq" value="{76E339A4-1528-E611-80DD-08002738AA19}" />';
+		//// Example for multi value condition
+		//additions.Condition = '<condition attribute="primarycontactid" operator="in">' +
+		//    '<value>{64E339A4-1528-E611-80DD-08002738AA19}</value>' +
+		//    '<value>{76E339A4-1528-E611-80DD-08002738AA19}</value>' +
+		//'</condition>';
+		//// Example for a link entity
+		//additions.LinkEntity = '<link-entity name="incident" from="customerid" to="accountid" alias="aa">' +
+		//  '<filter type="and">' +
+		//    '<condition attribute="primarycontactidname" operator="like" value="fjghg%" />' +
+		//  '</filter>' +
+		//'</link-entity>';
+		return additions
 	}

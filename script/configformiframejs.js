@@ -489,6 +489,7 @@ Array.prototype.ExactMatchExists = function (str) {
         var min = settings.min;
         var max = settings.max;
         var callback = settings.parentCallback;
+        var toupdate = settings.ToUpdate; // mincolumnwidth / autorefreshdelay
 
         if (min == max) {
             throw ("The minimum value cannot be the same as the max value");
@@ -568,7 +569,11 @@ Array.prototype.ExactMatchExists = function (str) {
             }
 
             if (update) {
-                _thisGlobals._CurConfiguration.GridHeaderMinimumWidth = $(this).val();
+                if (toupdate == 'mincolumnwidth') {
+                    _thisGlobals._CurConfiguration.GridHeaderMinimumWidth = $(this).val();
+                } else if (toupdate == 'autorefreshdelay') {
+                    _thisGlobals._CurConfiguration.AutoRefreshDelay = $(this).val();
+                }
                 if (callback) {
                     callback();
                 }
@@ -1569,7 +1574,7 @@ function LookupDefaultValueCallbackFunction(returnValue) {
     if (_thisGlobals._DefaultLookupElemId != 'cellformatconditioninput') {
         var hiddenLookupSelect = $targetElem.parent().find('.lookupselect2class');
         if ((hiddenLookupSelect) && (hiddenLookupSelect.length)) {
-            hiddenLookupSelect.select2("destroy");
+            //hiddenLookupSelect.select2("destroy");
             hiddenLookupSelect.remove();
         }
         if (LookupLogicalNames) {
@@ -3614,7 +3619,9 @@ function InitializeSetupRoutinesInternal() {
         SetParentFormDirty();
     });
 
-    $("#gridheaderminimumwidth").numericInput({ parentCallback: SetParentFormDirty });
+    $("#gridheaderminimumwidth").numericInput({ parentCallback: SetParentFormDirty, ToUpdate: 'mincolumnwidth' });
+    $("#autorefreshdelay").numericInput({ parentCallback: SetParentFormDirty, ToUpdate: 'autorefreshdelay' });
+
     $('#gridcustomidentifier').on('blur', function (e) {
         var val = $(this).val();
         if (val != _thisGlobals._CurConfiguration.GridCustomIdentifier) {
@@ -4195,6 +4202,7 @@ function InitializeSetupRoutinesInternal() {
         $('#displayclonerecord').attr('disabled', 'disabled');
         $('#gridtitlewordwrap').attr('disabled', 'disabled');
         $('#gridheaderminimumwidth').prop('disabled', 'disabled');
+        $('#autorefreshdelay').prop('disabled', 'disabled');
         $('#gridcustomidentifier').prop('disabled', 'disabled');
 
         $('#displayclonerecordbutton').attr('disabled', 'disabled');
@@ -4934,6 +4942,8 @@ var DCrmEGConfigurationManager = (function () {
         self.GridTitleWordWrap = ((data.GridTitleWordWrap) && (data.GridTitleWordWrap == 'true')) ? true : false;
         self.GridHeaderMinimumWidth = (data.GridHeaderMinimumWidth) ? data.GridHeaderMinimumWidth : '15'; // Pixels
         self.GridCustomIdentifier = (data.GridCustomIdentifier && data.GridCustomIdentifier.length) ? data.GridCustomIdentifier : '';
+        self.AutoRefreshDelay = (data.AutoRefreshDelay) ? data.AutoRefreshDelay : 0;
+        
 
         self.DisplayCloneRecordButton = ((data.DisplayCloneRecordButton) && (data.DisplayCloneRecordButton == 'false')) ? false : true;
         self.OpenRecordBehavoir = ((data.OpenRecordBehavoir) && (data.OpenRecordBehavoir != 'undefined')) ? data.OpenRecordBehavoir : "10";
@@ -5179,6 +5189,8 @@ function DisplaySelectedEntityInfo(li, schema, liid) {
     $('#displayclonerecord').prop('checked', _thisGlobals._CurConfiguration.DisplayCloneRecord);
     $('#gridtitlewordwrap').prop('checked', _thisGlobals._CurConfiguration.GridTitleWordWrap);
     $('#gridheaderminimumwidth').val(_thisGlobals._CurConfiguration.GridHeaderMinimumWidth);
+    $('#autorefreshdelay').val(_thisGlobals._CurConfiguration.AutoRefreshDelay);
+    
     $('#gridcustomidentifier').val(_thisGlobals._CurConfiguration.GridCustomIdentifier);
     
     $('#displayclonerecordbutton').prop('checked', _thisGlobals._CurConfiguration.DisplayCloneRecordButton);
@@ -5311,6 +5323,7 @@ function LoadDCrmEGConfiguration() {
             data.GridTitleWordWrap = ((tmp.length > 32) ? tmp[32] : false);
             data.GridHeaderMinimumWidth = ((tmp.length > 33) ? tmp[33] : undefined);
             data.GridCustomIdentifier = ((tmp.length > 34) ? tmp[34] : undefined);
+            data.AutoRefreshDelay = ((tmp.length > 35) ? tmp[35] : undefined);
         }
 
         config = new DCrmEGConfigurationManager(data);
@@ -5512,7 +5525,9 @@ function SaveDCrmEGConfiguration() {
         + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].SystemCurrencyPrecision
         + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].GridTitleWordWrap
         + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].GridHeaderMinimumWidth
-        + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].GridCustomIdentifier;
+        + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].GridCustomIdentifier
+        + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].AutoRefreshDelay;
+        
         
         if (_thisGlobals.DCrmEGConfiguration[i].Fields) {
             if (i > 0) {
@@ -5595,8 +5610,10 @@ function SaveDCrmEGConfigurationInternal(config) {
     + _thisGlobals._SEPERATOR + config.SystemCurrencyPrecision
     + _thisGlobals._SEPERATOR + config.GridTitleWordWrap
     + _thisGlobals._SEPERATOR + config.GridHeaderMinimumWidth
-    + _thisGlobals._SEPERATOR + config.GridCustomIdentifier;
+    + _thisGlobals._SEPERATOR + config.GridCustomIdentifier
+    + _thisGlobals._SEPERATOR + config.AutoRefreshDelay;
 
+    
     if (config.Fields) {
         _thisGlobals._Fieldsinfo += _thisGlobals._pSeperator + config.Fields + _thisGlobals._OuterSeperator + config.Entity.Identity;
     }

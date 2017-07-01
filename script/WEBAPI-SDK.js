@@ -170,7 +170,7 @@ var SdkWebAPI = (function (SdkWebAPI) {
         };
         req.send();
     }
-    SdkWebAPI.retrievePropertyValue = function (uri, propertyName, successCallback, errorCallback, callerId) {
+    SdkWebAPI.retrievePropertyValue = function (uri, propertyName, successCallback, errorCallback, includeFormattedValues, passthroughObj, passthroughObj1, callerId) {
         /// <summary>Retrieve the value of an entity property</summary>
         /// <param name="uri" type="String">The Uri for the entity with the property you want to retrieve</param>
         /// <param name="propertyName" type="String">A string representing the entity property you want to retrieve.</param>
@@ -192,6 +192,11 @@ var SdkWebAPI = (function (SdkWebAPI) {
         if (!isAcceptableCallerId(callerId)) {
             throw new Error("SdkWebAPI.retrieveProperty callerId parameter must be a string or null.");
         }
+        if (!isBooleanOrNullOrUndefined(includeFormattedValues)) {
+            throw new Error("SdkWebAPI.retrievePropertyValue includeFormattedValues parameter must be a boolean, null, or undefined.");
+        }
+
+        var async = !!successCallback;
 
         var req = new XMLHttpRequest();
         req.open("GET", encodeURI(uri + "/" + propertyName), true);
@@ -202,26 +207,48 @@ var SdkWebAPI = (function (SdkWebAPI) {
         req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
         req.setRequestHeader("OData-MaxVersion", "4.0");
         req.setRequestHeader("OData-Version", "4.0");
-        req.onreadystatechange = function () {
-            if (this.readyState == 4 /* complete */) {
-                req.onreadystatechange = null;
-                switch (this.status) {
-                    case 200:
-                        if (successCallback)
-                            successCallback(JSON.parse(this.response, dateReviver).value);
-                        break;
-                    case 204:
-                        if (successCallback)
-                            successCallback(null);
-                        break;
-                    default:
-                        if (errorCallback)
-                            errorCallback(SdkWebAPI.errorHandler(this), "Retrieve Property Value");
-                        break;
+        if (includeFormattedValues) {
+            req.setRequestHeader("Prefer", "odata.include-annotations=\"OData.Community.Display.V1.FormattedValue\"");
+        }
+
+        if(async) {
+            req.onreadystatechange = function () {
+                if (this.readyState == 4 /* complete */) {
+                    req.onreadystatechange = null;
+                    switch (this.status) {
+                        case 200:
+                            if (successCallback)
+                                successCallback(JSON.parse(this.response, dateReviver).value);
+                            break;
+                        case 204:
+                            if (successCallback)
+                                successCallback(null);
+                            break;
+                        default:
+                            if (errorCallback)
+                                errorCallback(SdkWebAPI.errorHandler(this), "Retrieve Property Value");
+                            break;
+                    }
                 }
-            }
-        };
+            };
+        }
         req.send();
+        if(!async) {
+            return JSON.parse(this.response, dateReviver).value;
+            /*
+{
+   "@odata.context":"http://[Organization URI]/api/data/v8.2/$metadata#contacts(fullname,jobtitle,annualincome)/$entity",
+   "@odata.etag":"W/\"619718\"",
+   "fullname":"Yvonne McKay (sample)",
+   "jobtitle":"Coffee Master",
+   "annualincome@OData.Community.Display.V1.FormattedValue":"$45,000.00",
+   "annualincome":45000.0000,
+   "_transactioncurrencyid_value@OData.Community.Display.V1.FormattedValue":"US Dollar",
+   "_transactioncurrencyid_value":"518c78c9-d3f6-e511-80d0-00155da84802",
+   "contactid":"15c364b2-bf43-e611-80d5-00155da84802"
+}
+             */
+        }
     }
     SdkWebAPI.update = function (uri, updatedEntity, successCallback, errorCallback, passthroughObj, passthroughObj1, callerId) {
         /// <summary>Update an entity</summary>
