@@ -57,47 +57,68 @@ Code Blocks
 	function ValidateDCrmEgGrid(param, field) {
 		var allow = true;
 		Log('GridCustomIdentifier [' + field.GridCustomIdentifier + ']');
-		Log("FieldSchemaName [" + field.FieldSchemaName + "](_-+-field.FieldSchemaName-+-_) FieldLabel [" + field.FieldLabel + "](_-+-field.FieldLabel-+-_) ParentEntitySchemaName [" + field.ParentEntitySchemaName + "](_-+-field.ParentEntitySchemaName-+-_) ParentEntityLabel [" + field.ParentEntityLabel + "](_-+-field.ParentEntityLabel-+-_) record guid [" + param.RecordGuid + "](_-+-param.RecordGuid-+-_)" );
+		Log("FieldSchemaName [" + field.FieldSchemaName 
+		+ "] FieldLabel [" + field.FieldLabel 
+		+ "] ParentEntitySchemaName [" + field.ParentEntitySchemaName 
+		+ "] ParentEntityLabel [" + field.ParentEntityLabel 
+		+ "] record guid [" + param.RecordGuid + "]" );
 		switch (param.EditorType) {
 			// Text
 			case 0:
-				Log("Text - NewValue [" + param.NewValue + "](_-+-param.NewValue-+-_) OriginalValue [" + param.OriginalValue + "](_-+-param.OriginalValue-+-_)");
+				Log("Text - NewValue [" + param.NewValue 
+				+ "] OriginalValue [" + param.OriginalValue + "]");
 				break;
 			// Whole Number
 			case 1:
-				Log("Text - NewValue [" + param.NewValue + "](_-+-param.NewValue-+-_) OriginalValue [" + param.OriginalValue + "](_-+-param.OriginalValue-+-_)");
+				Log("Text - NewValue [" + param.NewValue 
+				+ "] OriginalValue [" + param.OriginalValue + "]");
 				break;
 			// Date Picker
 			case 2:
-				Log("Date - NewDate [" + param.NewValue + "](_-+-param.NewValue-+-_) OriginalDate [" + param.OriginalValue + "](_-+-param.OriginalValue-+-_)");
+				Log("Date - NewDate [" + param.NewValue 
+				+ "] OriginalDate [" + param.OriginalValue + "]");
 				break;
 			// Checkbox (two option)
 			case 3:
-				Log("Checkbox (TwoOption) - NewText [" + param.NewValue + "](_-+-param.NewValue-+-_) OriginalText [" + param.OriginalValue + "](_-+-param.OriginalValue-+-_) isChecked [" + param.IsChecked + "](_-+-param.IsChecked-+-_)");
+				Log("Checkbox (TwoOption) - NewText [" + param.NewValue 
+				+ "] OriginalText [" + param.OriginalValue 
+				+ "] isChecked [" + param.IsChecked + "]");
 				break;
 			// OptionSet
 			case 4:
-				Log("OptionSet - NewLabel [" + param.NewLabel + "](_-+-param.NewLabel-+-_) NewValue [" + param.NewValue + "](_-+-param.NewValue-+-_) OriginalLabel [" + param.OriginalLabel + "](_-+-param.OriginalLabel-+-_) OriginalValue [" + param.OriginalValue + "](_-+-param.OriginalValue-+-_)");
+				Log("OptionSet - NewLabel [" + param.NewLabel 
+				+ "] NewValue [" + param.NewValue 
+				+ "] OriginalLabel [" + param.OriginalLabel 
+				+ "] OriginalValue [" + param.OriginalValue + "]");
 				break;
 			// Memo (Description)
 			case 5:
-				Log("Memo (description) - NewValue [" + param.NewValue + "](_-+-param.NewValue-+-_) OriginalValue [" + param.OriginalValue + "](_-+-param.OriginalValue-+-_)");
+				Log("Memo (description) - NewValue [" + param.NewValue 
+				+ "] OriginalValue [" + param.OriginalValue + "]");
 				break;
 			// Lookup (single)
 			case 6:
-				Log("Lookup - NewLabel [" + param.NewLabel + "](_-+-param.NewLabel-+-_) NewGuid [" + param.NewGuid + "[ NewLogicalName [" + param.NewLogicalName + "](_-+-param.NewGuid-+-_[-NewLogicalName-[_-+-param.NewLogicalName-+-_) OriginalLabel [" + param.OriginalLabel + "](_-+-param.OriginalLabel-+-_) OriginalGuid [" + param.OriginalGuid + "](_-+-param.OriginalGuid-+-_) OriginalLogicalName [" + param.OriginalLogicalName + "](_-+-param.OriginalLogicalName-+-_)");
+				Log("Lookup - NewLabel [" + param.NewLabel 
+				+ "] NewGuid [" + param.NewGuid 
+				+ "] NewLogicalName [" + param.NewLogicalName 
+				+ "] OriginalLabel [" + param.OriginalLabel 
+				+ "] OriginalGuid [" + param.OriginalGuid 
+				+ "] OriginalLogicalName [" + param.OriginalLogicalName + "]");
 				break;
 			// Decimal / Float
 			case 7:
-				Log("Text - NewValue [" + param.NewValue + "](_-+-param.NewValue-+-_) OriginalValue [" + param.OriginalValue + "](_-+-param.OriginalValue-+-_)");
+				Log("Text - NewValue [" + param.NewValue 
+				+ "] OriginalValue [" + param.OriginalValue + "]");
 				break;
 			// Currency
 			case 8:
-				Log("Text - NewValue [" + param.NewValue + "](_-+-param.NewValue-+-_) OriginalValue [" + param.OriginalValue + "](_-+-param.OriginalValue-+-_)");
+				Log("Text - NewValue [" + param.NewValue 
+				+ "] OriginalValue [" + param.OriginalValue + "]");
 				break;
 			// Date Time Picker
 			case 9:
-				Log("DateTime - NewDateTime [" + param.NewValue + "](_-+-param.NewValue-+-_) OriginalDateTime [" + param.OriginalValue + "](_-+-param.OriginalValue-+-_)");
+				Log("DateTime - NewDateTime [" + param.NewValue 
+				+ "] OriginalDateTime [" + param.OriginalValue + "]");
 				break;
 			default:
 				break;
@@ -107,7 +128,8 @@ Code Blocks
 	function DCrmEgGridSaving(data, entityinfo) {
 		var allow = true;
 		Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
-		Log("ParentEntityName [" + entityinfo.ParentEntityName + "](_-+-entityinfo.ParentEntityName-+-_) ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "](_-+-entityinfo.ParentEntitySchemaname-+-_)");
+		Log("ParentEntityName [" + entityinfo.ParentEntityName 
+		+ "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "]");
 		var item;
 		for (var i = 0; i < data.length; i++) {
 			item = data[i](i);
@@ -129,7 +151,7 @@ Code Blocks
 					Log("Record Guid [" + item.RecGuid +
 						"] ValueToSave [" + item.ValueToSave +
 						"] FieldSchemaName [" + item.FieldSchemaName +
-						"] Format [" + item.InternalEditorFormat + "](_-+-item.InternalEditorFormat-+-_)");
+						"] Format [" + item.InternalEditorFormat + "])");
 					// Format: url, email, phone, ...
 					break;
 					// Checkbox (two option)
@@ -137,14 +159,14 @@ Code Blocks
 					Log("Record Guid [" + item.RecGuid +
 						"] ValueToSave [" + item.ValueToSave +
 						"] FieldSchemaName [" + item.FieldSchemaName +
-						"]  [" + item.CheckAttribute + "](_-+-item.CheckAttribute-+-_)");
+						"]  [" + item.CheckAttribute + "]");
 					break;
 				// OptionSet
 				case 4:
 					Log("Record Guid [" + item.RecGuid +
 						"] OptionSetLabel [" + item.ValueToSave +
 						"] FieldSchemaName [" + item.FieldSchemaName +
-						"] OptionSetValue [" + item.OptionSetValue + "](_-+-item.OptionSetValue-+-_)");
+						"] OptionSetValue [" + item.OptionSetValue + "]");
 					break;
 				// Lookup (single)
 				case 6:
@@ -152,7 +174,7 @@ Code Blocks
 						"] LookupText [" + item.ValueToSave +
 						"] FieldSchemaName [" + item.FieldSchemaName +
 						"] LookupLogicalName [" + item.LookupLogicalName +
-						"] LookupGuid [" + item.LookupId + "](_-+-item.LookupId-+-_)");
+						"] LookupGuid [" + item.LookupId + "]");
 					break;
 				default:
 					break;
@@ -163,34 +185,40 @@ Code Blocks
 	function DCrmEgGridDeleting(data, entityinfo) {
 		var allow = true;
 		Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
-		Log("ParentEntityName [" + entityinfo.ParentEntityName + "](_-+-entityinfo.ParentEntityName-+-_) ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "](_-+-entityinfo.ParentEntitySchemaname-+-_)");
+		Log("ParentEntityName [" + entityinfo.ParentEntityName 
+		+ "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "]");
 		for (var i = 0; i < data.length; i++) {
-			Log("Record Guid [" + data[i](_-+-data[i) + "]");
+			Log("Record Guid [" + data[i] + "]");
 		}
 		return allow;
 	}
 	function DCrmEgGridBeforeCreateNewRecord(newRecStruct, entityinfo) {
 		var allow = true;
 		Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
-		Log("ParentEntityName [" + entityinfo.ParentEntityName + "](_-+-entityinfo.ParentEntityName-+-_) ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "](_-+-entityinfo.ParentEntitySchemaname-+-_)");
+		Log("ParentEntityName [" + entityinfo.ParentEntityName 
+		+ "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "]");
 		Log("New Record Struct", newRecStruct);
 		return allow;
 	}
 	function DCrmEgGridCreateNewRecord(data, entityinfo) {
 		Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
-		Log("ParentEntityName [" + entityinfo.ParentEntityName + "](_-+-entityinfo.ParentEntityName-+-_) ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "](_-+-entityinfo.ParentEntitySchemaname-+-_)");
-		Log("Record Guid [" + data.NewRecordGuid + "](_-+-data.NewRecordGuid-+-_)");
+		Log("ParentEntityName [" + entityinfo.ParentEntityName 
+		+ "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "]");
+		Log("Record Guid [" + data.NewRecordGuid + "]");
 	}
 	function DCrmEgGridOnload(data, entityinfo) {
 		Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
-		Log("ParentEntityName [" + entityinfo.ParentEntityName + "](_-+-entityinfo.ParentEntityName-+-_) ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "](_-+-entityinfo.ParentEntitySchemaname-+-_)");
+		Log("ParentEntityName [" + entityinfo.ParentEntityName 
+		+ "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "]");
 		//data.Option.readonly = (data.Option.text == "Web");
-		Log("Option set - text [" + data.Option.text + "](_-+-data.Option.text-+-_) value [" + data.Option.value + "](_-+-data.Option.value-+-_) ReadOnly [" + data.Option.readonly + "](_-+-data.Option.readonly-+-_)");
+		Log("Option set - text [" + data.Option.text + "] value [" 
+		+ data.Option.value + "] ReadOnly [" + data.Option.readonly + "]");
 	}
 	var _MyCounter = 1;
 	function DCrmEgGridRowOnload(rowData, entityinfo) {
 		Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
-		Log("ParentEntityName [" + entityinfo.ParentEntityName + "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "]");
+		Log("ParentEntityName [" + entityinfo.ParentEntityName 
+		+ "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "]");
 		Log("Record Guid [" + rowData.RecordGuid + "] Row Index [" + rowData.RowIndex + "]");
 		if (rowData.InlineCreate) {
 			Log("Create inline record is used. One row is being added.");
@@ -220,15 +248,18 @@ Code Blocks
 		};
 		for (var i = 0; i < rowData.Fields.length; i++) {
 			var field = rowData.Fields[i];
-			Log("Field schema name [" + field.SchemaName + "] field.FieldType [" + field.FieldType + "]");
+			Log("Field schema name [" + field.SchemaName 
+			+ "] field.FieldType [" + field.FieldType + "]");
 			switch (field.FieldType) {
 				case CrmFieldTypes.TextType:
-					Log("Field [" + field.Value + "] Format [" + field.Format + "]");
+					Log("Field [" + field.Value + "] Format [" 
+					+ field.Format + "]");
 					//// To set a different display value
 					//field.NewFormattedValue = 'Custom value';
 					break;
 				case CrmFieldTypes.MemoType:
-					Log("Field [" + field.Value + "] Format [" + field.Format + "]");
+					Log("Field [" + field.Value + "] Format [" 
+					+ field.Format + "]");
 					//// To set a different display value
 					//field.NewFormattedValue = 'Custom value';
 					break;
@@ -242,18 +273,21 @@ Code Blocks
 						+ field.Value + "]");
 					break;
 				case CrmFieldTypes.IntegerType:
-					Log("Field FormattedValue [" + field.FormattedValue + "] Value [" + field.Value + "]");
+					Log("Field FormattedValue [" + field.FormattedValue 
+					+ "] Value [" + field.Value + "]");
 					// To set a different display value
 					//field.NewFormattedValue = 55;
 					break;
 				case CrmFieldTypes.DoubleType:
 				case CrmFieldTypes.DecimalType:
-					Log("Field FormattedValue [" + field.FormattedValue + "] Value [" + field.Value + "]");
+					Log("Field FormattedValue [" + field.FormattedValue 
+					+ "] Value [" + field.Value + "]");
 					//// To set a different display value
 					//field.NewFormattedValue = 65.90;
 					break;
 				case CrmFieldTypes.MoneyType:
-					Log("Field FormattedValue [" + field.FormattedValue + "] Value [" + field.Value + "]");
+					Log("Field FormattedValue [" + field.FormattedValue 
+					+ "] Value [" + field.Value + "]");
 					//// To set a different display value
 					//field.NewFormattedValue = $65.900;
 					//field.NewValue = 65.90;
@@ -268,13 +302,15 @@ Code Blocks
 					//field.NewFormattedValue = '03/25/2017';
 					break;
 				case CrmFieldTypes.OptionSetType:
-					Log("Field FormattedValue [" + field.FormattedValue + "] Value [" + field.Value + "]");
+					Log("Field FormattedValue [" + field.FormattedValue 
+					+ "] Value [" + field.Value + "]");
 					//// To set a different display value
 					//field.NewFormattedValue = 'option three';
 					//field.NewValue = 4;
 					break;
 				case CrmFieldTypes.BooleanType:
-					Log("Field FormattedValue [" + field.FormattedValue + "] Value [" + field.Value + "]");
+					Log("Field FormattedValue [" + field.FormattedValue 
+					+ "] Value [" + field.Value + "]");
 					//field.ReadOnly = true;
 					//field.BackgroundColor = '#CCCCCC';
 					//field.ForgroundColor = 'blue';
@@ -287,7 +323,8 @@ Code Blocks
 					break;
 				case CrmFieldTypes.State:
 				case CrmFieldTypes.Status:
-					Log("Field FormattedValue [" + field.FormattedValue + "] Value [" + field.Value + "]");
+					Log("Field FormattedValue [" + field.FormattedValue 
+					+ "] Value [" + field.Value + "]");
 				default:
 					break;
 			}
@@ -296,7 +333,8 @@ Code Blocks
 	function DCrmEgGridOnBeforeFetchRecords(entityinfo) {
 		Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
 		var additions = null;
-		Log("DCrmEgGridOnBeforeFetchRecords - ParentEntityName [" + entityinfo.ParentEntityLabel + "](_-+-entityinfo.ParentEntityLabel-+-_) ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaName + "](_-+-entityinfo.ParentEntitySchemaName-+-_)");
+		Log("DCrmEgGridOnBeforeFetchRecords - ParentEntityName [" + entityinfo.ParentEntityLabel 
+		+ "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaName + "]");
 		//// Add additional conditions
 		//if (entityinfo.ParentEntitySchemaName == 'account') {
 			//additions = {};
@@ -319,7 +357,9 @@ Code Blocks
 	function DCrmEgGridOnBeforeLookupFetchRecords(entityinfo) {
 		var additions = null;
 		Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
-		Log("DCrmEgGridOnBeforeLookupFetchRecords - Field Schemname [" + entityinfo.FieldSchemaName + "] ParentEntityName [" + entityinfo.ParentEntityLabel + "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaName + "]\r\n\r\n");
+		Log("DCrmEgGridOnBeforeLookupFetchRecords - Field Schemname [" + entityinfo.FieldSchemaName 
+		+ "] ParentEntityName [" + entityinfo.ParentEntityLabel 
+		+ "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaName + "]\r\n\r\n");
 		//additions = {};
 		//// Example for a sinle value condition
 		//additional.Condition = '<condition attribute="primarycontactid" operator="eq" value="{76E339A4-1528-E611-80DD-08002738AA19}" />';
