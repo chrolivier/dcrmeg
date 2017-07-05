@@ -2,10 +2,8 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <title></title>
-
     <link href="dcrmeg_configformcss" rel="stylesheet" />
     <link href="dcrmeg_spectrum" rel="stylesheet" />
-    
     <script src="dcrmeg_jquery2" type="text/javascript"></script>
     <!-- Jquery Mousewheel -->
     <script src="dcrmeg_jqmw"></script>
@@ -18,16 +16,12 @@
     <script src="dcrmeg_select2js"></script>
     <script src="dcrmeg_spectrumjs"></script>
     <script src="dcrmeg_configformiframejs"></script>
-    
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
 </head>
 <body>
     <div id="mainContainer" class="maincontent">
         <div class="section group" id="maincontentsect1">
-
             <div class="col span_2_of_7">
-
                 <div class="group">
                     <div class="col span_1_of_2">
                         <label for="displayonentity" style="width:100%;"><span style="font-weight:bold;" class="ElipseText2" id="dcrmeg_displaygridonentity">Display grid on entity</span><span style="width:5%;display:inline-block;" class="Required">*</span></label>
@@ -36,7 +30,6 @@
                         <select id="displayonentity" class="displayonentityclass"></select>
                     </div>
                 </div>
-
                 <div class="group">
                     <div class="col span_1_of_2">
                         <label for="displayfromentity" style="width:100%;"><span style="font-weight:bold;" class="ElipseText" id="dcrmeg_displaydatafromentity">Display data from</span></label>
@@ -48,16 +41,13 @@
                         <button id="addentitytodisplaybutton" class="addentitylistbutton">+</button>
                     </div>
                 </div>
-
                 <div class="group">
                     &nbsp;
                 </div>
-
                 <div class="group" style="height:28px;">
                     <span style="display:inline-block;margin-right:5px;font-weight:bold;"> Guid</span>
                     <input style="width:80%;" id="configguid" type="text" readonly="readonly" />
                 </div>
-
                 <div class="group displaynone" id="maincontentsect41" style="margin-top:15px;">
                     <div style="height:24px;">
                         <label for="displayentityfieldsoptions" id="listoffieldstoselectlabel"></label> <span class="Required">*</span>&nbsp;&nbsp;
@@ -71,16 +61,12 @@
                     </div>
                     <div class="checklistcontainer" id="listoffieldstoselect"></div>
                 </div>
-
             </div>
-
             <div class="col span_3_of_7">
-
                 <div class="ollistofentitiescontainer">
                     <div><span id="dcrmeg_displaydatafromentity_copy">Selected entities to display data from</span> <span class="Required">*</span></div>
                     <ol id="makesortable" class="ollistofentities"></ol>
                 </div>
-
                 <div id="maincontentsect51" class="displaynone" style="border-left: solid 3px lightgray;padding-left:10px;">
                     <div class="group">
                         <div class="col span_2_of_3">
@@ -183,11 +169,8 @@
                             </tbody>
                         </table>
                     </div>
-
                 </div>
-
             </div>
-
             <div class="col span_2_of_7 conditionfetchcontainer displaynone" id="maincontentsect5">
                 <div class="group">
                     <div class="col span_2_of_3">
@@ -213,7 +196,6 @@
                         <input type="checkbox" checked="checked" id="allowcreate_check" />
                     </div>
                 </div>
-
                 <div class="group">
                     <div class="col span_2_of_3">
                         <label id="distinctvalues_label" class="ElipseText" for="distinctvalues_check">Distinct values</label>
@@ -222,7 +204,6 @@
                         <input type="checkbox" id="distinctvalues_check" />
                     </div>
                 </div>
-
                 <div class="group">
                     <div class="col span_2_of_3">
                         <label id="allowdelete_label" class="ElipseText" for="allowdelete_check">Allow delete</label>
@@ -247,7 +228,6 @@
                         <input type="checkbox" id="refreshaftersave_check" />
                     </div>
                 </div>
-
                 <div class="group">
                     <div class="col span_2_of_3">
                         <label title="How long to wait before performing auto refresh. Default 0, immediately." id="autorefreshdelaylabel" class="ElipseText" for="autorefreshdelay">Auto refresh delay (milli seconds)</label>
@@ -256,8 +236,6 @@
                         <input style="width:45px;" type="text" id="autorefreshdelay" maxlength="4" />
                     </div>
                 </div>
-
-
                 <div class="group">
                     <div class="col span_2_of_3">
                         <label id="dcrmeg_displaysumfornumericvalues" class="ElipseText" for="displaySum">Allow aggregates</label>
@@ -332,7 +310,6 @@
                         <input type="checkbox" id="gridtitlewordwrap" />
                     </div>
                 </div>
-
                 <div class="group">
                     <div class="col span_2_of_3">
                         <label title="The grid will attempt to display all columns within the viewable area. If a column width is specified in the configuration, it will be used as long as it is not less than the minimum column width" id="gridheaderminimumwidthlabel" class="ElipseText" for="gridheaderminimumwidth">Grid header minimum width</label>
@@ -341,7 +318,6 @@
                         <input style="width:45px;" type="text" id="gridheaderminimumwidth" maxlength="3" />
                     </div>
                 </div>
-
                 <div class="group">
                     <div class="col span_2_of_3">
                         <label title="The custom identifier is passed to all the JS call backs. This is for cases where multiple grids exist on the same form and a need to identify originating grid for the JS call backs." id="gridcustomidentifierlabel" class="ElipseText" for="gridcustomidentifier">Grid custom identifier</label>
@@ -350,13 +326,18 @@
                         <input style="width:93%;" type="text" id="gridcustomidentifier" />
                     </div>
                 </div>
+                <div class="group">
+                    <div class="col span_2_of_3">
+                        <label title="If this entity is to be a subgrid, this value sets the height of the subgrid tbody in pixels." id="subgridtbodyheightlabel" class="ElipseText" for="subgridtbodyheight">As subgrid, tbody height</label>
+                    </div>
+                    <div class="col span_1_of_4">
+                        <input style="width:45px;" type="text" id="subgridtbodyheight" maxlength="3" />
+                    </div>
+                </div>
             </div>
-
         </div>
-
         <div class="section group displaynone section4class" id="maincontentsect4">
             <div class="col span_2_of_2">
-
                 <div class="configuresortingdiv group" id="multisortabletilescontainertitle">
                     <span style="font-weight:bold;display:inline-block;margin-right:20px;" id="dcrmeg_selectedgridheaders">Selected Entity Fields</span>
                     <button style="width:100px;" id="configuresorting">Configure Sorting</button>
@@ -511,7 +492,6 @@
             </div>
         </div>
     </div>
-
     <div class="section group displaynone" id="maincontentsect7">
         <div>
             <div><span style="font-weight:bold;" id="fieldconditionslabel">Field Conditions</span></div>
@@ -519,7 +499,6 @@
             <div class="deleteallfieldconditionscontainer"><button id="deleteallfieldconditionsbtn">Delete all field conditions</button></div>
         </div>
     </div>
-
     <div id="fieldconditionflyout" class="flyoutOverlay">
         <div class="flyoutOverlayContent">
             <div class="flyoutOverlayContentValue">
@@ -687,7 +666,6 @@
             </div>
         </div>
     </div>
-
     <div id="listoflookupentityfieldsflyout" class="flyoutOverlay">
         <div class="flyoutOverlayContentLookupFields">
             <div style="margin-bottom:5px;"><h3 id="listoflookupentityfieldstitle"></h3></div>
@@ -698,7 +676,6 @@
             </div>
         </div>
     </div>
-
     <div id="picklistconditionflyout" class="picklistflyoutOverlay">
         <div class="picklistflyoutOverlayContent">
             <div id="picklistchecklist" class="picklistflyoutOverlayContentValue"></div>
@@ -708,14 +685,12 @@
             </div>
         </div>
     </div>
-
     <div id="dcrmegProcessingDialog" class="dcrmegdialogprocessing">
         <div class="dcrmegprocessingtitle">
             <div class="dcrmegprocessingimg"><img src="/_imgs/processing_loader.gif" /></div>
             <div>Loading...</div>
         </div>
     </div>
-
     <div id="colsorttypedilog" class="flyoutOverlay">
         <div class="flyoutSortorder">
             <table class="sorttypetable">
@@ -762,13 +737,11 @@
             </table>
         </div>
     </div>
-
     <script type="text/javascript">
         $(function () {
             InitializeSetupRoutines();
         });
     </script>
-
 </body>
 </html>
 

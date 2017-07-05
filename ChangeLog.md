@@ -1,3 +1,16 @@
+v1.0.6.3
+========
+
+Bug fixes:
+1. Unable to load grid data - 400 Error. Dynamics CRM 2016 (8.1.1.1005). Retrieving-by-name capability wasn't added until 8.2.
+2. Subgrid, two option keyboard issues in IE.
+3. Various inline editors keyboard teawks in the grid and the subgrid. IE related.
+4. Highlighting of options when moving the mouse over options in an optionset editor.
+5. Setting/removing the inline filters wasn't bypassing auto refresh delay.
+
+Addition:
+1. Configuration option to allow setting of a subgrid tbody height. Currently, the height of the grid tbody is set to 80 pixels. Example, display accounts and related contacts on an entity. In this scenerio, the contact is the subgrid and in the configuration, tbody height can be set.
+
 v1.0.6.2
 ========
 

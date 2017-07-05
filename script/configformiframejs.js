@@ -489,7 +489,7 @@ Array.prototype.ExactMatchExists = function (str) {
         var min = settings.min;
         var max = settings.max;
         var callback = settings.parentCallback;
-        var toupdate = settings.ToUpdate; // mincolumnwidth / autorefreshdelay
+        var toupdate = settings.ToUpdate; // mincolumnwidth / autorefreshdelay / subgridtbodyheight
 
         if (min == max) {
             throw ("The minimum value cannot be the same as the max value");
@@ -573,6 +573,8 @@ Array.prototype.ExactMatchExists = function (str) {
                     _thisGlobals._CurConfiguration.GridHeaderMinimumWidth = $(this).val();
                 } else if (toupdate == 'autorefreshdelay') {
                     _thisGlobals._CurConfiguration.AutoRefreshDelay = $(this).val();
+                } else if (toupdate == 'subgridtbodyheight') {
+                    _thisGlobals._CurConfiguration.SubgridTbodyHeight = $(this).val();
                 }
                 if (callback) {
                     callback();
@@ -3621,6 +3623,7 @@ function InitializeSetupRoutinesInternal() {
 
     $("#gridheaderminimumwidth").numericInput({ parentCallback: SetParentFormDirty, ToUpdate: 'mincolumnwidth' });
     $("#autorefreshdelay").numericInput({ parentCallback: SetParentFormDirty, ToUpdate: 'autorefreshdelay' });
+    $("#subgridtbodyheight").numericInput({ parentCallback: SetParentFormDirty, ToUpdate: 'subgridtbodyheight' });
 
     $('#gridcustomidentifier').on('blur', function (e) {
         var val = $(this).val();
@@ -4203,6 +4206,7 @@ function InitializeSetupRoutinesInternal() {
         $('#gridtitlewordwrap').attr('disabled', 'disabled');
         $('#gridheaderminimumwidth').prop('disabled', 'disabled');
         $('#autorefreshdelay').prop('disabled', 'disabled');
+        $('#subgridtbodyheight').prop('disabled', 'disabled');
         $('#gridcustomidentifier').prop('disabled', 'disabled');
 
         $('#displayclonerecordbutton').attr('disabled', 'disabled');
@@ -4943,8 +4947,8 @@ var DCrmEGConfigurationManager = (function () {
         self.GridHeaderMinimumWidth = (data.GridHeaderMinimumWidth) ? data.GridHeaderMinimumWidth : '15'; // Pixels
         self.GridCustomIdentifier = (data.GridCustomIdentifier && data.GridCustomIdentifier.length) ? data.GridCustomIdentifier : '';
         self.AutoRefreshDelay = (data.AutoRefreshDelay) ? data.AutoRefreshDelay : 0;
+        self.SubgridTbodyHeight = (data.SubgridTbodyHeight) ? data.SubgridTbodyHeight : 80;
         
-
         self.DisplayCloneRecordButton = ((data.DisplayCloneRecordButton) && (data.DisplayCloneRecordButton == 'false')) ? false : true;
         self.OpenRecordBehavoir = ((data.OpenRecordBehavoir) && (data.OpenRecordBehavoir != 'undefined')) ? data.OpenRecordBehavoir : "10";
         
@@ -5190,6 +5194,7 @@ function DisplaySelectedEntityInfo(li, schema, liid) {
     $('#gridtitlewordwrap').prop('checked', _thisGlobals._CurConfiguration.GridTitleWordWrap);
     $('#gridheaderminimumwidth').val(_thisGlobals._CurConfiguration.GridHeaderMinimumWidth);
     $('#autorefreshdelay').val(_thisGlobals._CurConfiguration.AutoRefreshDelay);
+    $('#subgridtbodyheight').val(_thisGlobals._CurConfiguration.SubgridTbodyHeight);
     
     $('#gridcustomidentifier').val(_thisGlobals._CurConfiguration.GridCustomIdentifier);
     
@@ -5324,6 +5329,7 @@ function LoadDCrmEGConfiguration() {
             data.GridHeaderMinimumWidth = ((tmp.length > 33) ? tmp[33] : undefined);
             data.GridCustomIdentifier = ((tmp.length > 34) ? tmp[34] : undefined);
             data.AutoRefreshDelay = ((tmp.length > 35) ? tmp[35] : undefined);
+            data.SubgridTbodyHeight = ((tmp.length > 36) ? tmp[36] : undefined);
         }
 
         config = new DCrmEGConfigurationManager(data);
@@ -5526,8 +5532,8 @@ function SaveDCrmEGConfiguration() {
         + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].GridTitleWordWrap
         + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].GridHeaderMinimumWidth
         + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].GridCustomIdentifier
-        + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].AutoRefreshDelay;
-        
+        + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].AutoRefreshDelay
+        + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].SubgridTbodyHeight;
         
         if (_thisGlobals.DCrmEGConfiguration[i].Fields) {
             if (i > 0) {
@@ -5611,8 +5617,8 @@ function SaveDCrmEGConfigurationInternal(config) {
     + _thisGlobals._SEPERATOR + config.GridTitleWordWrap
     + _thisGlobals._SEPERATOR + config.GridHeaderMinimumWidth
     + _thisGlobals._SEPERATOR + config.GridCustomIdentifier
-    + _thisGlobals._SEPERATOR + config.AutoRefreshDelay;
-
+    + _thisGlobals._SEPERATOR + config.AutoRefreshDelay
+    + _thisGlobals._SEPERATOR + config.SubgridTbodyHeight;
     
     if (config.Fields) {
         _thisGlobals._Fieldsinfo += _thisGlobals._pSeperator + config.Fields + _thisGlobals._OuterSeperator + config.Entity.Identity;
