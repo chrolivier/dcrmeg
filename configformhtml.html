@@ -408,7 +408,8 @@
                                 <td style="font-weight:bold;">Condition</td>
                                 <td colspan="9">
                                     <select id="cellformatgeneralcondition">
-                                        <option value="eq" data-fetchop="eq" selected="selected">Equals</option>
+                                        <option value="donotselect">---</option>
+                                        <option value="eq" data-fetchop="eq">Equals</option>
                                         <option value="ne" data-fetchop="ne">Does Not Equal</option>
                                         <option value="contains" data-fetchval="%{0}%" data-fetchop="like">Contains</option>
                                         <option value="doesnotcontain" data-fetchval="%{0}%" data-fetchop="not-like">Does Not Contain</option>
@@ -425,7 +426,8 @@
                                         <option value="le" data-fetchop="le">Is Less Than or Equal To</option>
                                     </select>
                                     <select id="cellformatlookupcondition" class="displaynone">
-                                        <option value="eq" data-fetchop="eq" selected="selected">Equals</option>
+                                        <option value="donotselect">---</option>
+                                        <option value="eq" data-fetchop="eq">Equals</option>
                                         <option value="ne" data-fetchop="ne">Does Not Equal</option>
                                         <option value="contains" data-fetchval="%{0}%" data-fetchop="like">Contains</option>
                                         <option value="doesnotcontain" data-fetchval="%{0}%" data-fetchop="not-like">Does Not Contain</option>
@@ -439,7 +441,8 @@
                                         <option value="ne-userid">Does Not Equal Current User</option>
                                     </select>
                                     <select class="displaynone" id="cellformatdatetimeconditions">
-                                        <option value="on" data-fetchop="on" selected="selected">On</option>
+                                        <option value="donotselect">---</option>
+                                        <option value="on" data-fetchop="on">On</option>
                                         <option value="on-or-after" data-fetchop="on-or-after">On or After</option>
                                         <option value="on-or-before" data-fetchop="on-or-before">On or Before</option>
                                         <option value="yesterday">Yesterday</option>

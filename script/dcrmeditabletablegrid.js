@@ -294,6 +294,12 @@ axis.isUndefined(); // true
     $.extend(true, window, {
         "DCrmEditableGrid": {
             "Helper": {
+                "IsDefaultBackgroundColor": function(color) {
+                    return ((color == '#FFF') || (color == '#ffffff')) ? true : false;
+                },
+                "IsDefaultTextColor": function (color) {
+                    return ((color == '#000') || (color == '#000000')) ? true : false;
+                },
                 "Movement": function (element, keycode) {
                     if (keycode === DCrmEditableGrid.Keys.ARROWRIGHT) {
                         return element.next('td');
@@ -6427,12 +6433,24 @@ list of translated languages
                             }
                         }
                         if (cellformatOptions) {
-                            // BackgroundColor: null, TextColor: null, FontCss: null, Condition: {Operator: null, Value: null, Guid: null} };
-                            if ((cellformatOptions.Condition) && (ConditionIsTrue(cellformatOptions.Condition, tmpLcase, callbackField))) {
-                                if ((cellformatOptions.BackgroundColor) && (_thisGlobals.DefaultBackgroundColor != cellformatOptions.BackgroundColor)) {
+                            // BackgroundColor: null, TextColor: null, FontCss: null, Condition: {Operator: null, Value: null, Guid: null} } / null;
+                            if (cellformatOptions.Condition) {
+                                if (ConditionIsTrue(cellformatOptions.Condition, tmpLcase, callbackField)) {
+                                    if ((cellformatOptions.BackgroundColor) && (!_thisHelpers.IsDefaultBackgroundColor(cellformatOptions.BackgroundColor))) {
+                                        $thistr.css("background-color", cellformatOptions.BackgroundColor);
+                                    }
+                                    if ((cellformatOptions.TextColor) && (!_thisHelpers.IsDefaultTextColor(cellformatOptions.TextColor))) {
+                                        $thistr.css("color", cellformatOptions.TextColor);
+                                    }
+                                    if (cellformatOptions.FontCss) {
+                                        DeccoupleCss(cellformatOptions.FontCss, $thistr);
+                                    }
+                                }
+                            } else {
+                                if ((cellformatOptions.BackgroundColor) && (!_thisHelpers.IsDefaultBackgroundColor(cellformatOptions.BackgroundColor))) {
                                     $thistr.css("background-color", cellformatOptions.BackgroundColor);
                                 }
-                                if ((cellformatOptions.TextColor) && (_thisGlobals.DefaultBackgroundColor != cellformatOptions.TextColor)) {
+                                if ((cellformatOptions.TextColor) && (!_thisHelpers.IsDefaultTextColor(cellformatOptions.TextColor))) {
                                     $thistr.css("color", cellformatOptions.TextColor);
                                 }
                                 if (cellformatOptions.FontCss) {
@@ -7059,18 +7077,28 @@ list of translated languages
                             valToExamin.LookupGuid = toSave[i].LookupId;
                         }
 
-                        if ((cellformatOptions.Condition) && (ConditionIsTrue(cellformatOptions.Condition, null, valToExamin))) {
-                            if ((cellformatOptions.BackgroundColor) && (_thisGlobals.DefaultBackgroundColor != cellformatOptions.BackgroundColor)) {
+                        if (cellformatOptions.Condition) {
+                            if (ConditionIsTrue(cellformatOptions.Condition, null, valToExamin)) {
+                                if ((cellformatOptions.BackgroundColor) && (!_thisHelpers.IsDefaultBackgroundColor(cellformatOptions.BackgroundColor))) {
+                                    toSave[i].TargetCell.css("background-color", cellformatOptions.BackgroundColor);
+                                }
+                                if ((cellformatOptions.TextColor) && (!_thisHelpers.IsDefaultTextColor(cellformatOptions.TextColor))) {
+                                    toSave[i].TargetCell.css("color", cellformatOptions.TextColor);
+                                }
+                                if (cellformatOptions.FontCss) {
+                                    DeccoupleCss(cellformatOptions.FontCss, toSave[i].TargetCell);
+                                }
+                            }
+                        } else {
+                            if ((cellformatOptions.BackgroundColor) && (!_thisHelpers.IsDefaultBackgroundColor(cellformatOptions.BackgroundColor))) {
                                 toSave[i].TargetCell.css("background-color", cellformatOptions.BackgroundColor);
                             }
-                            if ((cellformatOptions.TextColor) && (_thisGlobals.DefaultBackgroundColor != cellformatOptions.TextColor)) {
+                            if ((cellformatOptions.TextColor) && (!_thisHelpers.IsDefaultTextColor(cellformatOptions.TextColor))) {
                                 toSave[i].TargetCell.css("color", cellformatOptions.TextColor);
                             }
                             if (cellformatOptions.FontCss) {
                                 DeccoupleCss(cellformatOptions.FontCss, toSave[i].TargetCell);
                             }
-                        } else if (cellformatOptions.FontCss) {
-                            DeccoupleCss(cellformatOptions.FontCss, toSave[i].TargetCell, true);
                         }
                     }
                 }
@@ -12761,12 +12789,24 @@ var GridLoaderHelper = (function () {
                             }
 
                             if (cellformatOptions) {
-                                // BackgroundColor: null, TextColor: null, FontCss: null, Condition: {Operator: null, Value: null, Guid: null} };
-                                if ((cellformatOptions.Condition) && (ConditionIsTrue(cellformatOptions.Condition, tmpLcase, callbackField))) {
-                                    if ((cellformatOptions.BackgroundColor) && (_thisGlobals.DefaultBackgroundColor != cellformatOptions.BackgroundColor)) {
+                                // BackgroundColor: null, TextColor: null, FontCss: null, Condition: {Operator: null, Value: null, Guid: null} } / null;
+                                if (cellformatOptions.Condition) {
+                                    if (ConditionIsTrue(cellformatOptions.Condition, tmpLcase, callbackField)) {
+                                        if ((cellformatOptions.BackgroundColor) && (!_thisHelpers.IsDefaultBackgroundColor(cellformatOptions.BackgroundColor))) {
+                                            $td.css("background-color", cellformatOptions.BackgroundColor);
+                                        }
+                                        if ((cellformatOptions.TextColor) && (!_thisHelpers.IsDefaultTextColor(cellformatOptions.TextColor))) {
+                                            $td.css("color", cellformatOptions.TextColor);
+                                        }
+                                        if (cellformatOptions.FontCss) {
+                                            DeccoupleCss(cellformatOptions.FontCss, $td);
+                                        }
+                                    }
+                                } else {
+                                    if ((cellformatOptions.BackgroundColor) && (!_thisHelpers.IsDefaultBackgroundColor(cellformatOptions.BackgroundColor))) {
                                         $td.css("background-color", cellformatOptions.BackgroundColor);
                                     }
-                                    if ((cellformatOptions.TextColor) && (_thisGlobals.DefaultBackgroundColor != cellformatOptions.TextColor)) {
+                                    if ((cellformatOptions.TextColor) && (!_thisHelpers.IsDefaultTextColor(cellformatOptions.TextColor))) {
                                         $td.css("color", cellformatOptions.TextColor);
                                     }
                                     if (cellformatOptions.FontCss) {
@@ -12807,13 +12847,11 @@ var GridLoaderHelper = (function () {
                         //    .appendTo($tr);
                         //_thisHelpers.SetCellWidth(extracell, _thisHelpers.GetCellWidth($($allHeaders[$allHeaders.length - 1]), true), false);
 
-                        FireGridRowOnload($tr, callbackRowData,
-                            {
-                                ParentEntityName: self.data.Entity.Label,
-                                ParentEntitySchemaname: self.data.Entity.SchemaName,
-                                GridCustomIdentifier: self.data.GridCustomIdentifier
-                            });
-
+                        FireGridRowOnload($tr, callbackRowData, {
+                            ParentEntityName: self.data.Entity.Label,
+                            ParentEntitySchemaname: self.data.Entity.SchemaName,
+                            GridCustomIdentifier: self.data.GridCustomIdentifier
+                        });
                     }
 
                     var psize = parseInt(self.data.RecordsPerPage);
@@ -13142,7 +13180,7 @@ function DeccoupleCss(css, elem, remove) {
                 if (remove) {
                     elem.css(item[0], "");
                 } else {
-                    elem.css(item[0], item[1]);
+                    elem.css(item[0], item[1].trim());
                 }
             }
         }

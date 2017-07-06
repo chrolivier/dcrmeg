@@ -2336,7 +2336,7 @@ function WhoAmIFunctionSuccess(WhoAmIResponse) {
                     result += "/Microsoft.Dynamics.CRM.StatusAttributeMetadata?$expand=OptionSet";
                     break;
                 case "Picklist":
-                    result += "/Microsoft.Dynamics.CRM.PicklistAttributeMetadata?$expand=OptionSet";
+                    result += "/Microsoft.Dynamics.CRM.PicklistAttributeMetadata?$expand=OptionSet,GlobalOptionSet";
                     break;
                 case "DateTime":
                     //result += "/Microsoft.Dynamics.CRM.DateTimeAttributeMetadata";

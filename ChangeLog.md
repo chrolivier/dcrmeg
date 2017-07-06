@@ -1,3 +1,10 @@
+v1.0.6.4
+========
+
+Bug Fixes:
+1. Unable to get property 'optionsData' of undefined or null reference. CRM 2016 (8.1.1.1005 on premise)
+2. Cell formatting wasn't being applied if no conditions were set. Modified the logic to apply cell formatting whether a condition is set or not.
+
 v1.0.6.3
 ========
 

@@ -1,24 +1,18 @@
 ﻿String.prototype.capitalizeFirstLetter = function () {
     return (this && this.length > 0) ? this.charAt(0).toUpperCase() + this.slice(1) : '';
 };
-// data.contains(str, true);
 String.prototype.contains = function (str, exactMatch) {
     if ((exactMatch == null) || (exactMatch == undefined)) {
         exactMatch = false;
     }
     return (!exactMatch) ? (this.indexOf(str) != -1) : (this.toLowerCase().indexOf(str.toLowerCase()) != -1);
 };
-
-// data.startswith(str)
 String.prototype.startsWith = function (str) {
     return this.slice(0, str.length) == str;
 };
-
-// data.endswith(str)
 String.prototype.endsWith = function (str) {
     return this.slice(-str.length) == str;
 };
-
 Array.prototype.ExactMatchExists = function (str) {
     for (var i = 0; i < this.length; i++) {
         if (str == this[i]) {
@@ -27,17 +21,7 @@ Array.prototype.ExactMatchExists = function (str) {
     }
     return false;
 };
-
-/*Obsolete fileds to be deleted from configuration entity*/
-//var EntitiesAreRelatedBoolean = 'dcrmeg_entitiesarerelated';
-//var RelatedEntityLookupSchemaName = 'dcrmeg_relatedentitylookup';
-//var DisplaySumForNumericFields = 'dcrmeg_displaysumfornumericfields';
-//var SelectFieldsDispalyOption = 'dcrmeg_selectfieldsdispalyoption';
-//var MaxRecordPerPage = 'dcrmeg_maxrecordperpage';
-/*Obsolete*/
-
 (function ($) {
-
     $.extend(true, window, {
         "DCrmEditableGrid": {
             "Globals": {
@@ -115,7 +99,6 @@ Array.prototype.ExactMatchExists = function (str) {
             }
         }
     });
-
     $.extend(true, window, {
         "DCrmEditableGrid": {
             "Helper": {
@@ -466,9 +449,7 @@ Array.prototype.ExactMatchExists = function (str) {
     });
 })(jQuery);
 
-// $("#elementID").numericInput({ parentCallback: });
 (function ($) {
-    // Plugin defaults
     var defaults = {
         allowFloat: false,
         allowNegative: false,
@@ -476,7 +457,6 @@ Array.prototype.ExactMatchExists = function (str) {
         max: undefined,
         parentCallback: undefined
     };
-
     // Plugin definition
     //	allowFloat: (boolean) Allows floating point (real) numbers. If set to false only integers will be allowed. Default: false.
     //	allowNegative: (boolean) Allows negative values. If set to false only positive number input will be allowed. Default: false.
@@ -585,7 +565,6 @@ Array.prototype.ExactMatchExists = function (str) {
 
         return this;
     };
-
     // Private function for selecting cursor position. Makes IE play nice.
     //	http://stackoverflow.com/questions/263743/how-to-get-caret-position-in-textarea
     function getCaret(element) {
@@ -610,29 +589,24 @@ Array.prototype.ExactMatchExists = function (str) {
         return 0;
     };
 }(jQuery));
-
 var _thisGlobals = DCrmEditableGrid.Globals;
 _thisGlobals.xrmPage = window.parent.Xrm.Page;
 _thisGlobals.LoggedInUserID = _thisGlobals.xrmPage.context.getUserId();
 _thisGlobals.UserLcid = _thisGlobals.xrmPage.context.getUserLcid();
 _thisGlobals.UseWebApi = false;
-
 function LogIt(s) {
     if ((_thisGlobals.Debug) && (typeof console != "undefined") && (typeof console.debug != "undefined")) {
         console.log(s);
     }
 }
-
 function LogEx(s) {
     if (typeof console != "undefined" && typeof console.debug != "undefined") {
         console.error(s);
     }
 }
-
 function DisplayCrmAlertDialog(msg) {
     window.parent.Xrm.Utility.alertDialog(msg);
 }
-
 Date.parseDate = function (input, format) {  
     format = format || _thisGlobals.userDatetimeSettings.DateFormat;
 
@@ -724,7 +698,6 @@ Date.parseDate = function (input, format) {
     }
     return val;
 }
-
 Date.prototype.dateFormat = function (mask) {
     var t = new XDate(this).toString(mask);
     return t;
@@ -1530,6 +1503,11 @@ function ResetCellFormattingElements() {
     $("#conditionforegroundcolor").spectrum("set", _thisGlobals.DefaultTextColor);
     $('#cellformatconditioninput').val('');
     $('#cellformatdateconditioninput').val('');
+
+    $('#cellformatgeneralcondition').val('donotselect');
+    $('#cellformatdatetimeconditions').val('donotselect');
+    $('#cellformatlookupcondition').val('donotselect');
+    $('#cellformatoptionsetcondition').val('donotselect');
 }
 
 function DeccoupleCss(css, elem, remove) {
@@ -1541,7 +1519,7 @@ function DeccoupleCss(css, elem, remove) {
                 if (remove) {
                     elem.css(item[0], "");
                 } else {
-                    elem.css(item[0], item[1]);
+                    elem.css(item[0], item[1].trim());
                 }
             }
         }
@@ -1994,6 +1972,9 @@ function SetupSelectedFieldRow(tbody, item) {
         $("#cellformatconditioninput").addClass('displaynone');
         var conditionElemsDefaults = null;
 
+        // $("#cellformatgeneralcondition option[data-value='donotselect']").attr("selected","selected");
+        container.removeClass('displaynone');
+
         switch (attrtype) {
             case _thisGlobals.CrmFieldTypes.TextType:
             case _thisGlobals.CrmFieldTypes.MemoType:
@@ -2001,7 +1982,7 @@ function SetupSelectedFieldRow(tbody, item) {
             case _thisGlobals.CrmFieldTypes.DoubleType:
             case _thisGlobals.CrmFieldTypes.DecimalType:
             case _thisGlobals.CrmFieldTypes.MoneyType:
-                $('#cellformatgeneralcondition').val('eq').removeClass('displaynone');
+                $('#cellformatgeneralcondition').removeClass('displaynone').val('donotselect');
                 $('#cellformatoptionsetcondition').addClass('displaynone');
                 $('#cellformatdatetimeconditions').addClass('displaynone');
                 $("#cellformatconditioninput").removeClass('displaynone');
@@ -2018,7 +1999,7 @@ function SetupSelectedFieldRow(tbody, item) {
                 $('#cellformatgeneralcondition').addClass('displaynone');
                 $('#cellformatoptionsetcondition').addClass('displaynone');
                 $('#cellformatdatetimeconditions').addClass('displaynone');
-                $("#cellformatlookupcondition").val('eq').removeClass('displaynone');
+                $("#cellformatlookupcondition").removeClass('displaynone').val('donotselect');
                 $("#cellformatconditioninput").removeClass('displaynone');
                 $('#cellformatconditionlookupbtn').removeClass('displaynone');
                 conditionElemsDefaults = {
@@ -2031,7 +2012,7 @@ function SetupSelectedFieldRow(tbody, item) {
                 $('#cellformatoptionsetcondition').addClass('displaynone');
                 $('#cellformatconditionlookupbtn').addClass('displaynone');
                 $('#cellformatlookupcondition').addClass('displaynone');
-                $('#cellformatdatetimeconditions').val('on').removeClass('displaynone');
+                $('#cellformatdatetimeconditions').removeClass('displaynone').val('donotselect');
                 $("#cellformatdateconditioninput").removeClass('displaynone');
                 conditionElemsDefaults = {
                     Select1: 'cellformatdatetimeconditions',
@@ -2042,7 +2023,7 @@ function SetupSelectedFieldRow(tbody, item) {
             case _thisGlobals.CrmFieldTypes.OptionSetType:
             case _thisGlobals.CrmFieldTypes.State:
             case _thisGlobals.CrmFieldTypes.Status:
-                $('#cellformatgeneralcondition').val('eq').removeClass('displaynone');
+                $('#cellformatgeneralcondition').removeClass('displaynone').val('donotselect');
                 $('#cellformatoptionsetcondition').removeClass('displaynone');
                 $('#cellformatdatetimeconditions').addClass('displaynone');
                 $('#cellformatconditionlookupbtn').addClass('displaynone');
@@ -2050,7 +2031,7 @@ function SetupSelectedFieldRow(tbody, item) {
 
                 var optionsetSelect = $('#cellformatoptionsetcondition');
                 optionsetSelect.empty();
-                optionsetSelect.append('<option value="-1">---</option>');
+                optionsetSelect.append('<option value="donotselect">---</option>');
 
                 var optionset = null;
                 var atype = {};
@@ -2143,7 +2124,7 @@ function SetupSelectedFieldRow(tbody, item) {
                 .attr('data-cellbelowid', options.HtmlCellId[1]);
         }
 
-        container.removeClass('displaynone');
+        //container.removeClass('displaynone');
         return false;
     });
 
@@ -3978,13 +3959,13 @@ function InitializeSetupRoutinesInternal() {
             case _thisGlobals.CrmFieldTypes.TextType:
             case _thisGlobals.CrmFieldTypes.MemoType:
                 var selected = $("#cellformatgeneralcondition option:selected").val();
-                if ((selected) && (selected != '-1')) {
+                if ((selected) && (selected != 'donotselect')) {
                     cellcondition = { Operator: selected, Value: $("#cellformatconditioninput").val() };
                 }
                 break;
             case _thisGlobals.CrmFieldTypes.IntegerType:
                 var selected = $("#cellformatgeneralcondition option:selected").val();
-                if ((selected) && (selected != '-1')) {
+                if ((selected) && (selected != 'donotselect')) {
                     cellcondition = { Operator: selected, Value: parseInt($("#cellformatconditioninput").val()) };
                 }
                 break;
@@ -3992,7 +3973,7 @@ function InitializeSetupRoutinesInternal() {
             case _thisGlobals.CrmFieldTypes.DecimalType:
             case _thisGlobals.CrmFieldTypes.MoneyType:
                 var selected = $("#cellformatgeneralcondition option:selected").val();
-                if ((selected) && (selected != '-1')) {
+                if ((selected) && (selected != 'donotselect')) {
                     cellcondition = { Operator: selected, Value: parseFloat($("#cellformatconditioninput").val()) };
                 }
                 break;
@@ -4000,7 +3981,7 @@ function InitializeSetupRoutinesInternal() {
             case _thisGlobals.CrmFieldTypes.OwnerType:
             case _thisGlobals.CrmFieldTypes.CustomerType:
                 var selected = $("#cellformatlookupcondition option:selected").val();
-                if ((selected) && (selected != '-1')) {
+                if ((selected) && (selected != 'donotselect')) {
                     var lookupvalue = $('#cellformatconditioninput').parent().attr('data-item-default');
                     if (lookupvalue) {
                         var arr = lookupvalue.split('{}');
@@ -4010,7 +3991,7 @@ function InitializeSetupRoutinesInternal() {
                 break;
             case _thisGlobals.CrmFieldTypes.DateTimeType:
                 var selected = $("#cellformatdatetimeconditions option:selected").val();
-                if ((selected) && (selected != '-1')) {
+                if ((selected) && (selected != 'donotselect')) {
                     cellcondition = { Operator: selected, Value: $("#cellformatdateconditioninput").val() };
                 }
                 break;
@@ -4020,7 +4001,7 @@ function InitializeSetupRoutinesInternal() {
             case _thisGlobals.CrmFieldTypes.Status:
                 var selected = $("#cellformatgeneralcondition option:selected").val();
                 var selected2 = $("#cellformatoptionsetcondition option:selected").val();
-                if ((selected) && (selected != '-1') && (selected2)) {
+                if ((selected) && (selected != 'donotselect') && (selected2) && (selected2 != 'donotselect')) {
                     cellcondition = { Operator: selected, Value: selected2 };
                 }
                 break;
@@ -4029,10 +4010,10 @@ function InitializeSetupRoutinesInternal() {
                 break;
         }
 
-        if (cellcondition == null) {
-            container.addClass('displaynone');
-            return;
-        }
+        //if (cellcondition == null) {
+        //    container.addClass('displaynone');
+        //    return;
+        //}
 
         var cellone = $('#' + headeroption.HtmlCellId[0]);
         var celltwo = $('#' + headeroption.HtmlCellId[1]);
