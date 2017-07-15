@@ -542,6 +542,7 @@ var SdkWebAPI = (function (SdkWebAPI) {
         };
         req.send();
     }
+
     SdkWebAPI.executeGet = function (uri, properties, filters, includeFormattedValues, successCallback, errorCallback) {
         if (!isString(uri)) {
             throw new Error("SdkWebAPI.executeGet uri parameter must be a string.");
@@ -596,6 +597,7 @@ var SdkWebAPI = (function (SdkWebAPI) {
         };
         req.send();
     }
+
     SdkWebAPI.associate = function (parentUri, navigationPropertyName, childUri, successCallback, errorCallback, callerId) {
         /// <summary>Associate an entity</summary>
         /// <param name="parentUri" type="String">The Uri for the entity you want to associate another entity to.</param>
@@ -799,7 +801,7 @@ var SdkWebAPI = (function (SdkWebAPI) {
                     req.onreadystatechange = null;
                     if (this.status == 204) {
                         if (successCallback)
-                            successCallback(passthroughObj, passthroughObj1);
+                            successCallback(this.response, passthroughObj, passthroughObj1);
                     }
                     else {
                         if (errorCallback)
@@ -816,6 +818,7 @@ var SdkWebAPI = (function (SdkWebAPI) {
             return req.response;
         }
     }
+
     SdkWebAPI.invokeBoundFunction = function (entitySetName, functionName, successCallback, errorCallback, callerId) {
         /// <summary>Invoke a bound function</summary>
         /// <param name="entitySetName" type="String">The logical collection name for the entity that the function is bound to.</param>
@@ -1020,6 +1023,7 @@ var SdkWebAPI = (function (SdkWebAPI) {
 
 
     }
+
     SdkWebAPI.queryEntitySet = function (entitySetName, query, includeFormattedValues, maxPageSize, successCallback, errorCallback, callerId) {
         /// <summary>Retrieve multiple entities</summary>
         /// <param name="entitySetName" type="String">The logical collection name for the type of entity you want to retrieve.</param>
@@ -1154,6 +1158,7 @@ var SdkWebAPI = (function (SdkWebAPI) {
         };
         req.send();
     }
+
     SdkWebAPI.executeBatch = function (payload, batchId, successCallback, errorCallback, passthroughObj, passthroughObj1, callerId) {
         /// <summary>Execute several operations at once</summary>
         /// <param name="payload" type="String">A string describing the operations to perform in the batch</param>  
@@ -1250,6 +1255,7 @@ OData-Version: 4.0
          */
         req.send(payload);
     }
+
     SdkWebAPI.getEntityList = function (successCallback, errorCallback, wantFields) {
         /// <summary>Retrieve an array of entities available from the service</summary>
         /// <param name="successCallback" type="Function">The function to call when the results are returned. The results of the operation will be passed to this function.</param>
@@ -1320,6 +1326,7 @@ OData-Version: 4.0
         };
         req.send();
     }
+
     SdkWebAPI.getUserSetttings = function (UserId, successCallback, errorCallback) {
         var prop = ["dateformatstring",
                          "dateseparator",
@@ -1362,6 +1369,7 @@ OData-Version: 4.0
         };
         req.send();
     }
+
     SdkWebAPI.GetEntityMetadata = function (entityLogicalName, successCallback, errorCallback) {
         if (!isString(entityLogicalName)) {
             throw new Error("SdkWebAPI.GetEntityInformation entitySetName parameter must be a string.");
@@ -1536,6 +1544,238 @@ OData-Version: 4.0
             console.error('SdkWebAPI.GetEntityObjectTypeCode parsing response error:\r\n' + e.message);
         }
     }
+    // Attempt to get entity LogicalCollectionName from logicalname
+    SdkWebAPI.GetEntitySetName = function (entityLogicalName) {
+        if (isString(entityLogicalName)) {
+            var result = SdkWebAPI.GetEntityMetadata(entityLogicalName);
+            var tmp = ((result) && (result.length) && (result.length > 0)) ? result[0] : null;
+            if (tmp) {
+                return tmp.LogicalCollectionName;
+            } else {
+                // try best guess
+                // usersettings -> usersettingses
+                if (entityLogicalName[entityLogicalName.length - 1] == "s" || entityLogicalName[entityLogicalName.length - 1] == "x") {
+                    return entityLogicalName + "es";
+                    // transactioncurrency
+                } else if (entityLogicalName[entityLogicalName.length - 1] == "y") {
+                    return entityLogicalName.substr(0, entityLogicalName.length - 1) + "ies";
+                    // account -> accounts
+                } else {
+                    return entityLogicalName + "s";
+                }
+            }
+        } else {
+            throw new Error('SdkWebAPI.GetEntitySetName::entityLogicalName must have a value.');
+        }
+        return "";
+    }
+    SdkWebAPI.retrieveEntityMetadata = function (entitySetName, successCallback, errorCallback) {
+        var async = !!successCallback;
+
+        var url = getWebAPIPath() + "EntityDefinitions?$select=LogicalName"
+            + "&$filter=LogicalCollectionName eq '" + entitySetName + "'";
+
+        var req = new XMLHttpRequest();
+        req.open("GET", encodeURI(url), true);
+        req.setRequestHeader("Accept", "application/json");
+        req.setRequestHeader("OData-MaxVersion", "4.0");
+        req.setRequestHeader("OData-Version", "4.0");
+        if (async) {
+            req.onreadystatechange = function () {
+                if (this.readyState == 4 /* complete */) {
+                    req.onreadystatechange = null;
+                    if (this.status == 200) {
+                        if (successCallback)
+                            successCallback(JSON.parse(this.response).value);
+                    }
+                    else {
+                        if (errorCallback)
+                            errorCallback(SdkWebAPI.errorHandler(this), "Get Entity Attribute");
+                    }
+                }
+            };
+        }
+        req.send();
+        if (!async) {
+            return JSON.parse(req.response).value;
+        }
+    }
+    SdkWebAPI.GetMetaDataId = function (entityLogicalName, attributeLogicalName) {
+        var uri = getWebAPIPath() +
+            "EntityDefinitions?$select=SchemaName&$filter=LogicalName eq '" + entityLogicalName +
+            "'&$expand=Attributes($filter=LogicalName eq '" + attributeLogicalName + "')";
+
+        var req = new XMLHttpRequest();
+        req.open("GET", encodeURI(uri), false);
+        req.setRequestHeader("Accept", "application/json");
+        req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
+        req.setRequestHeader("OData-MaxVersion", "4.0");
+        req.setRequestHeader("OData-Version", "4.0");
+        req.send();
+
+        var result = JSON.parse(req.response).value[0];
+        var ids = { EntityMetaddataId: result.MetadataId, AttributeMetaDataId: result.Attributes[0].MetadataId };
+
+        return ids;
+    }
+    SdkWebAPI.GetAttributeSchemaName = function (entityLogicalName, attributeLogicalName, successCallback, errorCallback) {
+        var uri = getWebAPIPath() +
+            "EntityDefinitions?$select=SchemaName&$filter=LogicalName eq '" + entityLogicalName +
+            "'&$expand=Attributes($filter=LogicalName eq '" + attributeLogicalName + "')";
+
+        var async = !!successCallback;
+
+        var req = new XMLHttpRequest();
+        req.open("GET", encodeURI(uri), false);
+        req.setRequestHeader("Accept", "application/json");
+        req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
+        req.setRequestHeader("OData-MaxVersion", "4.0");
+        req.setRequestHeader("OData-Version", "4.0");
+
+        if (async) {
+            req.onreadystatechange = function () {
+                if (this.readyState == 4 /* complete */) {
+                    req.onreadystatechange = null;
+                    if (this.status == 200) {
+                        var attrs = JSON.parse(this.response).value[0].Attributes[0];
+                        if (attrs.IsCustomAttribute) {
+                            successCallback(attrs.SchemaName);
+                        } else {
+                            // account for system attributes such as primarycontactid (PrimaryContactId) where
+                            // using SchemaName as a navigation property will return 400
+                            successCallback(attrs.LogicalName);
+                        }
+                    }
+                    else {
+                        if (errorCallback)
+                            errorCallback(SdkWebAPI.errorHandler(this), "GetAttributeSchemaName");
+                    }
+                }
+            };
+        }
+
+        req.send();
+        // http://127.0.0.1/Grid/api/data/v8.1/EntityDefinitions?$select=SchemaName&$filter=LogicalName eq 'account'&$expand=Attributes($filter=LogicalName eq 'new_myschool')
+        // http://127.0.0.1/Grid/api/data/v8.1/EntityDefinitions?$select=SchemaName,PrimaryIdAttribute,PrimaryNameAttribute,LogicalCollectionName,ObjectTypeCode&$filter=LogicalName eq 'account'&$expand=Attributes($filter=LogicalName eq 'primarycontactid')
+        if (!async) {
+            var attrs = JSON.parse(req.response).value[0].Attributes[0];
+            if (attrs.IsCustomAttribute) {
+                return attrs.SchemaName;
+            } else {
+                // account for system attributes such as primarycontactid (PrimaryContactId) where
+                // using SchemaName as a navigation property will return 400
+                return attrs.LogicalName;
+            }
+        }
+    }
+    // attributeType = {isPicklist: false, isBoolean: false, isState: false, isStatus: false}
+    SdkWebAPI.retrieveMetadataByLogicalName = function (entityLogicalName, attributeLogicalName, attributeType, successCallback, errorCallback) {
+        if (!isString(entityLogicalName)) {
+            throw new Error("SdkWebAPI.retrieveMetadataByLogicalName entitySchemaName parameter must be a string.");
+        }
+        if (!isString(attributeLogicalName)) {
+            throw new Error("SdkWebAPI.retrieveMetadataByLogicalName attributeLogicalName parameter must be a string.");
+        }
+        if (!isFunctionOrNullOrUndefined(successCallback)) {
+            throw new Error("SdkWebAPI.retrieveMetadataByLogicalName successCallback parameter must be a function or null.");
+        }
+        if (!isFunctionOrNullOrUndefined(errorCallback)) {
+            throw new Error("SdkWebAPI.retrieveMetadataByLogicalName errorCallback parameter must be a function or null.");
+        }
+
+        var async = !!successCallback;
+        var uri = null;
+        if (SDKWEBAPI_VERSION_USERD == '8.1') {
+            // Get meta data ids and then get the metadata
+            var metadataIds = SdkWebAPI.GetMetaDataId(entityLogicalName, attributeLogicalName);
+
+            var atype = null;
+            if (attributeType.isPicklist) {
+                atype = "Picklist";
+            } else if (attributeType.isBoolean) {
+                atype = "Boolean";
+            } else if (attributeType.isState) {
+                atype = "State";
+            } else if (attributeType.isStatus) {
+                atype = "Status";
+            }
+            var result = SdkWebAPI.retrieveMetadataByMetadataId(metadataIds.EntityMetaddataId, metadataIds.AttributeMetaDataId, atype, successCallback, errorCallback);
+            if (!async) {
+                return result;
+            }
+
+        } else {
+            uri = getWebAPIPath() + "EntityDefinitions(LogicalName='" + entityLogicalName + "')/Attributes(LogicalName='" + attributeLogicalName.toLowerCase() + "')";
+            if (attributeType.isPicklist) {
+                uri += "/Microsoft.Dynamics.CRM.PicklistAttributeMetadata?$select=LogicalName&$expand=OptionSet($select=Options),GlobalOptionSet($select=Options)";
+            } else if (attributeType.isBoolean) {
+                uri += "/Microsoft.Dynamics.CRM.BooleanAttributeMetadata?$select=LogicalName&$expand=OptionSet($select=TrueOption,FalseOption)";
+            } else if (attributeType.isState) {
+                uri += "/Microsoft.Dynamics.CRM.StateAttributeMetadata?$select=LogicalName&$expand=OptionSet($select=Options)";
+            } else if (attributeType.isStatus) {
+                uri += "/Microsoft.Dynamics.CRM.StatusAttributeMetadata?$select=LogicalName&$expand=OptionSet($select=Options)";
+            }
+
+            var req = new XMLHttpRequest();
+            req.open("GET", encodeURI(uri), async);
+            req.setRequestHeader("Accept", "application/json");
+            req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
+            req.setRequestHeader("OData-MaxVersion", "4.0");
+            req.setRequestHeader("OData-Version", "4.0");
+            if (async) {
+                req.onreadystatechange = function () {
+                    if (this.readyState == 4 /* complete */) {
+                        req.onreadystatechange = null;
+                        if (this.status == 200) {
+                            successCallback(JSON.parse(this.response));
+                        }
+                        else {
+                            if (errorCallback)
+                                errorCallback(SdkWebAPI.errorHandler(this), "Retrieve Metadata By LogicalName");
+                        }
+                    }
+                };
+            }
+            req.send();
+            if (!async) {
+                return JSON.parse(req.response);
+            }
+        }
+    }
+    SdkWebAPI.retrieveMetadataByMetadataId = function (entityMetadataId, attributMetadataId, attributeType, successCallback, errorCallback) {
+        //build query string 
+        var uri = getWebAPIPath() + buildQueryString(entityMetadataId, attributMetadataId, attributeType);
+        var async = !!successCallback;
+
+        var req = new XMLHttpRequest();
+        req.open("GET", uri, async);
+        req.setRequestHeader("Accept", "application/json");
+        req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
+        req.setRequestHeader("OData-MaxVersion", "4.0");
+        req.setRequestHeader("OData-Version", "4.0");
+        if (async) {
+            req.onreadystatechange = function () {
+                if (this.readyState == 4 /* complete */) {
+                    req.onreadystatechange = null;
+                    if (this.status == 200) {
+                        if (successCallback) {
+                            successCallback(JSON.parse(this.response));
+                        }
+                    }
+                    else {
+                        if (errorCallback) {
+                            errorCallback(SdkWebAPI.errorHandler(this), "Retrieve Metadata By MetadataId");
+                        }
+                    }
+                }
+            };
+        }
+        req.send();
+        if (!async) {
+            return JSON.parse(req.response);
+        }
+    }
+
     SdkWebAPI.getManyToOneRelationships = function (entityLogicalName, successCallback, errorCallback) {
         if (!isString(entityLogicalName)) {
             throw new Error("SdkWebAPI.getManyToOneRelationships entityLogicalName parameter must be a string.");
@@ -1617,6 +1857,7 @@ OData-Version: 4.0
         };
         req.send();
     }
+
     SdkWebAPI.getFetchXml = function (entitySetName, fetchXml, successCallback, errorCallback, passthroughObj, passthroughObj1) {
         if (isNullOrUndefined(entitySetName)) {
             throw new Error("SdkWebAPI.getFetchXml entitySetName parameter must not be null or undefined.");
@@ -1747,6 +1988,7 @@ OData-Version: 4.0
             return fetchResult;
         }
     }
+
     SdkWebAPI.RetrieveGlobalOptionSetMetaDataId = function (optionSetSchemaName, successCallback, errorCallback) {
         // get all global optionsets
         // "https://contoso.crm.dynamics.com/api/data/v8.2/$metadata#GlobalOptionSetDefinitions/$entity","@odata.type":"#Microsoft.Dynamics.CRM.OptionSetMetadata"
@@ -1821,214 +2063,6 @@ OData-Version: 4.0
         };
     }
 
-    SdkWebAPI.retrieveEntityMetadata = function (entitySetName, successCallback, errorCallback) {
-        var async = !!successCallback;
-
-        var url = getWebAPIPath() + "EntityDefinitions?$select=LogicalName"
-            + "&$filter=LogicalCollectionName eq '" + entitySetName + "'";
-
-        var req = new XMLHttpRequest();
-        req.open("GET", encodeURI(url), true);
-        req.setRequestHeader("Accept", "application/json");
-        req.setRequestHeader("OData-MaxVersion", "4.0");
-        req.setRequestHeader("OData-Version", "4.0");
-        if (async) {
-            req.onreadystatechange = function () {
-                if (this.readyState == 4 /* complete */) {
-                    req.onreadystatechange = null;
-                    if (this.status == 200) {
-                        if (successCallback)
-                            successCallback(JSON.parse(this.response).value);
-                    }
-                    else {
-                        if (errorCallback)
-                            errorCallback(SdkWebAPI.errorHandler(this), "Get Entity Attribute");
-                    }
-                }
-            };
-        }
-        req.send();
-        if (!async) {
-            return JSON.parse(req.response).value;
-        }
-    }
-
-    SdkWebAPI.GetMetaDataId = function (entityLogicalName, attributeLogicalName) {
-        var uri = getWebAPIPath() +
-            "EntityDefinitions?$select=SchemaName&$filter=LogicalName eq '" + entityLogicalName +
-            "'&$expand=Attributes($filter=LogicalName eq '" + attributeLogicalName + "')";
-
-        var req = new XMLHttpRequest();
-        req.open("GET", encodeURI(uri), false);
-        req.setRequestHeader("Accept", "application/json");
-        req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
-        req.setRequestHeader("OData-MaxVersion", "4.0");
-        req.setRequestHeader("OData-Version", "4.0");
-        req.send();
-
-        var result = JSON.parse(req.response).value[0];
-        var ids = { EntityMetaddataId: result.MetadataId, AttributeMetaDataId: result.Attributes[0].MetadataId };
-
-        return ids;
-    }
-    SdkWebAPI.GetAttributeSchemaName = function (entityLogicalName, attributeLogicalName, successCallback, errorCallback) {
-        var uri = getWebAPIPath() +
-            "EntityDefinitions?$select=SchemaName&$filter=LogicalName eq '" + entityLogicalName +
-            "'&$expand=Attributes($filter=LogicalName eq '" + attributeLogicalName + "')";
-
-        var async = !!successCallback;
-
-        var req = new XMLHttpRequest();
-        req.open("GET", encodeURI(uri), false);
-        req.setRequestHeader("Accept", "application/json");
-        req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
-        req.setRequestHeader("OData-MaxVersion", "4.0");
-        req.setRequestHeader("OData-Version", "4.0");
-
-        if (async) {
-            req.onreadystatechange = function () {
-                if (this.readyState == 4 /* complete */) {
-                    req.onreadystatechange = null;
-                    if (this.status == 200) {
-                        var attrs = JSON.parse(this.response).value[0].Attributes[0];
-                        if (attrs.IsCustomAttribute) {
-                            successCallback(attrs.SchemaName);
-                        } else {
-                            // account for system attributes such as primarycontactid (PrimaryContactId) where
-                            // using SchemaName as a navigation property will return 400
-                            successCallback(attrs.LogicalName);
-                        }
-                    }
-                    else {
-                        if (errorCallback)
-                            errorCallback(SdkWebAPI.errorHandler(this), "GetAttributeSchemaName");
-                    }
-                }
-            };
-        }
-
-        req.send();
-        // http://127.0.0.1/Grid/api/data/v8.1/EntityDefinitions?$select=SchemaName&$filter=LogicalName eq 'account'&$expand=Attributes($filter=LogicalName eq 'new_myschool')
-        // http://127.0.0.1/Grid/api/data/v8.1/EntityDefinitions?$select=SchemaName,PrimaryIdAttribute,PrimaryNameAttribute,LogicalCollectionName,ObjectTypeCode&$filter=LogicalName eq 'account'&$expand=Attributes($filter=LogicalName eq 'primarycontactid')
-        if (!async) {
-            var attrs = JSON.parse(req.response).value[0].Attributes[0];
-            if (attrs.IsCustomAttribute) {
-                return attrs.SchemaName;
-            } else {
-                // account for system attributes such as primarycontactid (PrimaryContactId) where
-                // using SchemaName as a navigation property will return 400
-                return attrs.LogicalName;
-            }
-        }
-    }
-
-    // attributeType = {isPicklist: false, isBoolean: false, isState: false, isStatus: false}
-    SdkWebAPI.retrieveMetadataByLogicalName = function (entityLogicalName, attributeLogicalName, attributeType, successCallback, errorCallback) {
-        if (!isString(entityLogicalName)) {
-            throw new Error("SdkWebAPI.retrieveMetadataByLogicalName entitySchemaName parameter must be a string.");
-        }
-        if (!isString(attributeLogicalName)) {
-            throw new Error("SdkWebAPI.retrieveMetadataByLogicalName attributeLogicalName parameter must be a string.");
-        }
-        if (!isFunctionOrNullOrUndefined(successCallback)) {
-            throw new Error("SdkWebAPI.retrieveMetadataByLogicalName successCallback parameter must be a function or null.");
-        }
-        if (!isFunctionOrNullOrUndefined(errorCallback)) {
-            throw new Error("SdkWebAPI.retrieveMetadataByLogicalName errorCallback parameter must be a function or null.");
-        }
-
-        var async = !!successCallback;
-        var uri = null;
-        if (SDKWEBAPI_VERSION_USERD == '8.1') {
-            // Get meta data ids and then get the metadata
-            var metadataIds = SdkWebAPI.GetMetaDataId(entityLogicalName, attributeLogicalName);
-
-            var atype = null;
-            if (attributeType.isPicklist) {
-                atype = "Picklist";
-            } else if (attributeType.isBoolean) {
-                atype = "Boolean";
-            } else if (attributeType.isState) {
-                atype = "State";
-            } else if (attributeType.isStatus) {
-                atype = "Status";
-            }
-            var result = SdkWebAPI.retrieveMetadataByMetadataId(metadataIds.EntityMetaddataId, metadataIds.AttributeMetaDataId, atype, successCallback, errorCallback);
-            if (!async) {
-                return result;
-            }
-
-        } else {
-            uri = getWebAPIPath() + "EntityDefinitions(LogicalName='" + entityLogicalName + "')/Attributes(LogicalName='" + attributeLogicalName.toLowerCase() + "')";
-            if (attributeType.isPicklist) {
-                uri += "/Microsoft.Dynamics.CRM.PicklistAttributeMetadata?$select=LogicalName&$expand=OptionSet($select=Options),GlobalOptionSet($select=Options)";
-            } else if (attributeType.isBoolean) {
-                uri += "/Microsoft.Dynamics.CRM.BooleanAttributeMetadata?$select=LogicalName&$expand=OptionSet($select=TrueOption,FalseOption)";
-            } else if (attributeType.isState) {
-                uri += "/Microsoft.Dynamics.CRM.StateAttributeMetadata?$select=LogicalName&$expand=OptionSet($select=Options)";
-            } else if (attributeType.isStatus) {
-                uri += "/Microsoft.Dynamics.CRM.StatusAttributeMetadata?$select=LogicalName&$expand=OptionSet($select=Options)";
-            }
-
-            var req = new XMLHttpRequest();
-            req.open("GET", encodeURI(uri), async);
-            req.setRequestHeader("Accept", "application/json");
-            req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
-            req.setRequestHeader("OData-MaxVersion", "4.0");
-            req.setRequestHeader("OData-Version", "4.0");
-            if (async) {
-                req.onreadystatechange = function () {
-                    if (this.readyState == 4 /* complete */) {
-                        req.onreadystatechange = null;
-                        if (this.status == 200) {
-                            successCallback(JSON.parse(this.response));
-                        }
-                        else {
-                            if (errorCallback)
-                                errorCallback(SdkWebAPI.errorHandler(this), "Retrieve Metadata By LogicalName");
-                        }
-                    }
-                };
-            }
-            req.send();
-            if (!async) {
-                return JSON.parse(req.response);
-            }
-        }
-    }
-    SdkWebAPI.retrieveMetadataByMetadataId = function (entityMetadataId, attributMetadataId, attributeType, successCallback, errorCallback) {
-        //build query string 
-        var uri = getWebAPIPath() + buildQueryString(entityMetadataId, attributMetadataId, attributeType);
-        var async = !!successCallback;
-
-        var req = new XMLHttpRequest();
-        req.open("GET", uri, async);
-        req.setRequestHeader("Accept", "application/json");
-        req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
-        req.setRequestHeader("OData-MaxVersion", "4.0");
-        req.setRequestHeader("OData-Version", "4.0");
-        if (async) {
-            req.onreadystatechange = function () {
-                if (this.readyState == 4 /* complete */) {
-                    req.onreadystatechange = null;
-                    if (this.status == 200) {
-                        if (successCallback) {
-                            successCallback(JSON.parse(this.response));
-                        }
-                    }
-                    else {
-                        if (errorCallback) {
-                            errorCallback(SdkWebAPI.errorHandler(this), "Retrieve Metadata By MetadataId");
-                        }
-                    }
-                }
-            };
-        }
-        req.send();
-        if (!async) {
-            return JSON.parse(req.response);
-        }
-    }
     SdkWebAPI.SetState = function (uri, statecode, statuscode, successCallback, errorCallback, passthroughObj, passthroughObj1) {
         if (!isString(uri)) {
             throw new Error("SdkWebAPI.SetState uri parameter must be a string.");
@@ -2122,6 +2156,7 @@ function WhoAmIFunctionSuccess(WhoAmIResponse) {
 }
          */
     }
+
     SdkWebAPI.GetUri = function (entitySetName, Guid) {
         if (!isString(entitySetName)) {
             throw new Error("SdkWebAPI.GetUri entitySetName parameter must be a string.");
@@ -2146,22 +2181,7 @@ function WhoAmIFunctionSuccess(WhoAmIResponse) {
             return null;
         }
     }
-    // Attempt to get entity collection name (entitysetname) from logicalname
-    SdkWebAPI.GetEntitySetName = function (entity) {
-        if (!!entity) {
-            // usersettings -> usersettingses
-            if (entity[entity.length - 1] == "s" || entity[entity.length - 1] == "x") {
-                return entity + "es";
-            // transactioncurrency
-            } else if (entity[entity.length - 1] == "y") {
-                return entity.substr(0, entity.length - 1) + "ies";
-            // account -> accounts
-            } else {
-                return entity + "s";
-            }
-        }
-        return "";
-    }
+
     // Create batch payload for Update, Delete, and Create
     SdkWebAPI.CreateBatchCreatePayload = function (LogicalCollectionName, requests) {
         //Generate a random set of 10 characters to serve as the batchId value
@@ -2256,6 +2276,7 @@ function WhoAmIFunctionSuccess(WhoAmIResponse) {
         var uri = getWebAPIPath() + part;
         return uri;
     }
+
     //A helper for generating a unique changelist value for execute batch
     function getRandomId() {
         /// <summary>Generates a random set of 10 characters to use when defining a changelist with SdkWebAPI.executeBatch</summary>

@@ -685,7 +685,7 @@ Date.parseDate = function (input, format) {
     //} else {
     //    dateStr += ((havename) ? ' ' : 'T') + '12:00:00Z';
     //}
-    //console.log(dateStr);
+    //Log(dateStr);
     //return new Date(dateStr);
 
     var val;
@@ -960,6 +960,7 @@ function GeneralFailCallback(error) {
 function RetreiveEntityList() {
     _thisGlobals.WaitDialog.show();
     if (_thisGlobals.UseWebApi) {
+        // http://127.0.0.1/Grid/api/data/v8.1/EntityDefinitions?$select=LogicalName,SchemaName,PrimaryIdAttribute,PrimaryNameAttribute,LogicalCollectionName,ObjectTypeCode,DisplayName,IsValidForAdvancedFind&$filter=IsValidForAdvancedFind eq true
         SdkWebAPI.invokeUnboundFunction('RetrieveAllEntities',
             ["EntityFilters=Microsoft.Dynamics.CRM.EntityFilters'Entity'", "RetrieveAsIfPublished=true"],
             UnboundFunctionSuccessCallback, GeneralFailCallback);
@@ -3596,6 +3597,11 @@ function InitializeSetupRoutinesInternal() {
 
         SetParentFormDirty();
     });
+    $('#allowblankrequiredinlinecreate').on('click', function (e) {
+        _thisGlobals._CurConfiguration.AllowBlankRequiredInlineCreate = $(this).prop('checked');
+        
+        SetParentFormDirty();
+    });
     $('#gridtitlewordwrap').on('click', function (e) {
         _thisGlobals._CurConfiguration.GridTitleWordWrap = $(this).prop('checked');
 
@@ -4184,6 +4190,8 @@ function InitializeSetupRoutinesInternal() {
         $('#displayexportbutton').attr('disabled', 'disabled');
         $('#displaysetrecordstate').attr('disabled', 'disabled');
         $('#displayclonerecord').attr('disabled', 'disabled');
+        $('#allowblankrequiredinlinecreate').attr('disabled', 'disabled');
+        
         $('#gridtitlewordwrap').attr('disabled', 'disabled');
         $('#gridheaderminimumwidth').prop('disabled', 'disabled');
         $('#autorefreshdelay').prop('disabled', 'disabled');
@@ -4302,7 +4310,7 @@ function InitializeSetupRoutinesInternal() {
             $.each(checkboxs, function (index, item) {
                 var input = $(item);
                 if (input.is(':checked')) {
-                    //console.log(input.attr('id'));
+                    //Log(input.attr('id'));
                 }
             });
         }
@@ -4312,7 +4320,7 @@ function InitializeSetupRoutinesInternal() {
 }
 
 function LookupEntityFieldsCheckboxListClickHandler(chk) {
-    //console.log("Check clicked [" + chk.is(':checked') + "]");
+    //Log("Check clicked [" + chk.is(':checked') + "]");
 }
 
 /* Make selected entities list items sortable */
@@ -4929,6 +4937,7 @@ var DCrmEGConfigurationManager = (function () {
         self.GridCustomIdentifier = (data.GridCustomIdentifier && data.GridCustomIdentifier.length) ? data.GridCustomIdentifier : '';
         self.AutoRefreshDelay = (data.AutoRefreshDelay) ? data.AutoRefreshDelay : 0;
         self.SubgridTbodyHeight = (data.SubgridTbodyHeight) ? data.SubgridTbodyHeight : 80;
+        self.AllowBlankRequiredInlineCreate = ((data.AllowBlankRequiredInlineCreate) && (data.AllowBlankRequiredInlineCreate == 'true')) ? true : false;
         
         self.DisplayCloneRecordButton = ((data.DisplayCloneRecordButton) && (data.DisplayCloneRecordButton == 'false')) ? false : true;
         self.OpenRecordBehavoir = ((data.OpenRecordBehavoir) && (data.OpenRecordBehavoir != 'undefined')) ? data.OpenRecordBehavoir : "10";
@@ -5172,6 +5181,8 @@ function DisplaySelectedEntityInfo(li, schema, liid) {
     $('#displayexportbutton').prop('checked', _thisGlobals._CurConfiguration.DisplayExportButton);
     $('#displaysetrecordstate').prop('checked', _thisGlobals._CurConfiguration.DisplaySetRecordState);
     $('#displayclonerecord').prop('checked', _thisGlobals._CurConfiguration.DisplayCloneRecord);
+    $('#allowblankrequiredinlinecreate').prop('checked', _thisGlobals._CurConfiguration.AllowBlankRequiredInlineCreate);
+    
     $('#gridtitlewordwrap').prop('checked', _thisGlobals._CurConfiguration.GridTitleWordWrap);
     $('#gridheaderminimumwidth').val(_thisGlobals._CurConfiguration.GridHeaderMinimumWidth);
     $('#autorefreshdelay').val(_thisGlobals._CurConfiguration.AutoRefreshDelay);
@@ -5311,6 +5322,8 @@ function LoadDCrmEGConfiguration() {
             data.GridCustomIdentifier = ((tmp.length > 34) ? tmp[34] : undefined);
             data.AutoRefreshDelay = ((tmp.length > 35) ? tmp[35] : undefined);
             data.SubgridTbodyHeight = ((tmp.length > 36) ? tmp[36] : undefined);
+            data.AllowBlankRequiredInlineCreate = ((tmp.length > 37) ? tmp[37] : undefined);
+            
         }
 
         config = new DCrmEGConfigurationManager(data);
@@ -5514,7 +5527,8 @@ function SaveDCrmEGConfiguration() {
         + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].GridHeaderMinimumWidth
         + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].GridCustomIdentifier
         + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].AutoRefreshDelay
-        + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].SubgridTbodyHeight;
+        + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].SubgridTbodyHeight
+        + _thisGlobals._SEPERATOR + _thisGlobals.DCrmEGConfiguration[i].AllowBlankRequiredInlineCreate;
         
         if (_thisGlobals.DCrmEGConfiguration[i].Fields) {
             if (i > 0) {
@@ -5599,7 +5613,8 @@ function SaveDCrmEGConfigurationInternal(config) {
     + _thisGlobals._SEPERATOR + config.GridHeaderMinimumWidth
     + _thisGlobals._SEPERATOR + config.GridCustomIdentifier
     + _thisGlobals._SEPERATOR + config.AutoRefreshDelay
-    + _thisGlobals._SEPERATOR + config.SubgridTbodyHeight;
+    + _thisGlobals._SEPERATOR + config.SubgridTbodyHeight
+    + _thisGlobals._SEPERATOR + config.AllowBlankRequiredInlineCreate;
     
     if (config.Fields) {
         _thisGlobals._Fieldsinfo += _thisGlobals._pSeperator + config.Fields + _thisGlobals._OuterSeperator + config.Entity.Identity;

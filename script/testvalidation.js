@@ -25,29 +25,6 @@ function FormOnloadHandler(context) {
     window.parent.DCrmEgGridOnBeforeFetchRecords = DCrmEgGridOnBeforeFetchRecords;
     window.parent.DCrmEgGridOnBeforeLookupFetchRecords = DCrmEgGridOnBeforeLookupFetchRecords;
 
-    //setTimeout(function () {
-    //    var IFrame = Xrm.Page.getControl("WebResource_AccountsContacts").getObject();
-    //    if (IFrame) {
-    //        var frameWindow = IFrame.contentWindow;
-    //        if (frameWindow) {
-    //            if (frameWindow.GetDcrmEgGrid) {
-    //                var grid = frameWindow.GetDcrmEgGrid('account');
-    //                if (grid) {
-    //                    console.log("Got the grid", grid);
-    //                } else {
-    //                    console.log("No Grid found");
-    //                }
-    //            } else {
-    //                console.log("No GetDcrmEgGrid method");
-    //            }
-    //        } else {
-    //            console.log("No Frame content window");
-    //        }
-    //    } else {
-    //        console.log("No IFRAME");
-    //    }
-    //}, 5000);
-
     //// Changing title in 2016
     //// Timer is needed as not all elements may have been added to the document.all collection
     //// may need to adjust the timer duration
@@ -64,6 +41,88 @@ function FormOnloadHandler(context) {
     //        }
     //    }
     //}, 1000);
+}
+
+// A field onchange event handler
+function SomeFieldChangeHandler() {
+    setTimeout(function () {
+        var IFrame = Xrm.Page.getControl("WebResource_Accounts").getObject();
+        if (IFrame) {
+            var frameWindow = IFrame.contentWindow;
+            if (frameWindow) {
+                if (frameWindow.DCrmEgGrid) {
+                    // First parameter:
+                    // Grid Custom Identifier set in the grid configuration. Pass null if only one grid exists.
+                    // Second parameter:
+                    // LogicalName of the grid entity where data is retreived.
+                    var gridData = frameWindow.DCrmEgGrid.GridData(null, 'account');
+                    Log("Grid Data", gridData);
+
+                    // Grid data returned structure:
+                    // { Headers: [], Rows: [], GridEditorTypes: DCrmEditableGrid.Editors };
+                    /*
+
+                    Headers: Array of header objects
+                    header = {
+                        EditorType: Numeric value corresponding to one of GridEditorTypes
+                        FieldLogicalName: Field logical name
+                        Label: Field label
+                    };
+
+                    Rows: Array of grid row objects
+                    gridrow = {
+                        RecordGuid: Record Guid
+                        RowIndex: Row index
+                        Cells: [] Array of cells
+                    }
+
+                    Cells: Array of cell objects
+                    cell = {
+                        FormattedValue: formatted value. The value that is displayed
+                        Value: for lookups, the Value is a JSON object. All other types Value will have a single value. Example:
+
+                        // Other than Lookup and Customer types, Value is a simple object
+                        //
+                        // Option set -> Value = numeric
+                        // Numeric, currency, decimal, double -> Value = numeric
+                        // Two Option -> Value = true/false
+                        // DateTimePicker, DatePicker -> Value = Date object
+                        // Lookup, Customer ->  Value = {
+                        //                                EntityLogicalName: Lookup Entity logical name
+                        //                                Guid: Lookup Guid
+                        //                             }
+                    }
+
+                    GridEditorTypes: Helper enum
+                    "Text": 0,
+                    "Numeric": 1,
+                    "DatePicker": 2,
+                    "Checkbox": 3,
+                    "OptionSet": 4,
+                    "Description": 5,
+                    "Lookup": 6,
+                    "Decimal": 7,
+                    "Currency": 8,
+                    "DateTimePicker": 9,
+                    "Status": 10,
+                    "Double": 12,
+                    "Customer": 13,
+                    "Owner": 14,
+
+                     */
+
+                    //// Refresh grid:
+                    //frameWindow.DCrmEgGrid.RefreshGrid(null, 'account');
+                } else {
+                    Log("No DCrmEgGrid");
+                }
+            } else {
+                Log("No Frame content window");
+            }
+        } else {
+            Log("No IFRAME");
+        }
+    }, 1000);
 }
 
 function ValidateDCrmEgGrid(param, field) {
@@ -127,6 +186,11 @@ function ValidateDCrmEgGrid(param, field) {
         // Date Time Picker
         case 9:
             Log("DateTime - NewDateTime [" + param.NewValue + "] OriginalDateTime [" + param.OriginalValue + "]");
+            break;
+
+        // Double
+        case 12:
+            Log("Text - NewValue [" + param.NewValue + "] OriginalValue [" + param.OriginalValue + "]");
             break;
 
         default:
@@ -391,15 +455,58 @@ function DCrmEgGridOnBeforeFetchRecords(entityinfo) {
     return additions;
 }
 
-function DCrmEgGridOnBeforeLookupFetchRecords(entityinfo) {
+function DCrmEgGridOnBeforeLookupFetchRecords(entityinfo, rowData) {
     var additions = null;
-    Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
-    Log("DCrmEgGridOnBeforeLookupFetchRecords - Field Schemname [" + entityinfo.FieldSchemaName + "] ParentEntityName [" + entityinfo.ParentEntityLabel + "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaName + "]\r\n\r\n");
+    //Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
+    //Log("DCrmEgGridOnBeforeLookupFetchRecords - Field Schemname [" + entityinfo.FieldSchemaName + "] ParentEntityName [" + entityinfo.ParentEntityLabel + "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaName + "]\r\n\r\n");
 
-    //additions = {};
+    additions = {};
+    if (entityinfo.FieldSchemaName != 'new_relatedleveltwoadminid') {
+        return additions;
+    }
 
-    //// Example for a sinle value condition
-    //additional.Condition = '<condition attribute="primarycontactid" operator="eq" value="{76E339A4-1528-E611-80DD-08002738AA19}" />';
+    // Example for a sinle value condition by using the value of another lookup
+    var attr, guid, dtype = null;
+    for (var i = 0; i < rowData.Rows[0].Cells.length; i++) {
+        var cell = rowData.Rows[0].Cells[i];
+        /*
+        rowData.GridEditorTypes
+            "Text": 0,
+            "Numeric": 1,
+            "DatePicker": 2,
+            "Checkbox": 3,
+            "OptionSet": 4,
+            "Description": 5,
+            "Lookup": 6,
+            "Decimal": 7,
+            "Currency": 8,
+            "DateTimePicker": 9,
+            "Status": 10,
+            "Double": 12,
+            "Customer": 13,
+            "Owner": 14,
+         */
+        if ((rowData.Headers[i].EditorType == rowData.GridEditorTypes.Lookup) &&
+            (rowData.Headers[i].FieldLogicalName == 'new_relatedleveloneadminid') &&
+            (cell.Value) &&
+            (cell.Value.EntityLogicalName)) {
+                attr = rowData.Headers[i].FieldLogicalName;
+                dtype = cell.Value.EntityLogicalName;
+                guid = cell.Value.Guid;
+                break;
+        } else if ((rowData.Headers[i].EditorType == rowData.GridEditorTypes.Text) ||
+            (rowData.Headers[i].EditorType == rowData.GridEditorTypes.Currency) ||
+            (rowData.Headers[i].EditorType == rowData.GridEditorTypes.OptionSet) ||
+            (rowData.Headers[i].EditorType == rowData.GridEditorTypes.Checkbox)) {
+                console.log('FormattedValue [' + cell.FormattedValue + '] Value [' + cell.Value + ']');
+        }
+    }
+
+    if (attr && guid && dtype) {
+        additions.Condition = '<condition attribute="' + attr + '" uitype="' + dtype + '" operator="eq" value="{' + guid + '}" />';
+    }
+
+    Log('additional.Condition', additions.Condition);
 
     //// Example for multi value condition
     //additions.Condition = '<condition attribute="primarycontactid" operator="in">' +

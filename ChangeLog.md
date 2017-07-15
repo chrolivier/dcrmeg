@@ -1,3 +1,18 @@
+v1.0.6.5
+========
+
+Bug fixes:
+1. Refresh after save was not firing for single lookup update.
+2. After a failed create inline, a row was being added.
+
+Addition:
+1. To allow required lookup field to be blank during inline create, an option was added to configuration to by pass the validation logic. "Inline create, allow blank required lookup fields".
+2. GetEntitySetName WebApi library, switched to use EntityDefinitions to retreive LogicalCollectionName for an entity.
+3. Added rowData parameter to DCrmEgGridOnBeforeLookupFetchRecords JavaScript call back. The rowData parameter contains a structure of row data.
+4. New interface to access the grid 'DCrmEgGrid'. The interface has two methods, GridData (returns a JSON object containing grid data), RefreshGrid (refreshs the grid)
+
+Please see [JS call backs documentation](https://github.com/mehrgithub/dcrmeg/blob/master/docs/JavaScript%20Callbacks.md) "SomeFieldChangeHandler" and "DCrmEgGridOnBeforeLookupFetchRecords" functions for details and example of usage.
+	
 v1.0.6.4
 ========
 
