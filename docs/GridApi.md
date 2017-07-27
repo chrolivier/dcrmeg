@@ -11,9 +11,9 @@ Disable or enable grid.
 
 **Parameters**
 
-1. GridCustomIdentifier: Grid Custom Identifier set in the grid configuration. Pass null if only one grid exists.
-2. EntityLogicalName: The LogicalName of the grid entity where data is retreived. In the following example, I am displaying accounts on the grid.
-3. Disable: Boolean type. true to enable and false to disable the grid.
+1. **GridCustomIdentifier**: Grid Custom Identifier set in the grid configuration. Pass null if only one grid exists.
+2. **EntityLogicalName**: The LogicalName of the grid entity where data is retreived. In the following example, I am displaying accounts on the grid.
+3. **Disable**: Boolean type. true to enable and false to disable the grid.
 
 **Grid data returned structure**
 
