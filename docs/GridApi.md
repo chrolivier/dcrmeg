@@ -1,12 +1,12 @@
 ## Grid API
 
-**GridData(GridCustomIdentifier, EntityLogicalName)**
+1. **GridData(GridCustomIdentifier, EntityLogicalName)**
 Returns a JSON object containing grid headers, rows (cells), and an enum to determine the type of the field (text, nummeric, ...)
 
-**RefreshGrid(GridCustomIdentifier, EntityLogicalName)**
+2. **RefreshGrid(GridCustomIdentifier, EntityLogicalName)**
 Refreshes the grid data.
 
-**DisbaleGrid(GridCustomIdentifier, EntityLogicalName, Disable)**
+3. **DisbaleGrid(GridCustomIdentifier, EntityLogicalName, Disable)**
 Disable or enable grid.
 
 **Parameters**
