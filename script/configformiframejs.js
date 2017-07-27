@@ -4100,7 +4100,8 @@ function InitializeSetupRoutinesInternal() {
         DisplaySelectedEntityInfo(config.Li, schemaName, config.Entity.LiId);
     });
     $('#configuresorting').on('click', function (e) {
-        var $rows = $('#selectedfieldstable').find('tbody:first').find('tr');
+        // Allow using any field to sort not only the fields on the grid
+        var $rows = _thisGlobals.SelectFieldsCheckboxList.find("div input[type='checkbox']");
 
         if (($rows) && ($rows.length) && ($rows.length > 0)) {
             var $div;

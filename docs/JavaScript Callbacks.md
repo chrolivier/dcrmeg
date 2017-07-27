@@ -25,7 +25,7 @@ Fires for every row to be rendered. Allows setting a field (cell) to readonly an
 Allow additional conditions to be added to the fetch XML prior to fetching data for the grid.
 
 **DCrmEgGridOnBeforeLookupFetchRecords**
-Allow additional conditions to be added to the fetch XML prior to fetching data for the Lookup editors.
+Allow additional conditions to be added to the fetch XML prior to fetching data for the Lookup editors. The rowData parameter, a JSON object containing the row (cells) data in both formatted and actual value.
 
 **Set up**
 
@@ -353,79 +353,6 @@ Code Blocks
 			//'</link-entity>';
 		//}
 		return additions;
-	}
-	// To retreive the grid data from a field onchange event
-	function SomeFieldChangeHandler() {
-		setTimeout(function () {
-			var IFrame = Xrm.Page.getControl("WebResource_Accounts").getObject();
-			if (IFrame) {
-				var frameWindow = IFrame.contentWindow;
-				if (frameWindow) {
-					if (frameWindow.DCrmEgGrid) {
-						// First parameter:
-						// Grid Custom Identifier set in the grid configuration. Pass null if only one grid exists.
-						// Second parameter:
-						// LogicalName of the grid entity where data is retreived.
-						var gridData = frameWindow.DCrmEgGrid.GridData(null, 'account');
-						Log("Grid Data", gridData);
-						// Grid data returned structure:
-						// { Headers: [], Rows: [], GridEditorTypes: DCrmEditableGrid.Editors };
-						/*
-						Headers: Array of header objects
-						header = {
-							EditorType: Numeric value corresponding to one of GridEditorTypes
-							FieldLogicalName: Field logical name
-							Label: Field label
-						};
-						Rows: Array of grid row objects
-						gridrow = {
-							RecordGuid: Record Guid
-							RowIndex: Row index
-							Cells: [] Array of cells
-						}
-						Cells: Array of cell objects. null value indicates an empty cell (no data)
-						cell = {
-							FormattedValue: formatted value. The value that is displayed
-							Value: for lookups, the Value is a JSON object. All other types Value will have a single value. Example:
-							// Other than Lookup and Customer types, Value is a simple object
-							//
-							// Option set -> Value = numeric
-							// Numeric, currency, decimal, double -> Value = numeric
-							// Two Option -> Value = true/false
-							// DateTimePicker, DatePicker -> Value = Date object
-							// Lookup, Customer ->  Value = {
-							//                                EntityLogicalName: Lookup Entity logical name
-							//                                Guid: Lookup Guid
-							//                             }
-						}
-						GridEditorTypes: Helper enum
-						"Text": 0,
-						"Numeric": 1,
-						"DatePicker": 2,
-						"Checkbox": 3,
-						"OptionSet": 4,
-						"Description": 5,
-						"Lookup": 6,
-						"Decimal": 7,
-						"Currency": 8,
-						"DateTimePicker": 9,
-						"Status": 10,
-						"Double": 12,
-						"Customer": 13,
-						"Owner": 14,
-						 */
-						//// Refresh grid:
-						//frameWindow.DCrmEgGrid.RefreshGrid(null, 'account');
-					} else {
-						Log("No DCrmEgGrid");
-					}
-				} else {
-					Log("No Frame content window");
-				}
-			} else {
-				Log("No IFRAME");
-			}
-		}, 1000);
 	}
 	function DCrmEgGridOnBeforeLookupFetchRecords(entityinfo, rowData) {
 		var additions = null;

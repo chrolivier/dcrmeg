@@ -1,3 +1,17 @@
+v1.0.6.6
+========
+
+Bug Fixes:
+1. When using the wrap text option for the column header. If this results in the header running over more than two lines then this results in a 
+scroll bar being added to the grid cutting off part of the header or footer and making it appear that the sticky header/footer isn't working correctly.
+
+Additions:
+1. Grid - Added Quick Create to '+' menu (2015 SP1 and up). If the entity IsQuickCreateEnabled metadata is true.
+2. Grid - Added DisableGrid API
+3. Configuration - Added the ability to sort using fields that are not part of the grid
+4. Documentation - Added a new documentation page for the Grid API. [Grid API](https://github.com/mehrgithub/dcrmeg/blob/master/docs/GridApi.md)
+5. Switch to use window.parent["APPLICATION_FULL_VERSION"] to determine if WebApi is available and the version in use. A call to RetrieveVersion WebApi is used as a fallback mechanism.
+
 v1.0.6.5
 ========
 

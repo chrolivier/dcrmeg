@@ -573,7 +573,7 @@ Processing dialog
         text-align: left;
 
         min-height: 28px;
-        height: 28px;
+        /*height: 28px;*/
     }
     .pure-table thead th:nth-child(1) {
         text-align:center !important;

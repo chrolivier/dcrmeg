@@ -44,75 +44,46 @@ function FormOnloadHandler(context) {
 }
 
 // A field onchange event handler
+var _DisableGrid = true;
 function SomeFieldChangeHandler() {
     setTimeout(function () {
-        var IFrame = Xrm.Page.getControl("WebResource_Accounts").getObject();
+        var IFrame = Xrm.Page.getControl("WebResource_AccountsContacts").getObject();
         if (IFrame) {
             var frameWindow = IFrame.contentWindow;
             if (frameWindow) {
                 if (frameWindow.DCrmEgGrid) {
-                    // First parameter:
-                    // Grid Custom Identifier set in the grid configuration. Pass null if only one grid exists.
-                    // Second parameter:
-                    // LogicalName of the grid entity where data is retreived.
+
                     var gridData = frameWindow.DCrmEgGrid.GridData(null, 'account');
                     Log("Grid Data", gridData);
 
-                    // Grid data returned structure:
-                    // { Headers: [], Rows: [], GridEditorTypes: DCrmEditableGrid.Editors };
-                    /*
+                    //for (var i = 0; i < gridData.Headers.length; i++) {
+                    //    var header = gridData.Headers[i];
+                    //    console.log('EditorType [' + header.EditorType + '] FieldLogicalName [' + header.FieldLogicalName + ']  [' + header.Label + ']');
+                    //}
 
-                    Headers: Array of header objects
-                    header = {
-                        EditorType: Numeric value corresponding to one of GridEditorTypes
-                        FieldLogicalName: Field logical name
-                        Label: Field label
-                    };
+                    //for (var i = 0; i < gridData.Rows.length; i++) {
+                    //    var row = gridData.Rows[i];
+                    //    console.log('RecordGuid [' + row.RecordGuid + '] RowIndex [' + row.RowIndex + ']');
+                    //    for (var ii = 0; ii < row.Cells.length; ii++) {
+                    //        var cell = row.Cells[ii];
+                    //        if ((gridData.Headers[ii].EditorType == gridData.GridEditorTypes.Lookup) ||
+                    //            (gridData.Headers[ii].EditorType == gridData.GridEditorTypes.Customer)) {
+                    //            console.log('FormattedValue [' + cell.FormattedValue
+                    //                + '] EntityLogicalName [' + ((cell.Value) ? cell.Value.EntityLogicalName : '')
+                    //                + '] Guid [' + ((cell.Value) ? cell.Value.Guid : '') + ']');
+                    //        } else {
+                    //            console.log('FormattedValue [' + cell.FormattedValue
+                    //                + '] Value [' + cell.Value + ']');
+                    //        }
+                    //    }
+                    //}
 
-                    Rows: Array of grid row objects
-                    gridrow = {
-                        RecordGuid: Record Guid
-                        RowIndex: Row index
-                        Cells: [] Array of cells
-                    }
+                    // Refresh grid:
+                    // frameWindow.DCrmEgGrid.RefreshGrid(null, 'account');
 
-                    Cells: Array of cell objects
-                    cell = {
-                        FormattedValue: formatted value. The value that is displayed
-                        Value: for lookups, the Value is a JSON object. All other types Value will have a single value. Example:
-
-                        // Other than Lookup and Customer types, Value is a simple object
-                        //
-                        // Option set -> Value = numeric
-                        // Numeric, currency, decimal, double -> Value = numeric
-                        // Two Option -> Value = true/false
-                        // DateTimePicker, DatePicker -> Value = Date object
-                        // Lookup, Customer ->  Value = {
-                        //                                EntityLogicalName: Lookup Entity logical name
-                        //                                Guid: Lookup Guid
-                        //                             }
-                    }
-
-                    GridEditorTypes: Helper enum
-                    "Text": 0,
-                    "Numeric": 1,
-                    "DatePicker": 2,
-                    "Checkbox": 3,
-                    "OptionSet": 4,
-                    "Description": 5,
-                    "Lookup": 6,
-                    "Decimal": 7,
-                    "Currency": 8,
-                    "DateTimePicker": 9,
-                    "Status": 10,
-                    "Double": 12,
-                    "Customer": 13,
-                    "Owner": 14,
-
-                     */
-
-                    //// Refresh grid:
-                    //frameWindow.DCrmEgGrid.RefreshGrid(null, 'account');
+                    // Disable or enable grid
+                     frameWindow.DCrmEgGrid.DisableGrid(null, 'account', _DisableGrid);
+                     _DisableGrid = !_DisableGrid;
                 } else {
                     Log("No DCrmEgGrid");
                 }
@@ -291,11 +262,11 @@ function DCrmEgGridCreateNewRecord(data, entityinfo) {
 
 var _MyCounter = 1;
 function DCrmEgGridRowOnload(rowData, entityinfo) {
-    return;
+    //return;
 
-    Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
-    Log("ParentEntityName [" + entityinfo.ParentEntityName + "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "]");
-    Log("Record Guid [" + rowData.RecordGuid + "] Row Index [" + rowData.RowIndex + "]");
+    //Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
+    //Log("ParentEntityName [" + entityinfo.ParentEntityName + "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaname + "]");
+    //Log("Record Guid [" + rowData.RecordGuid + "] Row Index [" + rowData.RowIndex + "]");
     if (rowData.InlineCreate) {
         Log("Create inline record is used. One row is being added.");
     }
@@ -307,6 +278,7 @@ function DCrmEgGridRowOnload(rowData, entityinfo) {
         rowData.RowBackgroundColor = '#CCCCCC';
     }
     _MyCounter++;
+    return;
 
     var CrmFieldTypes = {
         LookupType: "lookup",
@@ -457,6 +429,7 @@ function DCrmEgGridOnBeforeFetchRecords(entityinfo) {
 
 function DCrmEgGridOnBeforeLookupFetchRecords(entityinfo, rowData) {
     var additions = null;
+    return additions;
     //Log('GridCustomIdentifier [' + entityinfo.GridCustomIdentifier + ']');
     //Log("DCrmEgGridOnBeforeLookupFetchRecords - Field Schemname [" + entityinfo.FieldSchemaName + "] ParentEntityName [" + entityinfo.ParentEntityLabel + "] ParentEntitySchemaname [" + entityinfo.ParentEntitySchemaName + "]\r\n\r\n");
 

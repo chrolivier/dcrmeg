@@ -4321,7 +4321,8 @@ var CrmEditableGrid = (function () {
             if ((self.activeCell) && (self.activeCell.length)
                 && (self.activeCell[0].cellIndex > 0)
                 && (self.activeCell.attr(_thisGlobals.DataAttr.Cell.FooterCell) != _thisGlobals.DataAttr.NO)
-                && (self.activeCell.attr('data-user-disabledfield') != _thisGlobals.DataAttr.YES)) {
+                && (self.activeCell.attr('data-user-disabledfield') != _thisGlobals.DataAttr.YES)
+                && (self.activeCell.attr('data-user-disabledgrid') != _thisGlobals.DataAttr.YES)) {
 
                 var $theader = self.GetHeaderCells();
                 if ($($theader[self.activeCell[0].cellIndex]).attr(_thisGlobals.DataAttr.Header.ReadOnly) == _thisGlobals.DataAttr.YES) {
@@ -4954,6 +4955,45 @@ var CrmEditableGrid = (function () {
             }
         });
 
+        self.SetGridReadonly = function (readonly) {
+            self.activeOptions.ParentFormIsReadOnly = readonly;
+            var tbody = self.mainTable.find('tbody:first');
+            var theadchk = $(self.mainTable.find('thead tr:first').find('th:first').find("input[type='checkbox']")[0]);
+            if (readonly) {
+                $('#' + self.activeOptions.GridContainerIds.AutoSaveContainer).hide();
+                $('#' + self.activeOptions.GridContainerIds.UndoChanges).hide();
+                $('#' + self.activeOptions.GridContainerIds.CancelAllChanges).hide();
+                $('#' + self.activeOptions.GridContainerIds.SaveChanges).hide();
+                $('#' + self.activeOptions.GridContainerIds.AddNewRec).hide();
+                $('#' + self.activeOptions.GridContainerIds.DeleteRec).hide();
+                $('#' + self.activeOptions.GridContainerIds.CloneRecord).hide();
+                tbody.find("input[type='checkbox']").hide();
+                theadchk.hide();
+                tbody.find('td').attr('data-user-disabledgrid', _thisGlobals.DataAttr.YES);
+            } else {
+                if (!self.activeOptions.HideAutosaveButton) {
+                    $('#' + self.activeOptions.GridContainerIds.AutoSaveContainer).show();
+                }
+                if (!self.activeOptions.AutoSaveChanges) {
+                    $('#' + self.activeOptions.GridContainerIds.UndoChanges).show();
+                    $('#' + self.activeOptions.GridContainerIds.CancelAllChanges).show();
+                    $('#' + self.activeOptions.GridContainerIds.SaveChanges).show();
+                }
+                if (self.activeOptions.AllowCreateNew) {
+                    $('#' + self.activeOptions.GridContainerIds.AddNewRec).show();
+                }
+                if (self.activeOptions.AllowDelete) {
+                    $('#' + self.activeOptions.GridContainerIds.DeleteRec).show();
+                    tbody.find("input[type='checkbox']").show();
+                    theadchk.show();
+                }
+                if (self.activeOptions.DisplayCloneRecordButton) {
+                    $('#' + self.activeOptions.GridContainerIds.CloneRecord).show();
+                }                 
+                tbody.find('td').removeAttr('data-user-disabledgrid');
+            }
+        };
+
         self.mainTable
             .on('click', function (e) {
                 for (var i = 0; i < self.GridEditors.length; i++) {
@@ -5056,29 +5096,12 @@ var CrmEditableGrid = (function () {
                         contextMenuTargetText = _thisHelpers.GetActiveCellText(self.contextMenuTarget).trim();
                     }
 
-                    //var ctxCallback = {
-                    //    DisplayContextMenu: true,
-                    //    RecordGuid: self.contextMenuTarget.attr(_thisGlobals.DataAttr.Cell.RecordGuid),
-                    //    RecordSchemaName: self.activeOptions.ParentEntityInfo.ParentEntitySchemaname,
-                    //    FieldSchemanName: '',
-                    //    FieldIsRequiered: ((isrequiered == _thisGlobals.DataAttr.NO) ? false : true),
-                    //    FieldIsDisabled: ((self.contextMenuTarget.attr('data-user-disabledfield') != _thisGlobals.DataAttr.YES) ? false : true),
-                    //    FieldType: '',
-                    //    FieldValue: '',
-                    //    FieldFormattedValue: contextMenuTargetText,
-                    //    FieldFormat: self.contextMenuTarget.attr(_thisGlobals.DataAttr.Cell.Format),
-                    //    IsFooterCellToDisplayAggregates: self.contextMenuTarget.hasClass('tfooterdummy'),
-                    //    LookupLogicalName: self.contextMenuTarget.attr(_thisGlobals.DataAttr.Cell.Lookup.LogicalName),
-                    //    LookupGuid: self.contextMenuTarget.attr(_thisGlobals.DataAttr.Cell.Lookup.Guid),
-                    //    AdditionalMenuItems: [] // {CtxLabel: '', CtxCallback: null, CtxCallbackData: null}
-                    //};
-
                     if (contextMenuTargetText.length > 0) {
                         haveanymenu = true;
                         $('<li><a href="#" class="contextMenuLink" id="CopytoClipboardCtxMenuItem"><span class="itemTitle">' + _thisGlobals.Translation_Labels.CopyValueToClipboard + '</span></a></li>').appendTo(menu);
                     }
 
-                    if ((!self.activeOptions.ParentFormIsReadOnly) && 
+                    if ((!self.activeOptions.ParentFormIsReadOnly) &&
                         (self.contextMenuTarget.attr(_thisGlobals.DataAttr.Cell.FooterCell) != _thisGlobals.DataAttr.NO)) {
                         if (haveanymenu) {
                             $('<li class="divider"></li>').appendTo(menu);
@@ -5087,7 +5110,7 @@ var CrmEditableGrid = (function () {
                         $('<li><a href="#" class="contextMenuLink" id="OpenRecordCtxMenuItem"><span class="itemTitle">' + _thisGlobals.Translation_Labels.OpenRecordInNewWindow + '</span></a></li>').appendTo(menu);
                         // If we have status field, display a menu to set record status
                         if ((self.activeOptions.HasStatusField) &&
-                            (self.activeOptions.DisplaySetRecordState)){
+                            (self.activeOptions.DisplaySetRecordState)) {
                             $('<li class="divider"></li>').appendTo(menu);
                             $('<li><a href="#" class="contextMenuLink" id="SetRecordStatus"><span class="itemTitle">' + _thisGlobals.Translation_Labels.SetRecordStatus + '</span></a></li>').appendTo(menu);
                         }
@@ -5132,7 +5155,6 @@ var CrmEditableGrid = (function () {
                         }
                         haveanymenu = true;
                         $('<li><a href="#" class="contextMenuLink" id="CloneRecordCtxMenuItem"><span class="itemTitle">' + _thisGlobals.Translation_Labels.CloneRecord + '</span></a></li>').appendTo(menu);
-
                     }
 
                     if (!haveanymenu) {
@@ -5414,8 +5436,7 @@ list of translated languages
             for (var i = 0; i < totalRows; ++i) {
                 var c = $(rowstofind[i]);
                 $tmpCell = $('<td></td>');
-                if ((!gridOptions.ParentFormIsReadOnly) &&
-                    ((gridOptions.UserCanDelete) || (gridOptions.DisplayCloneRecordButton))) {
+                if ((gridOptions.UserCanDelete) || (gridOptions.DisplayCloneRecordButton)) {
                     $tmpCell.addClass('firstColCheckbox');
                     // Select row checkbox
                     $chk = $("<input type='checkbox' />")
@@ -5442,6 +5463,10 @@ list of translated languages
                             }
                             e.stopPropagation();
                         }).appendTo($tmpCell);
+
+                    if (gridOptions.ParentFormIsReadOnly) {
+                        $chk.hide();
+                    }
                 } else {
                     $tmpCell.addClass('firstColNoCheckbox');
                 }
@@ -6425,6 +6450,10 @@ list of translated languages
                             .html('<span class="fieldcelltext" ' + _thisGlobals.ToolTipAttrName + '="' + fval + '">' + fval + '</span>')
                             .appendTo($tr);
 
+                        if (self.activeOptions.ParentFormIsReadOnly) {
+                            $thistr.attr('data-user-disabledgrid', _thisGlobals.DataAttr.YES);
+                        }
+
                         _thisHelpers.SetCellWidth($thistr, _thisHelpers.GetCellWidth($(allHeaders[iinner + 1]), true), false);
 
                         var headerformatOptions = formatOptions.GetHeader(inneritemSchemaName);
@@ -6832,7 +6861,9 @@ list of translated languages
             ParentControlClass: self,
             onDrag: self.HeaderOnDragHandler,
             minWidth: _thisGlobals.MinCellWidth,
-            Subgrid: self.IsSubGrid
+            Subgrid: self.IsSubGrid,
+            liveDrag: true,
+            GridTitleWordWrap: self.activeOptions.GridTitleWordWrap
         });
 
         self.UpdateCrmField = function (toSave, refreshGrid) {
@@ -6871,6 +6902,7 @@ list of translated languages
                 } else if (field.InternalEditorType == DCrmEditableGrid.Editors.DatePicker) {
                     if (field.ValueToSave.length > 0) {
                         val = (_thisGlobals.UseWebApi) ? _thisHelpers.encodeDate(Date.parseDate(field.ValueToSave)) : Date.parseDate(field.ValueToSave);
+                        //console.log('field.ValueToSave ' + field.ValueToSave + ' val ' + val, Date.parseDate(field.ValueToSave));
                     }
                 } else if (field.InternalEditorType == DCrmEditableGrid.Editors.Checkbox) {
                     val = (_thisGlobals.UseWebApi) ? field.CheckAttribute : { value: field.CheckAttribute, type: "boolean" };
@@ -6945,7 +6977,9 @@ list of translated languages
                     if (field.ValueToSave.length > 0) {
                         tmp = Date.parseDate(field.ValueToSave, _thisGlobals.userDatetimeSettings.DateTimeFormat);
                     }
-                    val = (_thisGlobals.UseWebApi) ? _thisHelpers.encodeDate(tmp, true) : { value: tmp, type: "dateTime" };
+                    if (axis.isDate(tmp)) {
+                        val = (_thisGlobals.UseWebApi) ? _thisHelpers.encodeDate(tmp, true) : { value: tmp, type: "dateTime" };
+                    }
                 }
                 if (updateEntity) {
                     if (_thisGlobals.UseWebApi) {
@@ -7180,6 +7214,10 @@ list of translated languages
         if ((self.activeOptions.AggregateFields.length > 0) && (self.GridTfoot != null)) {
             self.ApplyInitialAggregates();
         }
+
+        if (self.activeOptions.ParentFormIsReadOnly) {
+            self.SetGridReadonly(true);
+        }
     }
 
     function openEntityRecord(enityLogicalName, guid) {
@@ -7328,43 +7366,47 @@ var colResizable = (function () {
         self.SIGNATURE = "JColResizer";
         self.FLEX = "JCLRFlex";
 
-
-        self.SetElemWidth = function ($el, width) {
-            // overflow tables need min & max width set as well
-            $el.css({
-                'width': width,
-                'min-width': width,
-                'max-width': width
-            });
-        };
-
-        self.GetElemWidth = function ($e1) {
-            return $e1.css('width');
-        };
-
-        //short-cuts
-        //self.I = parseInt;
-        //self.M = Math;
         self.IE = (/*@cc_on!@*/false || !!document.documentMode);
         self.options = $.extend(defaults, options);
         self.tmpMainTable = self.options.ParentControlClass.mainTable;
+
+        // Fix the following to use int rather than int+'px' NOT Consistant
+        self.SetElemWidth = function ($el, width) {
+            // overflow tables need min & max width set as well
+            var v = width + self.PX;
+            $el.css({
+                'width': v,
+                'min-width': v,
+                'max-width': v
+            });
+        };
+        self.GetElemWidth = function ($e1) {
+            var elemw = $e1.css('width');
+            if (elemw) {
+                return parseInt(elemw);
+            } else {
+                return $e1.width();
+            }
+        };
 
         var id = self.tmpMainTable.id = self.tmpMainTable.attr(self.ID) || self.SIGNATURE + _thisHelpers.GenerateRandomLetters(10);	//its id is obtained, if null new one is generated		
         self.tmpMainTable.p = self.options.postbackSafe; 							//short-cut to detect postback safe 		
         if (!self.tmpMainTable.is("table") && !self.options.partialRefresh) return; 		//if the object is not a table or if it was already processed then it is ignored.
         self.tmpMainTable.addClass(self.SIGNATURE).attr(self.ID, id).before('<div class="JCLRgrips"/>');	//the grips container object is added. Signature class forces table rendering in fixed-layout mode to prevent column's min-width
 
-        self.tmpMainTable.g = []; self.tmpMainTable.c = []; self.tmpMainTable.w = self.GetElemWidth(self.tmpMainTable); self.tmpMainTable.gc = self.tmpMainTable.prev(); self.tmpMainTable.f = self.options.fixed;	//self.tmpMainTable.c and self.tmpMainTable.g are arrays of columns and grips respectively				
+        self.tmpMainTable.g = []; self.tmpMainTable.c = []; self.tmpMainTable.w = self.tmpMainTable.width(); self.tmpMainTable.gc = self.tmpMainTable.prev(); self.tmpMainTable.f = self.options.fixed;	//self.tmpMainTable.c and self.tmpMainTable.g are arrays of columns and grips respectively				
         if (self.options.marginLeft) self.tmpMainTable.gc.css("marginLeft", self.options.marginLeft);  	//if the table contains margins, it must be specified
         if (self.options.marginRight) self.tmpMainTable.gc.css("marginRight", self.options.marginRight);  	//since there is no (direct) way to obtain margin values in its original units (%, em, ...)
 
-        self.tmpMainTable.cs = 0; // parseInt(self.IE ? self.tmpMainTable[0].cellSpacing || self.tmpMainTable[0].currentStyle.borderSpacing : self.tmpMainTable.css('border-spacing')) || 2;	//table cellspacing (not even jQuery is fully cross-browser)
-        self.tmpMainTable.b = 0; // parseInt(self.IE ? [0].border || self.tmpMainTable[0].currentStyle.borderLeftWidth : self.tmpMainTable.css('border-left-width')) || 1;	//outer border width (again cross-browser issues)
+        self.tmpMainTable.cs = 0;
+        self.tmpMainTable.b = 0;
 
         self.tfootRow = null;
         var footrow = self.tmpMainTable.find('tfoot tr');
         if ((footrow) && (footrow.length)) {
             self.tfootRow = footrow;
+        } else {
+            self.tfootRow = null;
         }
 
         /**
@@ -7372,8 +7414,6 @@ var colResizable = (function () {
          * @param {jQuery ref} t - table object
          */
         self.destroy = function () {
-            //var id = t.attr(self.ID), t = tables[id];		//its table object is found
-            //if (!t || !t.is("table")) return;			//if none, then it wasn't processed	 
             self.tmpMainTable.removeClass(self.SIGNATURE + " " + self.FLEX).gc.remove();	//class and grips are removed
         };
 
@@ -7398,7 +7438,6 @@ var colResizable = (function () {
                     g.addClass("JCLRLastGrip");
                     if (t.f) g.html("");
                 }
-
                 if (i > 0) {
                     g.bind('touchstart mousedown', self.onGripMouseDown); //bind the mousedown event to start dragging 
                 } else if ((i == 0) && (self.options.firstColumnResizable)) {
@@ -7406,10 +7445,8 @@ var colResizable = (function () {
                 } else {
                     g.html("");
                 }
-
                 g.t = t; g.i = i; g.c = c; 		//some values are stored in the grip's node data
-                c.w = self.GetElemWidth(c); 
-
+                c.w = self.GetElemWidth(c);
                 t.g.push(g); t.c.push(c);
                 self.SetElemWidth(c, c.w);
                 g.data(self.SIGNATURE, { i: i, t: t.attr(self.ID), last: i == t.ln - 1 });	 //grip index and its table name are stored in the HTML 												
@@ -7459,9 +7496,9 @@ var colResizable = (function () {
                 c2 = t.c[i];
             }
             //their new width is obtained
-            var w = parseInt(c.w) + inc; var w2 = parseInt(c2.w) - inc;	
-            self.SetElemWidth($(c), w + self.PX);
-
+            var w = c.w + inc; 
+            var w2 = c2.w - inc;
+            self.SetElemWidth($(c), w);
             var bodyfirstrow = self.tmpMainTable.find('tbody tr');
             if ((bodyfirstrow) && (bodyfirstrow.length)) {
                 for (var ii = 0; ii < bodyfirstrow.length; ii++) {
@@ -7470,20 +7507,18 @@ var colResizable = (function () {
                     var p = $row.parent().parent().parent();
                     // account for subgrid rows
                     if (options.Subgrid) {
-                        self.SetElemWidth($(row.cells[i]), w + self.PX);
+                        self.SetElemWidth($(row.cells[i]), w);
                     } else if (($row.attr('data-row-subgrid-id') == undefined) && (!p.hasClass('subgridparentdiv'))) {
-                        self.SetElemWidth($(row.cells[i]), w + self.PX);
+                        self.SetElemWidth($(row.cells[i]), w);
                     }
                 }
             }
-
             if (self.tfootRow) {
-                self.SetElemWidth($(self.tfootRow[0].cells[i]), w + self.PX);
+                self.SetElemWidth($(self.tfootRow[0].cells[i]), w);
             }
-
             if (isOver) {
-                c.w = w + self.PX;
-                c2.w = t.f ? w2 + self.PX : c2.w + self.PX;
+                c.w = w;
+                c2.w = t.f ? w2 : c2.w;
             }
         };
 
@@ -7495,16 +7530,32 @@ var colResizable = (function () {
         * @param {jQuery ref} t - table object	
         */
         self.applyBounds = function (t) {
-            var w = $.map(t.c, function (c) {			//obtain real widths
-                return self.GetElemWidth(c); // c.width();
-            });
-            self.SetElemWidth(t, self.GetElemWidth(t));
-            t.removeClass(self.FLEX);	//prevent table width changes
-            $.each(t.c, function (i, c) {
-                self.SetElemWidth(c, w[i]);
-                c.w = w[i];				//set column widths applying bounds (table's max-width)
-            });
-            t.addClass(self.FLEX);						//allow table width changes
+            //var w = $.map(t.c, function (c) {			//obtain real widths
+            //    return self.GetElemWidth(c); // c.width();
+            //});
+            ////t.removeClass(self.FLEX);	//prevent table width changes
+            //t.width(t.w = t.width()).removeClass(self.FLEX);
+            //$.each(t.c, function (i, c) {
+            //    self.SetElemWidth(c, w[i]);
+            //    c.w = w[i];				//set column widths applying bounds (table's max-width)
+            //});
+            if (self.options.GridTitleWordWrap) {
+                var thead = t.find('thead tr:first').find('th:first');
+                var thheight = thead.height();
+                if (thheight > 28) {
+                    var tb = t.find('tbody:first');
+                    if (tb && tb.length) {
+                        var tf = (self.tfootRow) ? 25 : 0;
+                        if (options.Subgrid) {
+                            thheight = t.parent().parent().height() - (45 + thheight + tf);
+                        } else {
+                            thheight = _thisGlobals.FrameHeight - (45 + thheight + tf);
+                        }
+                        tb.height(thheight);
+                    }
+                }
+            }
+            //t.addClass(self.FLEX);						//allow table width changes
         };
 
 
@@ -7524,7 +7575,7 @@ var colResizable = (function () {
             var min = i ? t.g[i - 1].position().left + t.cs + mw : l;	//min position according to the contiguous cells
             var max = t.f ? 	//fixed mode?
                 i == t.ln - 1 ?
-                    parseInt(t.w) - l :
+                    t.w - l :
                     t.g[i + 1].position().left - t.cs - mw :
                 Infinity;
             //max position according to the contiguous cells 
@@ -7533,12 +7584,12 @@ var colResizable = (function () {
             self.drag.x = x; self.drag.css("left", x); 	//apply position increment	
             if (last) {									//if it is the last grip
                 var c = t.c[self.drag.i];					//width of the last column is obtained
-                self.drag.w = parseInt(c.w) + x - self.drag.l;
+                self.drag.w = c.w + x - self.drag.l;
             }
             if (self.options.liveDrag) { 			//if liveDrag is enabled
                 if (last) {
-                    self.SetElemWidth(c, self.drag.w + self.PX);
-                    t.w = self.GetElemWidth(t); // t.width();
+                    self.SetElemWidth(c, self.drag.w);
+                    t.w = t.width();
 
                     self.syncCols(t, i);
                 } else {
@@ -7546,7 +7597,7 @@ var colResizable = (function () {
                 }
 
                 //if not fixed mode, then apply bounds to obtain real width values
-                if (!self.FLEX) self.applyBounds(t);
+                if (!t.f) self.applyBounds(t);
 
                 self.syncGrips(t);
                 var cb = self.options.onDrag;    //check if there is an onDrag callback
@@ -7570,7 +7621,7 @@ var colResizable = (function () {
             var last = i == t.ln - 1;         //check if it is the last column's grip (usually hidden)
             var c = t.g[i].c;               //the column being dragged
             if (last) {
-                self.SetElemWidth(c, self.drag.w + self.PX);
+                self.SetElemWidth(c, self.drag.w);
                 c.w = self.drag.w;
             } else {
                 self.syncCols(t, i, true);	//the columns are updated
@@ -7590,11 +7641,6 @@ var colResizable = (function () {
         self.onGripMouseDown = function (e) {
             var o = $(this).data(self.SIGNATURE);			//retrieve grip's data
             var t = self.tmpMainTable, g = t.g[o.i];			//shortcuts for the table and grip objects
-
-            //if ($(g).hasClass('JCLRLastGrip')) {
-            //    return false;
-            //}
-
             var oe = e.originalEvent.touches;           //touch or mouse event?
             g.ox = oe ? oe[0].pageX : e.pageX;            //the initial position is kept
             g.l = g.position().left;
@@ -7658,6 +7704,9 @@ function DisplayNewButtonMenu(self, $this) {
 
     var $row = $('<li><a href="#" class="contextMenuLink" id="newinline"><span class="itemTitle">Inline</span></a></li>').appendTo(menu);
     $row = $('<li><a href="#" class="contextMenuLink" id="newwindow"><span class="itemTitle">Window</span></a></li>').appendTo(menu);
+    if (self.activeOptions.IsQuickCreateEnabled) {
+        $row = $('<li><a href="#" class="contextMenuLink" id="quickcreate"><span class="itemTitle">Quick Create</span></a></li>').appendTo(menu);
+    }
 
     menu.find('a').click(function (e) {
         var id = $(this).attr('id');
@@ -7717,6 +7766,48 @@ You can’t set the values for partylist or regarding lookups.
             } catch (e) {
                 msg = e.message;
             }
+        } else if (id == 'quickcreate') {
+            if (window.parent.DCrmEgGridBeforeCreateNewRecord) {
+                var allow = window.parent.DCrmEgGridBeforeCreateNewRecord(null, self.activeOptions.ParentEntityInfo);
+                if (!allow) {
+                    $bg.remove();
+                    menu.remove();
+                    return false;
+                }
+            }
+            try {
+                var callback = function (obj) {
+                    console.log("Created new " + obj.savedEntityReference.entityType + " named '" + obj.savedEntityReference.name + "' with id:" + obj.savedEntityReference.id);
+                }
+                if (self.activeOptions.ParentChildLookupInfo.Related) {
+                    var param = {
+                        entityType: self.activeOptions.ParentChildLookupInfo.ParentSchemaName,
+                        id: self.activeOptions.ParentChildLookupInfo.Guid
+                    };
+                    window.parent.Xrm.Utility.openQuickCreate(self.activeOptions.ParentEntityInfo.ParentEntitySchemaname, param, null).then(callback, function (error) {
+                        console.log(error.message);
+                    });
+                } else {
+                    window.parent.Xrm.Utility.openQuickCreate(self.activeOptions.ParentEntityInfo.ParentEntitySchemaname, null, null).then(callback, function (error) {
+                        console.log(error.message);
+                    });
+                }
+            } catch (e) {
+                msg = e.message;
+            }
+            /*
+var thisAccount = {
+    entityType: "account",
+    id: Xrm.Page.data.entity.getId()
+};
+var callback = function (obj) {
+    console.log("Created new " + obj.savedEntityReference.entityType + " named '" + obj.savedEntityReference.name + "' with id:" + obj.savedEntityReference.id);
+}
+var setName = { name: "Child account of " + Xrm.Page.getAttribute("name").getValue() };
+Xrm.Utility.openQuickCreate("account", thisAccount, setName).then(callback, function (error) {
+    console.log(error.message);
+});
+             */
         }
 
         $bg.remove();
@@ -8053,12 +8144,8 @@ function CreateInlineRecord(self, excelCells, lastRec) {
             } else {
                 var $tmpCell = $('<td></td>').appendTo($cloneRow);
 
-                if ((!self.activeOptions.ParentFormIsReadOnly)
-                    && (self.activeOptions.UserCanDelete)
-                    && (self.activeOptions.AllowDelete)) {
-
+                if ((self.activeOptions.UserCanDelete) && (self.activeOptions.AllowDelete)) {
                     $tmpCell.addClass('firstColCheckbox');
-
                     // Select row checkbox
                     $chk = $("<input type='checkbox' />")
                         .attr(_thisGlobals.ToolTipAttrName, _thisGlobals.Translation_Labels.SelectRecord)
@@ -8084,6 +8171,11 @@ function CreateInlineRecord(self, excelCells, lastRec) {
                             }
                             e.stopPropagation();
                         }).appendTo($tmpCell);
+
+                    if (self.activeOptions.ParentFormIsReadOnly) {
+                        $chk.hide();
+                    }
+
                 } else {
                     $tmpCell.addClass('firstColNoCheckbox');
                 }
@@ -9524,7 +9616,8 @@ function CreateGridContainers(data, parentcontainer) {
     }
 
     // Auto Save
-    var $onoffdiv = $('<div class="switch"></div>').appendTo($gridToolbar);
+    containerIds.AutoSaveContainer = _thisHelpers.GenerateUUID();
+    var $onoffdiv = $('<div class="switch"></div>').attr('id', containerIds.AutoSaveContainer).appendTo($gridToolbar);
 
     containerIds.AutoSave = _thisHelpers.GenerateUUID();
     if (data.AutoSaveChanges) {
@@ -9539,9 +9632,6 @@ function CreateGridContainers(data, parentcontainer) {
             .appendTo($onoffdiv);
     }
 
-    if ((_thisGlobals.FormIsReadOnly) || (data.HideAutosaveButton)) {
-        $tmpBtn.hide();
-    }
     $tmpBtn = $('<label></label>')
         .attr('for', containerIds.AutoSave)
         .attr('data-on', _thisGlobals.Translation_Labels.AutoSaveOn)
@@ -9549,14 +9639,14 @@ function CreateGridContainers(data, parentcontainer) {
         .appendTo($onoffdiv);
 
     if ((_thisGlobals.FormIsReadOnly) || (data.HideAutosaveButton)) {
-        $tmpBtn.hide();
+        $onoffdiv.hide();
     }
 
     // Searchbox
     containerIds.SearchGridBox = _thisHelpers.GenerateUUID();
     $tmpBtn = $('<textarea rows=1>')
         .attr('id', containerIds.SearchGridBox)
-        .attr('placeholder', _thisGlobals.Translation_Labels.PasteFromExcel) //_thisGlobals.Translation_Labels.EnterTextToSearch)
+        .attr('placeholder', _thisGlobals.Translation_Labels.PasteFromExcel)
         .addClass('searchgridtextbox')
         .appendTo($pagercontainer);
 
@@ -9570,10 +9660,6 @@ function CreateGridContainers(data, parentcontainer) {
         .addClass('pager')
         .attr('id', containerIds.Pager)
         .appendTo($pagercontainer);
-
-    if (_thisGlobals.FormIsReadOnly) {
-        $pager.addClass('pagerDisabled');
-    }
 
     containerIds.PagerButtonFirst = _thisHelpers.GenerateUUID();
     containerIds.PagerButtonPrev = _thisHelpers.GenerateUUID();
@@ -9617,8 +9703,6 @@ function InitializeSetupRoutines() {
     // In non-IE browsers, you use contentWindow.document or simply contentDocument
     _thisGlobals.FrameWidth = $(window).width();
     _thisGlobals.FrameHeight = $(window).height();
-
-    xrmPage = window.parent.Xrm.Page;
 
     if (_thisGlobals.xrmPage.ui) {
         _thisGlobals.ParentFieldsFormType = _thisGlobals.xrmPage.ui.getFormType();
@@ -11724,6 +11808,7 @@ function CreateAndPopulateGrid(data, parentcontainer, relationshipparentEntityGu
         FirstField: undefined,
         SecondField: undefined
     };
+
     if ((data.SortOrder) && (data.SortOrder != 'undefined')) {
         var sorts = data.SortOrder.split(";");
 
@@ -11795,7 +11880,7 @@ function CreateAndPopulateGrid(data, parentcontainer, relationshipparentEntityGu
     var table = $('#' + ContainerIds.Table)[0];
     var firstColClass = 'firstColCheckbox';
 
-    if ((!_thisGlobals.FormIsReadOnly) && ((data.AllowDelete) || (data.DisplayCloneRecordButton))) {
+    if (((data.AllowDelete) || (data.DisplayCloneRecordButton))) {
         var $chk = $("<input type='checkbox' />")
             .attr(_thisGlobals.ToolTipAttrName, _thisGlobals.Translation_Labels.SelectAllRecords)
             .on('click', function (e) {
@@ -11808,6 +11893,9 @@ function CreateAndPopulateGrid(data, parentcontainer, relationshipparentEntityGu
             });
         var $chkHeader = $("<th></th>").addClass(firstColClass).append($chk);
         $chkHeader.appendTo($tr);
+        if (_thisGlobals.FormIsReadOnly) {
+            $chk.hide();
+        }
     } else {
         firstColClass = 'firstColNoCheckbox';
         var $chkHeader = $("<th></th>").addClass(firstColClass);
@@ -12145,6 +12233,17 @@ function CreateAndPopulateGrid(data, parentcontainer, relationshipparentEntityGu
             Precision: PrecisionData,
             RealWidth: item.RealWidth
         });
+    }
+
+    if (data.GridTitleWordWrap) {
+        var thheight = $tr.find('th:first').height();
+        if (thheight > 28) {
+            var tb = $tr.parent().parent().find('tbody:first');
+            if (tb && tb.length) {
+                thheight -= 30;                
+                tb.height(tb.height() - thheight);
+            }
+        }
     }
 
     // var remaining = parentcontainer.innerWidth() - totalColWidths - 30;
@@ -12611,6 +12710,7 @@ var GridLoaderHelper = (function () {
         self.Grid = undefined;
         self.PrimaryIdAttribute = null;
         self.PrimaryNameAttribute = null;
+        self.IsQuickCreateEnabled = null;
         self.LogicalCollectionName = null;
         self.OriginalSchemaname = null;
         self.DataLoadErrorMessage = "Unable to load the grid data due to exceptions:\r\n";
@@ -12921,6 +13021,8 @@ var GridLoaderHelper = (function () {
                     AutoRefreshDelay: self.data.AutoRefreshDelay,
                     SubgridTbodyHeight: self.data.SubgridTbodyHeight,
                     AllowBlankRequiredInlineCreate: self.data.AllowBlankRequiredInlineCreate,
+                    IsQuickCreateEnabled: self.IsQuickCreateEnabled,
+                    GridTitleWordWrap: self.data.GridTitleWordWrap,
 
                     HasChildGrids: (self.data.ChildConfigurations.length > 0) ? true : false,
                     Country: _thisGlobals.DefaultCountry,
@@ -12967,6 +13069,8 @@ var GridLoaderHelper = (function () {
                     HaveNumericFields: self.NumericFields,
                     AutoSaveChanges: self.data.AutoSaveChanges,
                     AllowDelete: self.data.AllowDelete,
+                    AllowCreateNew: self.data.AllowCreateNew,
+                    HideAutosaveButton: self.data.HideAutosaveButton,
                     DistinctValues: self.data.DistinctValues,
                     RefreshAfterCreate: self.data.RefreshAfterCreate,
                     RefreshAfterSave: self.data.RefreshAfterSave,
@@ -13027,6 +13131,7 @@ var GridLoaderHelper = (function () {
             if (entityMetaData && entityMetaData.length === 1) {
                 self.PrimaryIdAttribute = entityMetaData[0].PrimaryIdAttribute;
                 self.PrimaryNameAttribute = entityMetaData[0].PrimaryNameAttribute;
+                self.IsQuickCreateEnabled = entityMetaData[0].IsQuickCreateEnabled;
             }
             self.GetEntityCount();
         }
@@ -13081,6 +13186,7 @@ var GridLoaderHelper = (function () {
                     self.PrimaryNameAttribute = result[0].PrimaryNameAttribute;
                     self.LogicalCollectionName = result[0].LogicalCollectionName;
                     self.OriginalSchemaname = result[0].SchemaName;
+                    self.IsQuickCreateEnabled = result[0].IsQuickCreateEnabled;
 
                     var schName = '';
                     var lbl = '';
@@ -13589,6 +13695,23 @@ var DCrmEgGrid = (function (DCrmEgGrid) {
 
         if (theGrid) {
             theGrid.RefreshGridRows(true);
+        }
+    }
+    DCrmEgGrid.DisableGrid = function (gridIdentifier, schemaname, disable) {
+        var theGrid = null;
+        _thisGlobals.FormIsReadOnly = disable;
+        if (IsNullOrUndefinedOrNoLength(gridIdentifier)) {
+            // use the first config
+            theGrid = _thisGlobals.DCrmEGConfiguration[0].FindGridBySchemaname(schemaname);
+        } else {
+            var config = FindDCrmEGConfigurationByGridIdentifier(gridIdentifier);
+            if (config) {
+                theGrid = config.FindGridBySchemaname(schemaname);
+            }
+        }
+
+        if (theGrid) {
+            theGrid.SetGridReadonly(disable);
         }
     }
 

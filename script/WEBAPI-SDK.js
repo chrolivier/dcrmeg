@@ -1435,7 +1435,7 @@ OData-Version: 4.0
         // TODO
         // Add PartyList AttributeType eq Microsoft.Dynamics.CRM.AttributeTypeCode'PartyList'
 
-        var url = getWebAPIPath() + "EntityDefinitions?$select=LogicalName,SchemaName,PrimaryIdAttribute,PrimaryNameAttribute,LogicalCollectionName,ObjectTypeCode,DisplayName"
+        var url = getWebAPIPath() + "EntityDefinitions?$select=LogicalName,SchemaName,PrimaryIdAttribute,PrimaryNameAttribute,LogicalCollectionName,ObjectTypeCode,DisplayName,IsQuickCreateEnabled"
             + "&$filter=LogicalCollectionName eq '" + entitySetName + "'&$expand=Attributes"
             + "($filter=(AttributeType eq Microsoft.Dynamics.CRM.AttributeTypeCode'Picklist' or"
             + " AttributeType eq Microsoft.Dynamics.CRM.AttributeTypeCode'String' or"
@@ -2116,13 +2116,26 @@ OData-Version: 4.0
         if (!isFunctionOrNull(errorCallback)) {
             throw new Error("SdkWebAPI.getEntityList errorCallback parameter must be a function or null.");
         }
-
+        try {
+            var v = window.parent["APPLICATION_FULL_VERSION"] + '';
+            if (!isNullOrUndefined(v)) {
+                if (v.indexOf('.') != -1) {
+                    var arr = v.split('.');
+                    if (parseInt(arr[0]) >= 8) {
+                        SDKWEBAPI_VERSION_USERD = arr[0] + '.' + arr[1];
+                        successCallback(v);
+                    } else {
+                        errorCallback(new Error('CRM Version ' + v + ' does not support WebAPI. Using SOAP library.'));
+                    }
+                    return;
+                }
+            }
+        } catch (e) {
+        }
         SdkWebAPI.invokeUnboundFunction("RetrieveVersion", null,
             function VersionFunctionSuccess(VersionResponse) {
                 try {
                     var arr = VersionResponse.Version.split('.');
-                    //console.log("version number " + VersionResponse.Version);
-                    //console.log(arr);
                     SDKWEBAPI_VERSION_USERD = arr[0] + '.' + arr[1];
                 } catch (e) {
                     console.error(e.message);
