@@ -20,6 +20,7 @@ Disable or enable grid.
 	{ Headers: [], Rows: [], GridEditorTypes: DCrmEditableGrid.Editors };
 
 Headers: Array of header objects
+
 	{
 		EditorType: Numeric value corresponding to one of GridEditorTypes
 		FieldLogicalName: Field logical name
@@ -27,6 +28,7 @@ Headers: Array of header objects
 	}
 
 Rows: Array of grid row objects
+
 	{
 		RecordGuid: Record Guid
 		RowIndex: Row index
@@ -34,6 +36,7 @@ Rows: Array of grid row objects
 	}
 
 Cells: Array of cell objects. null value indicates an empty cell (no data)
+
 	{
 		FormattedValue: formatted value. The value that is displayed
 		Value: for lookups, the Value is a JSON object. All other types, Value will have a single value. Example:
@@ -49,6 +52,7 @@ Cells: Array of cell objects. null value indicates an empty cell (no data)
 	}
 
 GridEditorTypes: Helper enum
+
 	{
 		"Text": 0,
 		"Numeric": 1,
