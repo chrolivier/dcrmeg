@@ -8018,7 +8018,10 @@ function CloneRecord(self, rowToBeCloned, lastone) {
                             // parentcustomerid_account or parentcustomerid_contact
                             if ((ln) && (gu)) {
                                 if (_thisGlobals.UseWebApi) {
-                                    var navProp = self.GridEditors[i].LookupData.AssociatedNavigationProperty;
+                                    var navProp = null;
+                                    if (self.GridEditors[i]) {
+                                        navProp = self.GridEditors[i].LookupData.AssociatedNavigationProperty;
+                                    }
 
                                     if (axis.isUndefined(navProp) || axis.isNull(navProp)) {
                                         navProp = SdkWebAPI.GetAttributeSchemaName(recSchema, schema);
